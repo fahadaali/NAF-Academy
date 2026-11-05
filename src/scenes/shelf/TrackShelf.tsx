@@ -4,9 +4,11 @@
 import { useEffect, useRef } from 'react'
 import type { Track } from '@/content/types'
 import { Words } from '@/components/Words'
+import { Picture } from '@/components/Picture'
+import type { SectionHead } from '@/content/home-defaults'
 import styles from './TrackShelf.module.css'
 
-export function TrackShelf({ tracks }: { tracks: Track[] }) {
+export function TrackShelf({ tracks, head }: { tracks: Track[]; head: SectionHead }) {
   const rail = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -72,8 +74,8 @@ export function TrackShelf({ tracks }: { tracks: Track[] }) {
     <section id="tracks" className={styles.shelf} aria-labelledby="tracks-title">
       <div className={`wrap ${styles.head}`}>
         <div>
-          <span className="eyebrow">ستة مسارات</span>
-          <Words as="h2" id="tracks-title" text="اختر مس~3ارك، وابدأ من درجتك." className="scene-title" />
+          <span className="eyebrow">{head.eyebrow}</span>
+          <Words as="h2" id="tracks-title" text={head.title} className="scene-title" />
         </div>
         <div className={styles.arrows}>
           <button onClick={() => nudge(1)} aria-label="السابق">
@@ -91,12 +93,13 @@ export function TrackShelf({ tracks }: { tracks: Track[] }) {
             <li key={t.slug} className={`reveal ${styles.item}`} style={{ ['--d' as string]: i }}>
               <a href={`/tracks/${t.slug}`} data-card className={styles.card} data-tone={t.tone} draggable={false}>
                 <span className={styles.spine} aria-hidden="true" />
-                <span className={styles.face}>
+                {t.cover && <span className={styles.photo} aria-hidden="true"><Picture media={t.cover} /></span>}
+                <span className={styles.face} data-photo={t.cover ? '1' : '0'}>
                   <span className={styles.top}>
                     <span className={styles.kicker}>{t.kicker}</span>
                     <span className={`${styles.count} num`}>{t.courseCount} دورات</span>
                   </span>
-                  <span className={styles.glyph} aria-hidden="true">{t.glyph}</span>
+                  <span className={styles.glyph} aria-hidden="true">{t.cover ? '' : t.glyph}</span>
                   <span className={styles.bottom}>
                     <strong className={styles.name}>{t.title}</strong>
                     <span className={styles.sum}>{t.summary}</span>

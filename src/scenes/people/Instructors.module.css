@@ -37,3 +37,5 @@
 .role { color: var(--accent); font-weight: 600; font-size: 15px; }
 .hl { display: grid; gap: 4px; margin-block-start: 10px; font-size: 14px; color: var(--text-soft); }
 .hl li::before { content: '— '; color: var(--gold-3); }
+.photo { position: absolute; inset: 0; transition: transform calc(var(--t-gentle) * 3) var(--ease-glide); }
+.card:hover .photo { transform: scale(1.05); }

@@ -2,12 +2,12 @@ import { Wordmark } from './Emblem'
 import { Words } from './Words'
 import styles from './Footer.module.css'
 
-export function Footer() {
+export function Footer({ title = 'الدرجة الأولى أقرب مما تظ~4ن.', cta = 'ابدأ الآن' }: { title?: string; cta?: string }) {
   return (
     <footer data-surface="night" className={styles.footer}>
       <div className={`wrap ${styles.cta}`}>
-        <Words as="p" text="الدرجة الأولى أقرب مما تظ~4ن." className={styles.big} />
-        <a href="#courses" className="btn reveal" style={{ ['--d' as string]: 1 }}>ابدأ الآن</a>
+        <Words as="p" text={title} className={styles.big} />
+        <a href="/courses" className="btn reveal" style={{ ['--d' as string]: 1 }}>{cta}</a>
       </div>
       <div className={`wrap ${styles.bottom}`}>
         <Wordmark className={styles.mark} />

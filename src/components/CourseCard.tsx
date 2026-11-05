@@ -3,6 +3,7 @@ import type { Course, Instructor, Track } from '@/content/types'
 import { levelLabel, modeLabel, statusView } from '@/lib/course-meta'
 import { formatDay, formatHijri, formatTime, formatWeekday } from '@/lib/dates'
 import { PriceTag } from './PriceTag'
+import { Picture } from './Picture'
 import styles from './CourseCard.module.css'
 
 type Props = { course: Course; track?: Track; instructor?: Instructor }
@@ -15,7 +16,7 @@ export function CourseCard({ course: c, track, instructor }: Props) {
   return (
     <article className={styles.card} data-status={st.tone} data-dim={st.dim ? '1' : '0'}>
       <a href={`/courses/${c.slug}`} className={styles.cover} data-tone={track?.tone ?? 'gold'} aria-label={c.title}>
-        <span className={styles.glyph} aria-hidden="true">{track?.glyph}</span>
+        {c.cover ? <span className={styles.photo} aria-hidden="true"><Picture media={c.cover} /></span> : <span className={styles.glyph} aria-hidden="true">{track?.glyph}</span>}
         <span className={styles.chips}>
           <span className={styles.chip}>{modeLabel[c.mode]}</span>
           <span className={styles.chip}>{levelLabel[c.level]}</span>

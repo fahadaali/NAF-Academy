@@ -39,3 +39,22 @@ test('تنسيق المبلغ', () => {
   assert.equal(formatAmount(249000), '2,490')
   assert.equal(formatAmount(12550), '125.50')
 })
+
+import { publicOrder, resolveStatus } from '../src/lib/course-meta'
+
+test('المجدولة تُفتح عند موعدها فقط', () => {
+  assert.equal(resolveStatus('scheduled', '2026-11-01T00:00:00Z', now), 'open')
+  assert.equal(resolveStatus('scheduled', '2026-12-01T00:00:00Z', now), 'scheduled')
+  assert.equal(resolveStatus('scheduled', null, now), 'scheduled')
+  assert.equal(resolveStatus('closed', null, now), 'closed')
+})
+
+test('ترتيب العرض: المفتوح الأقرب أولاً والمنتهي آخراً', () => {
+  const list = [
+    { status: 'closed' as const, startsAt: '2026-10-01' },
+    { status: 'open' as const, startsAt: '2026-12-20' },
+    { status: 'open' as const, startsAt: '2026-12-01' },
+    { status: 'full' as const, startsAt: '2026-11-20' },
+  ].sort(publicOrder)
+  assert.deepEqual(list.map((c) => c.startsAt), ['2026-12-01', '2026-12-20', '2026-11-20', '2026-10-01'])
+})

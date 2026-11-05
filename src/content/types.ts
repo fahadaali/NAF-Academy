@@ -22,8 +22,12 @@ export type Pricing = {
   free?: boolean
 }
 
+export type MediaView = { url: string; alt: string; x: number; y: number; w: number; h: number }
+
 export type Track = {
   slug: string
+  description?: string
+  cover?: MediaView
   title: string
   kicker: string
   summary: string
@@ -36,6 +40,10 @@ export type Track = {
 export type Course = {
   slug: string
   title: string
+  subtitle?: string
+  cover?: MediaView
+  /** كل المدربين بالترتيب — instructor هو الأول */
+  instructors?: string[]
   track: string
   level: Level
   mode: DeliveryMode
@@ -55,6 +63,9 @@ export type Instructor = {
   highlights: string[]
   display: 'full' | 'compact' | 'hidden'
   featured?: boolean
+  bio?: string
+  photo?: MediaView
+  links?: { label: string; url: string }[]
 }
 
 export type Stat = { value: number; suffix?: string; label: string }

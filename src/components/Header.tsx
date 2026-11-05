@@ -44,7 +44,7 @@ export function Header({ nav }: { nav: Item[] }) {
       },
     })
 
-    const ids = nav.map((n) => n.href.slice(1))
+    const ids = nav.map((n) => n.href.split('#')[1]).filter(Boolean)
     const io = new IntersectionObserver(
       (entries) => entries.forEach((e) => e.isIntersecting && setActive(e.target.id)),
       { rootMargin: '-45% 0px -50% 0px' },
@@ -70,7 +70,7 @@ export function Header({ nav }: { nav: Item[] }) {
           <ol role="list">
             {nav.map((n, i) => (
               <li key={n.href}>
-                <a href={n.href} aria-current={active === n.href.slice(1) ? 'true' : undefined} onClick={() => setOpen(false)}>
+                <a href={n.href} aria-current={active && active === n.href.split('#')[1] ? 'true' : undefined} onClick={() => setOpen(false)}>
                   <span className={`${styles.idx} num`}>{String(i + 1).padStart(2, '0')}</span>
                   {n.label}
                 </a>
@@ -96,7 +96,7 @@ export function Header({ nav }: { nav: Item[] }) {
             </svg>
           </button>
           <a href="/login" className={styles.login}>دخول</a>
-          <a href="#courses" className={`btn ${styles.cta}`}>سجّل الآن</a>
+          <a href="/courses" className={`btn ${styles.cta}`}>سجّل الآن</a>
           <button className={styles.burger} aria-label="القائمة" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
             <span /><span />
           </button>

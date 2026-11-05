@@ -150,9 +150,9 @@ export const corporate = {
 }
 
 export const nav = [
-  { href: '#ladder', label: 'سُلّم الكفاءة' },
-  { href: '#tracks', label: 'المسارات' },
-  { href: '#courses', label: 'الدورات' },
-  { href: '#instructors', label: 'المدربون' },
-  { href: '#corporate', label: 'للمؤسسات' },
+  { href: '/#ladder', label: 'سُلّم الكفاءة' },
+  { href: '/#tracks', label: 'المسارات' },
+  { href: '/#courses', label: 'الدورات' },
+  { href: '/#instructors', label: 'المدربون' },
+  { href: '/#corporate', label: 'للمؤسسات' },
 ]

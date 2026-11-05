@@ -1,0 +1,20 @@
+/* تحويلات نموذج الدورة — تُستدعى من الخادم والمحرّر معاً */
+import type { CourseRow } from '@/server/db/schema'
+import type { CourseInput } from '@/admin/schemas'
+
+type Curriculum = CourseInput['curriculum']
+
+export function blankCourse(): CourseInput {
+  return {
+    slug: '', title: '', subtitle: '', trackId: null, level: 'practitioner', mode: 'live', status: 'draft',
+    publishAt: null, startsAt: null, endsAt: null, hours: 0, seatsTotal: null, seatsTaken: 0, city: '', venue: '', venueMapUrl: '',
+    coverId: null, price: 0, compareAt: null, saleEndsAt: null, free: false, description: '', outcomes: [], audience: [],
+    requirements: [], faq: [], featured: false, seoTitle: '', seoDescription: '', instructorIds: [], curriculum: [],
+  }
+}
+
+export function fromRow(c: CourseRow, instructorIds: string[], curriculum: Curriculum): CourseInput {
+  const { id: _id, previewToken: _p, sortOrder: _s, createdAt: _c, updatedAt: _u, deletedAt: _d, ...rest } = c
+  return { ...rest, instructorIds, curriculum }
+}
+

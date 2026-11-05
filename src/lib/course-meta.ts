@@ -24,3 +24,19 @@ export const statusView: Partial<Record<CourseStatus, StatusView>> = {
 
 /** الدورات التي تظهر للعموم */
 export const isPublic = (s: CourseStatus) => s === 'open' || s === 'soon' || s === 'full' || s === 'closed'
+
+/** الحالة الفعلية الآن: «مجدولة» تصير «مفتوحة» عند موعد نشرها، وقبله لا تظهر */
+export function resolveStatus(status: CourseStatus, publishAt: string | null | undefined, now = new Date()): CourseStatus {
+  if (status === 'scheduled') return publishAt && new Date(publishAt).getTime() <= now.getTime() ? 'open' : 'scheduled'
+  return status
+}
+
+/** ترتيب العرض: المفتوحة والقادمة بالأقرب موعداً، ثم المكتملة، ثم المنتهية */
+const rank: Partial<Record<CourseStatus, number>> = { open: 0, soon: 1, full: 2, closed: 3 }
+export function publicOrder<T extends { status: CourseStatus; startsAt?: string | null }>(a: T, b: T): number {
+  const r = (rank[a.status] ?? 9) - (rank[b.status] ?? 9)
+  if (r) return r
+  const ta = a.startsAt ? Date.parse(a.startsAt) : Infinity
+  const tb = b.startsAt ? Date.parse(b.startsAt) : Infinity
+  return ta - tb
+}

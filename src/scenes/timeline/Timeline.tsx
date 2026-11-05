@@ -5,9 +5,10 @@ import { useEffect, useRef, type ReactNode } from 'react'
 import { Words } from '@/components/Words'
 import { pinProgress, subscribe } from '@/motion/scroll-bus'
 import { prefersCalm } from '@/motion/tokens'
+import type { SectionHead } from '@/content/home-defaults'
 import styles from './Timeline.module.css'
 
-export function Timeline({ children, count }: { children: ReactNode; count: number }) {
+export function Timeline({ children, count, head }: { children: ReactNode; count: number; head: SectionHead }) {
   const sec = useRef<HTMLElement>(null)
   const track = useRef<HTMLDivElement>(null)
 
@@ -41,8 +42,8 @@ export function Timeline({ children, count }: { children: ReactNode; count: numb
     <section ref={sec} id="courses" className={styles.timeline} aria-labelledby="courses-title">
       <div className={styles.stage}>
         <div className={`wrap ${styles.head}`}>
-          <span className="eyebrow">الدورات القادمة</span>
-          <Words as="h2" id="courses-title" text="مقاعد مح~3دودة، ومواعيد قريبة." className="scene-title" />
+          <span className="eyebrow">{head.eyebrow}</span>
+          <Words as="h2" id="courses-title" text={head.title} className="scene-title" />
           <a href="/courses" className={styles.all}>كل الدورات <span className="num">({count})</span></a>
         </div>
         <div className={styles.rail}>

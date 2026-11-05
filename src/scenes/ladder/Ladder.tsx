@@ -8,7 +8,7 @@ import { pinProgress, subscribe } from '@/motion/scroll-bus'
 import { prefersCalm } from '@/motion/tokens'
 import styles from './Ladder.module.css'
 
-export function Ladder({ title, steps }: { title: string; steps: LadderStep[] }) {
+export function Ladder({ title, steps, eyebrow = '' }: { title: string; steps: LadderStep[]; eyebrow?: string }) {
   const ref = useRef<HTMLElement>(null)
   const [step, setStep] = useState(0)
 
@@ -36,7 +36,7 @@ export function Ladder({ title, steps }: { title: string; steps: LadderStep[] })
       <div className={styles.stage}>
         <div className={`wrap ${styles.grid}`}>
           <div className={styles.side}>
-            <span className="eyebrow">ثلاث درجات</span>
+            {eyebrow && <span className="eyebrow">{eyebrow}</span>}
             <Words as="h2" id="ladder-title" text={title} className={`scene-title ${styles.title}`} />
             <svg viewBox="-10 20 320 240" className={styles.svg} aria-hidden="true">
               <path d={path} className={styles.track} />

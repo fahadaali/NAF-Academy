@@ -4,9 +4,9 @@ import { useState } from 'react'
 import { Words } from '@/components/Words'
 import styles from './Corporate.module.css'
 
-type Props = { title: string; body: string; sizes: string[]; interests: string[] }
+type Props = { title: string; body: string; sizes: string[]; interests: string[]; eyebrow?: string }
 
-export function Corporate({ title, body, sizes, interests }: Props) {
+export function Corporate({ title, body, sizes, interests, eyebrow = '' }: Props) {
   const [size, setSize] = useState<string>('')
   const [picked, setPicked] = useState<string[]>([])
   const [sent, setSent] = useState(false)
@@ -17,7 +17,7 @@ export function Corporate({ title, body, sizes, interests }: Props) {
     <section id="corporate" className={styles.corp} aria-labelledby="corp-title">
       <div className={`wrap ${styles.grid}`}>
         <div className={styles.intro}>
-          <span className="eyebrow">للمؤسسات</span>
+          {eyebrow && <span className="eyebrow">{eyebrow}</span>}
           <Words as="h2" id="corp-title" text={title} className="scene-title" />
           <p className={`statement reveal ${styles.body}`}>{body}</p>
           <ol role="list" className={styles.steps} aria-hidden="true">

@@ -1,0 +1,53 @@
+import 'server-only'
+/* قراءات اللوحة — تشمل المسودات، ولا تُستدعى إلا بعد requireAdmin. */
+import { asc, desc, eq, isNotNull, isNull } from 'drizzle-orm'
+import { db, schema as s } from '@/server/db'
+import { requireAdmin } from '@/server/auth'
+
+export async function adminLists() {
+  await requireAdmin()
+  const [courses, tracks, instructors, media, links] = await Promise.all([
+    db.select().from(s.courses).where(isNull(s.courses.deletedAt)).orderBy(asc(s.courses.sortOrder)),
+    db.select().from(s.tracks).where(isNull(s.tracks.deletedAt)).orderBy(asc(s.tracks.sortOrder)),
+    db.select().from(s.instructors).where(isNull(s.instructors.deletedAt)).orderBy(asc(s.instructors.sortOrder)),
+    db.select().from(s.media).where(isNull(s.media.deletedAt)).orderBy(desc(s.media.createdAt)),
+    db.select().from(s.courseInstructors),
+  ])
+  return { courses, tracks, instructors, media, links }
+}
+
+export async function courseForEdit(id: string) {
+  await requireAdmin()
+  const [course] = await db.select().from(s.courses).where(eq(s.courses.id, id))
+  if (!course) return null
+  const mods = await db.select().from(s.modules).where(eq(s.modules.courseId, id)).orderBy(asc(s.modules.sortOrder))
+  const lessons = await db.select().from(s.lessons).orderBy(asc(s.lessons.sortOrder))
+  const links = await db.select().from(s.courseInstructors).where(eq(s.courseInstructors.courseId, id)).orderBy(asc(s.courseInstructors.sortOrder))
+  return {
+    course,
+    instructorIds: links.map((l) => l.instructorId),
+    curriculum: mods.map((m) => ({ id: m.id, title: m.title, lessons: lessons.filter((l) => l.moduleId === m.id).map(({ id, title, type, minutes, preview }) => ({ id, title, type, minutes, preview })) })),
+  }
+}
+
+export async function trashed() {
+  await requireAdmin()
+  const [courses, tracks, instructors, media] = await Promise.all([
+    db.select({ id: s.courses.id, name: s.courses.title, at: s.courses.deletedAt }).from(s.courses).where(isNotNull(s.courses.deletedAt)),
+    db.select({ id: s.tracks.id, name: s.tracks.title, at: s.tracks.deletedAt }).from(s.tracks).where(isNotNull(s.tracks.deletedAt)),
+    db.select({ id: s.instructors.id, name: s.instructors.name, at: s.instructors.deletedAt }).from(s.instructors).where(isNotNull(s.instructors.deletedAt)),
+    db.select({ id: s.media.id, name: s.media.alt, at: s.media.deletedAt }).from(s.media).where(isNotNull(s.media.deletedAt)),
+  ])
+  return [
+    ...courses.map((x) => ({ ...x, entity: 'course' as const, label: 'دورة' })),
+    ...tracks.map((x) => ({ ...x, entity: 'track' as const, label: 'مسار' })),
+    ...instructors.map((x) => ({ ...x, entity: 'instructor' as const, label: 'مدرب' })),
+    ...media.map((x) => ({ ...x, entity: 'media' as const, label: 'صورة' })),
+  ].sort((a, b) => String(b.at).localeCompare(String(a.at)))
+}
+
+export async function auditEntries(limit = 200) {
+  await requireAdmin()
+  return db.select({ id: s.auditLog.id, actor: s.auditLog.actor, action: s.auditLog.action, entity: s.auditLog.entity, summary: s.auditLog.summary, at: s.auditLog.at })
+    .from(s.auditLog).orderBy(desc(s.auditLog.id)).limit(limit)
+}

@@ -1,0 +1,9 @@
+.page { min-block-size: 100svh; display: grid; place-items: center; padding: 24px; background: radial-gradient(60% 60% at 50% 40%, var(--night-2), var(--night-0)); }
+.card { inline-size: min(100%, 400px); display: grid; gap: 14px; padding: 36px 30px; border-radius: var(--radius-l); background: var(--surface); box-shadow: var(--shadow-2); border: 1px solid var(--line); }
+.mark { color: var(--gold-3); justify-self: center; }
+.title { font-family: var(--font-display); font-size: 30px; text-align: center; }
+.sub { color: var(--muted); text-align: center; font-size: 15px; margin-block-end: 6px; }
+.field { display: grid; gap: 6px; font-size: 14px; color: var(--muted); }
+.field input { min-block-size: 50px; padding-inline: 14px; border-radius: var(--radius-m); border: 1px solid var(--line-strong); background: var(--bg); font-size: 16px; color: var(--text); }
+.field input:focus { outline: none; border-color: var(--gold-3); box-shadow: 0 0 0 4px rgb(201 162 90 / 0.18); }
+.error { color: var(--danger); font-size: 14px; font-weight: 600; }

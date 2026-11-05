@@ -1,0 +1,49 @@
+'use client'
+/* قائمة قابلة للترتيب بالسحب — للمسارات والمدربين. الترتيب يُحفظ فوراً ويظهر في الموقع. */
+import { useState, useTransition } from 'react'
+import Link from 'next/link'
+import { reorder, trash, type Entity } from '@/admin/actions'
+import { Badge, RowTools, useSortable } from './kit'
+import p from './panel.module.css'
+
+export type BoardItem = { id: string; title: string; sub: string; href: string; thumb?: string; glyph?: string; badge?: { tone: string; text: string } }
+
+export function SortBoard({ items, entity }: { items: BoardItem[]; entity: Extract<Entity, 'track' | 'instructor'> }) {
+  const [list, setList] = useState(items)
+  const [, start] = useTransition()
+  const { props, move } = useSortable(list, (next) => { setList(next); start(() => reorder(entity, next.map((x) => x.id))) })
+  if (!list.length) return <div className={p.empty}>لا عناصر بعد.</div>
+  return (
+    <table className={p.table}>
+      <tbody>
+        {list.map((it, i) => (
+          <tr key={it.id} {...props(i)}>
+            <td>
+              <div className={p.cellRow}>
+                <span className={p.thumb}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  {it.thumb ? <img src={it.thumb} alt="" style={{ inlineSize: '100%', blockSize: '100%', objectFit: 'cover' }} /> : it.glyph}
+                </span>
+                <div>
+                  <Link href={it.href} className={p.rowLink}>{it.title}</Link>
+                  <div className={p.muted}>{it.sub}</div>
+                </div>
+              </div>
+            </td>
+            <td>{it.badge && <Badge tone={it.badge.tone}>{it.badge.text}</Badge>}</td>
+            <td style={{ inlineSize: 1 }}>
+              <div className={p.cellRow} style={{ gap: 4 }}>
+                <Link className={p.iconBtn} href={it.href}>تحرير</Link>
+                <RowTools i={i} n={list.length} move={move} onRemove={() => {
+                  if (!confirm(`نقل «${it.title}» إلى المحذوفات؟`)) return
+                  setList((l) => l.filter((x) => x.id !== it.id))
+                  start(() => trash(entity, it.id))
+                }} />
+              </div>
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  )
+}

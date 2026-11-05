@@ -54,7 +54,7 @@
   .btn {
     --b-bg: var(--gold-3); --b-fg: var(--night-1);
     position: relative; isolation: isolate; overflow: hidden;
-    display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+    display: inline-flex; align-items: center; justify-content: center; gap: 10px; white-space: nowrap;
     min-block-size: var(--touch-min); padding-inline: 26px; border-radius: 999px;
     background: var(--b-bg); color: var(--b-fg); font-weight: 700; font-size: 16px;
     transition: transform var(--t-base) var(--ease-glide), box-shadow var(--t-base) var(--ease-glide), background var(--t-base);
@@ -113,4 +113,11 @@
 
 @layer base {
   .riyal { font-family: 'Riyal', var(--font); font-weight: inherit; font-size: 0.9em; line-height: 1; display: inline-block; transform: translateY(0.04em); }
+}
+
+@layer base {
+  .prose { display: grid; gap: 14px; font-size: 17px; line-height: 1.9; color: var(--text-soft); }
+  .prose h3 { font-family: var(--font-display); font-size: 24px; color: var(--text); margin-block-start: 10px; }
+  .prose ul { display: grid; gap: 6px; padding-inline-start: 22px; }
+  .prose li::marker { color: var(--gold-3); }
 }

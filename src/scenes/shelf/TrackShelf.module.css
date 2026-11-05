@@ -79,3 +79,8 @@
 @media (prefers-reduced-motion: reduce) {
   .card { transform: none !important; }
 }
+
+.photo { position: absolute; inset: 0; border-radius: inherit; overflow: hidden; }
+.photo img { transition: transform calc(var(--t-gentle) * 3) var(--ease-glide); transform: scale(1.06) translateX(calc(var(--d) * 12px)); }
+.face[data-photo='1'] { background: linear-gradient(180deg, rgb(7 14 22 / 0.15) 20%, rgb(7 14 22 / 0.88)); color: var(--scene-text); }
+.card:hover .photo img { transform: scale(1.12); }

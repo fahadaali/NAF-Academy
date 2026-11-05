@@ -1,0 +1,85 @@
+/* يطبّق الترحيلات ثم يبذر المحتوى المبدئي إن كانت القاعدة فارغة.
+   يُشغَّل تلقائياً قبل dev وbuild. `--reset` يمسح القاعدة ويعيد البذر. */
+import { mkdirSync, rmSync } from 'node:fs'
+import { randomUUID } from 'node:crypto'
+import { createClient } from '@libsql/client'
+import { drizzle } from 'drizzle-orm/libsql'
+import { migrate } from 'drizzle-orm/libsql/migrator'
+import { count } from 'drizzle-orm'
+import * as s from '../src/server/db/schema'
+import { corporate, courses, hero, instructors, ladder, stats, tracks } from '../src/content/seed'
+import { DEFAULT_HOME } from '../src/content/home-defaults'
+
+const url = process.env.DATABASE_URL ?? 'file:.data/academy.db'
+if (url.startsWith('file:')) {
+  mkdirSync('.data/media', { recursive: true })
+  if (process.argv.includes('--reset')) rmSync(url.slice(5), { force: true })
+}
+
+const db = drizzle(createClient({ url }), { schema: s })
+await migrate(db, { migrationsFolder: './migrations' })
+
+const [{ n }] = await db.select({ n: count() }).from(s.tracks)
+if (n > 0) {
+  console.log('db: ready')
+  process.exit(0)
+}
+
+const token = () => randomUUID().replace(/-/g, '')
+const trackId = new Map<string, string>()
+for (const [i, t] of tracks.entries()) {
+  const id = randomUUID()
+  trackId.set(t.slug, id)
+  await db.insert(s.tracks).values({
+    id, slug: t.slug, title: t.title, kicker: t.kicker, summary: t.summary, tone: t.tone, glyph: t.glyph, sortOrder: i,
+    description: `${t.summary} مسار متدرّج من الممارسة إلى الخبرة، بدورات مباشرة وحضورية ومسجّلة.`,
+  })
+}
+
+const instId = new Map<string, string>()
+for (const [i, p] of instructors.entries()) {
+  const id = randomUUID()
+  instId.set(p.slug, id)
+  await db.insert(s.instructors).values({
+    id, slug: `instructor-${i + 1}`, name: p.name, title: p.title, highlights: p.highlights, display: p.display,
+    featured: !!p.featured, sortOrder: i,
+    bio: 'نبذة المدرب تُضاف من لوحة الإدارة: الخبرات، والمؤهلات، والقطاعات التي عمل فيها.',
+  })
+}
+
+const demoModules = [
+  { title: 'الأساس النظامي', lessons: [['مدخل وتعريفات', 'video', 18, true], ['قراءة النص وتفكيكه', 'video', 26, false], ['ملخص الوحدة', 'file', 0, false]] },
+  { title: 'التطبيق العملي', lessons: [['حالات عملية', 'live', 90, false], ['تمرين الصياغة', 'assignment', 45, false]] },
+  { title: 'التقييم', lessons: [['الاختبار النهائي', 'quiz', 30, false]] },
+] as const
+
+for (const [i, c] of courses.entries()) {
+  const id = randomUUID()
+  await db.insert(s.courses).values({
+    id, slug: c.slug, title: c.title, trackId: trackId.get(c.track), level: c.level, mode: c.mode, status: c.status,
+    startsAt: c.startsAt ?? null, hours: c.hours, seatsTotal: c.seats?.total ?? null, seatsTaken: c.seats?.taken ?? 0,
+    city: c.city ?? '', price: c.pricing.amount, compareAt: c.pricing.compareAt ?? null, saleEndsAt: c.pricing.saleEndsAt ?? null,
+    sortOrder: i, previewToken: token(), featured: i < 3,
+    subtitle: 'دورة تطبيقية تنقلك من فهم النص إلى ممارسته بثقة.',
+    description: 'وصف الدورة يُكتب من لوحة الإدارة.\n\n## ماذا ستتعلم\nمحاور الدورة وتسلسلها، وأسلوب التدريب القائم على الحالات العملية.',
+    outcomes: ['تحليل النصوص النظامية ذات الصلة', 'تطبيق الإجراءات على حالات واقعية', 'صياغة المستندات بثقة ودقة', 'تجنّب الأخطاء الشائعة في الممارسة'],
+    audience: ['المحامون والمتدربون', 'أعضاء الإدارات القانونية', 'المستشارون في القطاع الخاص'],
+    requirements: ['معرفة أساسية بالأنظمة السعودية'],
+    faq: [
+      { q: 'هل أحصل على شهادة؟', a: 'نعم، شهادة إتمام موثّقة برمز تحقق عند استيفاء متطلبات الدورة.' },
+      { q: 'هل تتوفر تسجيلات للجلسات؟', a: 'تُتاح تسجيلات الجلسات المباشرة للمسجّلين بعد انتهائها.' },
+    ],
+  })
+  await db.insert(s.courseInstructors).values({ courseId: id, instructorId: instId.get(c.instructor)!, sortOrder: 0 })
+  for (const [mi, m] of demoModules.entries()) {
+    const mid = randomUUID()
+    await db.insert(s.modules).values({ id: mid, courseId: id, title: m.title, sortOrder: mi })
+    for (const [li, [title, type, minutes, preview]] of m.lessons.entries()) {
+      await db.insert(s.lessons).values({ id: randomUUID(), moduleId: mid, title, type, minutes, preview, sortOrder: li })
+    }
+  }
+}
+
+await db.insert(s.settings).values({ key: 'home', value: { ...DEFAULT_HOME, hero, ladder, stats, corporate } })
+await db.insert(s.auditLog).values({ actor: 'system', action: 'seed', entity: 'site', entityId: '-', summary: 'بذر المحتوى المبدئي' })
+console.log(`db: seeded ${tracks.length} tracks, ${courses.length} courses, ${instructors.length} instructors`)
