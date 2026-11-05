@@ -9,7 +9,8 @@ import p from '@/admin/ui/panel.module.css'
 
 export default async function Dashboard({ searchParams }: { searchParams: Promise<{ denied?: string }> }) {
   const { denied } = await searchParams
-  const [{ courses, tracks, instructors, media }, log] = await Promise.all([adminLists(), (await staffCan('audit.read')) ? auditEntries(8) : Promise.resolve([])])
+  const [canAudit, canWrite] = await Promise.all([staffCan('audit.read'), staffCan('content.write')])
+  const [{ courses, tracks, instructors, media }, log] = await Promise.all([adminLists(), canAudit ? auditEntries(8) : Promise.resolve([])])
   const now = new Date()
   const live = courses.filter((c) => ['open', 'soon', 'full'].includes(resolveStatus(c.status, c.publishAt, now)))
   const drafts = courses.filter((c) => c.status === 'draft')
@@ -17,7 +18,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
   const upcoming = courses.filter((c) => c.startsAt && new Date(c.startsAt) > now).sort((a, b) => a.startsAt!.localeCompare(b.startsAt!)).slice(0, 5)
   return (
     <>
-      <PageHead title="نظرة عامة" sub="حال المحتوى المنشور الآن" actions={<Link className="btn" href="/admin/courses/new">+ دورة جديدة</Link>} />
+      <PageHead title="نظرة عامة" sub="حال المحتوى المنشور الآن" actions={canWrite ? <Link className="btn" href="/admin/courses/new">+ دورة جديدة</Link> : null} />
       {denied && <p role="alert" style={{ padding: '12px 16px', borderRadius: 12, background: 'color-mix(in srgb, var(--danger) 12%, transparent)', color: 'var(--danger)', fontWeight: 600, marginBlockEnd: 16 }}>لا تملك صلاحية هذه الصفحة أو العملية. اطلبها من مالك الحساب.</p>}
       <div className={p.stats}>
         <Link href="/admin/courses" className={p.stat}><strong data-count>{live.length}</strong><span>دورة ظاهرة للتسجيل</span></Link>
@@ -47,7 +48,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
               <tr key={e.id}><td><strong>{e.actor}</strong> <span className={p.muted}>· {e.summary}</span><div className={`${p.muted} num`}>{new Date(e.at).toLocaleString('ar-SA-u-nu-latn', { timeZone: 'Asia/Riyadh', dateStyle: 'medium', timeStyle: 'short' })}</div></td></tr>
             ))}
           </tbody></table>
-          <Link href="/admin/audit" className={p.muted} style={{ display: 'inline-block', marginBlockStart: 8 }}>السجل كاملاً ←</Link>
+          {canAudit && <Link href="/admin/audit" className={p.muted} style={{ display: 'inline-block', marginBlockStart: 8 }}>السجل كاملاً ←</Link>}
         </section>
       </div>
     </>

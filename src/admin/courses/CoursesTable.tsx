@@ -11,9 +11,11 @@ import { formatAmount } from '@/lib/pricing'
 import { formatDay } from '@/lib/dates'
 import { urlOf } from '@/admin/ui/MediaPicker'
 import { STATUS_LABEL, STATUS_ORDER } from './labels'
+import { useCan } from '@/admin/ui/perms'
 import p from '@/admin/ui/panel.module.css'
 
 export function CoursesTable({ courses, tracks, media }: { courses: CourseRow[]; tracks: TrackRow[]; media: Media[] }) {
+  const write = useCan()('content.write')
   const router = useRouter()
   const [list, setList] = useState(courses)
   const [q, setQ] = useState('')
@@ -32,7 +34,7 @@ export function CoursesTable({ courses, tracks, media }: { courses: CourseRow[];
 
   return (
     <>
-      <PageHead title="الدورات" sub={`${list.length} دورة — اسحب الصفوف لترتيب ظهورها`} actions={<Link href="/admin/courses/new" className="btn">+ دورة جديدة</Link>} />
+      <PageHead title="الدورات" sub={`${list.length} دورة — اسحب الصفوف لترتيب ظهورها`} actions={write ? <Link href="/admin/courses/new" className="btn">+ دورة جديدة</Link> : null} />
       <div className={p.toolbar}>
         <input className={p.search} placeholder="ابحث بالعنوان أو الرابط…" value={q} onChange={(e) => setQ(e.target.value)} />
         <div className={p.chips}>
@@ -56,10 +58,10 @@ export function CoursesTable({ courses, tracks, media }: { courses: CourseRow[];
               const t = tName.get(c.trackId ?? '')
               const cover = mOf.get(c.coverId ?? '')
               return (
-                <tr key={c.id} {...(filtering ? {} : props(i))}>
+                <tr key={c.id} {...(filtering || !write ? {} : props(i))}>
                   <td>
                     <div className={p.cellRow}>
-                      {!filtering && <span style={{ cursor: 'grab', color: 'var(--muted)' }} aria-hidden="true">⋮⋮</span>}
+                      {!filtering && write && <span style={{ cursor: 'grab', color: 'var(--muted)' }} aria-hidden="true">⋮⋮</span>}
                       <span className={p.thumb}>
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         {cover ? <img src={urlOf(cover)} alt="" style={{ inlineSize: '100%', blockSize: '100%', objectFit: 'cover' }} /> : t?.glyph}
@@ -71,7 +73,7 @@ export function CoursesTable({ courses, tracks, media }: { courses: CourseRow[];
                     </div>
                   </td>
                   <td>
-                    <select
+                    {write && <select
                       aria-label="الحالة"
                       className={p.search}
                       style={{ minInlineSize: 0, minBlockSize: 34, fontSize: 13 }}
@@ -83,7 +85,7 @@ export function CoursesTable({ courses, tracks, media }: { courses: CourseRow[];
                       }}
                     >
                       {STATUS_ORDER.map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
-                    </select>
+                    </select>}
                     <div style={{ marginBlockStart: 4 }}><Badge tone={c.status}>{STATUS_LABEL[c.status]}</Badge></div>
                   </td>
                   <td className={p.muted}>{modeLabel[c.mode]}</td>
@@ -93,17 +95,17 @@ export function CoursesTable({ courses, tracks, media }: { courses: CourseRow[];
                   </td>
                   <td>
                     <div className={p.cellRow} style={{ gap: 2, justifyContent: 'end' }}>
-                      {!filtering && <>
+                      {!filtering && write && <>
                         <button className={p.iconBtn} aria-label="أعلى" disabled={i === 0} onClick={() => move(i, i - 1)}>↑</button>
                         <button className={p.iconBtn} aria-label="أسفل" disabled={i === list.length - 1} onClick={() => move(i, i + 1)}>↓</button>
                       </>}
                       <a className={p.iconBtn} href={`/courses/${c.slug}/preview/${c.previewToken}`} target="_blank" rel="noreferrer">معاينة</a>
-                      <button className={p.iconBtn} onClick={async () => { const r = await duplicateCourse(c.id); if (r.ok) router.push(`/admin/courses/${r.id}`) }}>نسخ</button>
-                      <button className={`${p.iconBtn} ${p.danger}`} onClick={() => {
+                      {write && <button className={p.iconBtn} onClick={async () => { const r = await duplicateCourse(c.id); if (r.ok) router.push(`/admin/courses/${r.id}`) }}>نسخ</button>}
+                      {write && <button className={`${p.iconBtn} ${p.danger}`} onClick={() => {
                         if (!confirm(`نقل «${c.title}» إلى المحذوفات؟ يمكن استرجاعها لاحقاً.`)) return
                         setList((l) => l.filter((x) => x.id !== c.id))
                         start(() => trash('course', c.id))
-                      }}>حذف</button>
+                      }}>حذف</button>}
                     </div>
                   </td>
                 </tr>

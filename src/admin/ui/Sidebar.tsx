@@ -13,7 +13,7 @@ const groups: { title: string; items: { href: string; label: string; icon: strin
     { href: '/admin/courses', label: 'الدورات', icon: '▤', perm: 'content.read' },
     { href: '/admin/tracks', label: 'المسارات', icon: '☰', perm: 'content.read' },
     { href: '/admin/instructors', label: 'المدربون', icon: '◉', perm: 'content.read' },
-    { href: '/admin/media', label: 'مكتبة الصور', icon: '▣', perm: 'content.write' },
+    { href: '/admin/media', label: 'مكتبة الصور', icon: '▣', perm: 'content.read' },
     { href: '/admin/learning', label: 'الواجبات والأسئلة', icon: '✎', perm: 'learning.review' },
     { href: '/admin/learning/sessions', label: 'الجلسات والحضور', icon: '⌖', perm: 'attendance.mark' },
     { href: '/admin/reviews', label: 'التقييمات', icon: '★', perm: 'content.write' },
@@ -39,7 +39,7 @@ const groups: { title: string; items: { href: string; label: string; icon: strin
     { href: '/admin/team', label: 'الفريق والصلاحيات', icon: '◎', perm: 'team.manage' },
   ] },
   { title: 'السجلات', items: [
-    { href: '/admin/trash', label: 'المحذوفات', icon: '⌫', perm: 'content.write' },
+    { href: '/admin/trash', label: 'المحذوفات', icon: '⌫', perm: 'content.read' },
     { href: '/admin/audit', label: 'سجل التعديلات', icon: '≡', perm: 'audit.read' },
   ] },
 ]

@@ -182,15 +182,16 @@ export function Badge({ tone, children }: { tone: string; children: ReactNode })
 }
 
 /** شريط الحفظ الثابت أسفل المحرّر */
-export function SaveBar({ dirty, saving, message, onSave, extra }: { dirty: boolean; saving: boolean; message?: { ok: boolean; text: string } | null; onSave: () => void; extra?: ReactNode }) {
+/** `readOnly`: نص يُعرض بدل زر الحفظ لمن لا يملك صلاحية التعديل (الخادم يرفض الحفظ على كل حال) */
+export function SaveBar({ dirty, saving, message, onSave, extra, readOnly }: { dirty: boolean; saving: boolean; message?: { ok: boolean; text: string } | null; onSave: () => void; extra?: ReactNode; readOnly?: string }) {
   return (
-    <div className={styles.saveBar} data-dirty={dirty ? '1' : '0'}>
+    <div className={styles.saveBar} data-dirty={dirty && !readOnly ? '1' : '0'}>
       <span className={styles.saveMsg} data-ok={message?.ok ? '1' : '0'} role="status" aria-live="polite">
-        {message?.text ?? (dirty ? 'تغييرات غير محفوظة' : 'كل التغييرات محفوظة')}
+        {readOnly ?? message?.text ?? (dirty ? 'تغييرات غير محفوظة' : 'كل التغييرات محفوظة')}
       </span>
       <div className={styles.actions}>
         {extra}
-        <button type="button" className="btn" disabled={saving || !dirty} onClick={onSave}>{saving ? 'جارٍ الحفظ…' : 'حفظ'}</button>
+        {!readOnly && <button type="button" className="btn" disabled={saving || !dirty} onClick={onSave}>{saving ? 'جارٍ الحفظ…' : 'حفظ'}</button>}
       </div>
     </div>
   )

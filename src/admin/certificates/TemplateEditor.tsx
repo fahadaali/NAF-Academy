@@ -94,7 +94,7 @@ export function TemplateEditor({ id, initial, media, brand }: { id: string | nul
             <Field label="الاسم" error={errors.name}><Input value={v.name} onChange={(e) => setV({ ...v, name: e.target.value })} /></Field>
             <Switch checked={v.isDefault} onChange={(isDefault) => setV({ ...v, isDefault })} label="القالب الافتراضي للدورات" />
             <Field label="الخلفية"><Segmented value={d.tone} onChange={(tone) => setD({ tone })} options={[{ value: 'ivory', label: 'عاجي' }, { value: 'night', label: 'كحلي' }]} /></Field>
-            <MediaPicker label="صورة خلفية (اختيارية — PNG أو JPG بنسبة A4 أفقية)" value={d.backgroundId} onChange={(backgroundId) => setD({ backgroundId })} library={images} ratio="842 / 595" />
+            <MediaPicker label="صورة خلفية (اختيارية — PNG أو JPG بنسبة A4 أفقية)" value={d.backgroundId} onChange={(backgroundId) => setD({ backgroundId })} library={images} ratio="842 / 595" accept={['image/png', 'image/jpeg']} />
             {errors['design.backgroundId'] && <span className={t.err}>{errors['design.backgroundId']}</span>}
           </Section>
 
@@ -113,7 +113,7 @@ export function TemplateEditor({ id, initial, media, brand }: { id: string | nul
                   <Field label="الاسم" error={errors[`design.signatories.${i}.name`]}><Input value={sg.name} onChange={(e) => setD({ signatories: d.signatories.map((x, k) => (k === i ? { ...x, name: e.target.value } : x)) })} /></Field>
                   <Field label="الصفة"><Input value={sg.title} onChange={(e) => setD({ signatories: d.signatories.map((x, k) => (k === i ? { ...x, title: e.target.value } : x)) })} /></Field>
                 </Grid>
-                <MediaPicker label="صورة التوقيع (PNG شفاف)" value={sg.signatureId} onChange={(signatureId) => setD({ signatories: d.signatories.map((x, k) => (k === i ? { ...x, signatureId } : x)) })} library={images} ratio="3 / 1" />
+                <MediaPicker label="صورة التوقيع (PNG شفاف)" value={sg.signatureId} onChange={(signatureId) => setD({ signatories: d.signatories.map((x, k) => (k === i ? { ...x, signatureId } : x)) })} library={images} ratio="3 / 1" accept={['image/png']} />
                 <button type="button" className={t.remove} onClick={() => setD({ signatories: d.signatories.filter((_, k) => k !== i) })}>إزالة الموقّع</button>
               </div>
             ))}

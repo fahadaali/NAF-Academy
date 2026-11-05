@@ -7,10 +7,12 @@ import { saveTrack, trash } from '@/admin/actions'
 import type { Errors, TrackInput } from '@/admin/schemas'
 import { Field, Grid, Input, PageHead, SaveBar, Section, Segmented, Switch, Textarea } from '@/admin/ui/kit'
 import { MediaPicker } from '@/admin/ui/MediaPicker'
+import { useCan } from '@/admin/ui/perms'
 
 const TONE_LABEL: Record<(typeof TONES)[number], string> = { gold: 'ذهبي', olive: 'زيتوني', night: 'ليلي', ember: 'جمري', ivory: 'عاجي' }
 
 export function TrackEditor({ id, initial, media }: { id: string | null; initial: TrackInput; media: Media[] }) {
+  const write = useCan()('content.write')
   const router = useRouter()
   const [v, setV] = useState(initial)
   const [saved, setSaved] = useState(JSON.stringify(initial))
@@ -42,7 +44,7 @@ export function TrackEditor({ id, initial, media }: { id: string | null; initial
         <Field label="صورة المجلد" hint="اختيارية — تحلّ محل الحرف المميز"><MediaPicker value={v.coverId} onChange={(x) => set('coverId', x)} library={media} ratio="3 / 4" /></Field>
         <Switch checked={v.visible} onChange={(x) => set('visible', x)} label="ظاهر في الموقع" />
       </Section>
-      <SaveBar dirty={JSON.stringify(v) !== saved} saving={saving} message={msg} onSave={save}
+      <SaveBar readOnly={write ? undefined : 'للعرض فقط — التعديل لمن يملك صلاحية المحتوى'} dirty={JSON.stringify(v) !== saved} saving={saving} message={msg} onSave={save}
         extra={id ? <button type="button" className="btn ghost" onClick={async () => { if (confirm('نقل المسار إلى المحذوفات؟')) { await trash('track', id); router.push('/admin/tracks') } }}>حذف</button> : null} />
     </>
   )

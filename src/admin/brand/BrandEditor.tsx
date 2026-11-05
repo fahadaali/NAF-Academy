@@ -36,7 +36,7 @@ export function BrandEditor({ initial, media }: { initial: BrandSettings; media:
 
   const slot = (label: string, hint: string, value: string | null, onChange: (id: string | null) => void, dark: boolean, ratio = '3 / 1') => (
     <div className={b.slot} data-dark={dark ? '1' : '0'}>
-      <MediaPicker label={label} value={value} onChange={onChange} library={png} ratio={ratio} />
+      <MediaPicker label={label} value={value} onChange={onChange} library={png} ratio={ratio} accept={['image/png']} />
       <small>{hint}</small>
     </div>
   )

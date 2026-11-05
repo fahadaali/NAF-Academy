@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { ViewTransition } from 'react'
 import { MotionRoot } from '@/components/MotionRoot'
+import { PermsProvider } from '@/admin/ui/perms'
 import { requireAdmin } from '@/server/auth'
 import { can, PERMS, ROLE_LABEL } from '@/lib/permissions'
 import { Sidebar } from '@/admin/ui/Sidebar'
@@ -12,11 +13,12 @@ export const dynamic = 'force-dynamic'
 
 export default async function PanelLayout({ children }: { children: React.ReactNode }) {
   const admin = await requireAdmin()
+  const perms = PERMS.filter((x) => can(admin.role, x, admin.perms))
   return (
     <div className={styles.shell}>
       <MotionRoot />
-      <Sidebar name={admin.name} role={ROLE_LABEL[admin.role]} mode={admin.mode} perms={PERMS.filter((x) => can(admin.role, x, admin.perms))} brand={await brandView()} />
-      <main id="main" className={styles.main}><ViewTransition default="page-swap">{children}</ViewTransition></main>
+      <Sidebar name={admin.name} role={ROLE_LABEL[admin.role]} mode={admin.mode} perms={perms} brand={await brandView()} />
+      <main id="main" className={styles.main}><PermsProvider perms={perms}><ViewTransition default="page-swap">{children}</ViewTransition></PermsProvider></main>
     </div>
   )
 }

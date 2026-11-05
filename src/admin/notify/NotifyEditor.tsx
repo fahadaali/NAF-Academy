@@ -6,6 +6,7 @@ import { EVENTS, EVENT_META, VAR_LABEL, leftLabel, type Category, type EventKey,
 import { Field, Grid, Input, SaveBar, Section, Segmented, Switch, Textarea } from '@/admin/ui/kit'
 import { previewNotify, saveNotify, sendTest } from './actions'
 import n from './notify.module.css'
+import { useCan } from '@/admin/ui/perms'
 
 const CAT: Record<Category, string> = { transactional: 'أساسية — تُرسل دائماً', engagement: 'تحفيز — يمكن إيقافها', marketing: 'عروض — يمكن إيقافها' }
 const TIMING = 'timing' as const
@@ -61,6 +62,7 @@ export function NotifyEditor({ initial, staffEmail }: { initial: NotifySettings;
 }
 
 function TemplateEditor({ event, t, set, errors, staffEmail }: { event: EventKey; t: Template; set: (p: Partial<Template>) => void; errors: Record<string, string>; staffEmail: string }) {
+  const canLog = useCan()('messages.read')
   const meta = EVENT_META[event]
   const focus = useRef<{ k: FieldKey; el: HTMLInputElement | HTMLTextAreaElement } | null>(null)
   const [dark, setDark] = useState(false)
@@ -119,7 +121,7 @@ function TemplateEditor({ event, t, set, errors, staffEmail }: { event: EventKey
         {meta.sms && pv?.sms && <div className={n.sms}><span>الجوال</span><p>{pv.sms}</p></div>}
         <div className={n.test}>
           <Input dir="ltr" value={to} onChange={(e) => setTo(e.target.value)} aria-label="إرسال تجريبي إلى" placeholder="البريد أو الجوال" />
-          <button type="button" className="btn ghost" onClick={async () => { setTestMsg('…'); const r = await sendTest(event, t, to, to.includes('@') ? 'email' : 'sms'); setTestMsg(r.ok ? 'أُرسلت التجربة — راجع سجل الرسائل' : r.error ?? 'تعذّر') }}>إرسال تجريبي</button>
+          <button type="button" className="btn ghost" onClick={async () => { setTestMsg('…'); const r = await sendTest(event, t, to, to.includes('@') ? 'email' : 'sms'); setTestMsg(r.ok ? (canLog ? 'أُرسلت التجربة — راجع سجل الرسائل' : 'أُرسلت التجربة') : r.error ?? 'تعذّر') }}>إرسال تجريبي</button>
           {testMsg && <span role="status" className={n.note}>{testMsg}</span>}
         </div>
       </Section>

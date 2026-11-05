@@ -5,6 +5,7 @@ import { setEnrollment } from './actions'
 import { Badge, PageHead } from '@/admin/ui/kit'
 import { when } from './labels'
 import p from '@/admin/ui/panel.module.css'
+import { useCan } from '@/admin/ui/perms'
 
 type Enroll = { e: { id: string; status: 'active' | 'canceled'; source: string; createdAt: string; orderId: string | null }; l: { name: string; email: string; phone: string; org: string }; number: string | null; tier: string | null }
 type Interest = { id: string; kind: string; name: string; email: string; phone: string; createdAt: string }
@@ -21,6 +22,7 @@ function download(name: string, rows: (string | number)[][]) {
 }
 
 export function LearnersBoard({ courseId, title, enrolls, interest }: { courseId: string; title: string; enrolls: Enroll[]; interest: Interest[] }) {
+  const orders = useCan()('sales.orders')
   const [list, setList] = useState(enrolls)
   const [, start] = useTransition()
   const active = list.filter((x) => x.e.status === 'active').length
@@ -29,7 +31,7 @@ export function LearnersBoard({ courseId, title, enrolls, interest }: { courseId
       <PageHead title="المسجّلون" sub={`${title.replace(/~\d?/g, '')} · ${active} تسجيل نشط · ${interest.length} مهتم`}
         actions={<>
           <button className="btn ghost" onClick={() => download('learners.csv', [['الاسم', 'البريد', 'الجوال', 'الجهة', 'المصدر', 'الباقة', 'الطلب', 'الحالة', 'التاريخ'], ...list.map((x) => [x.l.name, x.l.email, x.l.phone, x.l.org, SOURCE[x.e.source], x.tier ?? '', x.number ?? '', x.e.status === 'active' ? 'نشط' : 'ملغى', x.e.createdAt])])}>تصدير المسجّلين</button>
-          <Link className="btn" href="/admin/orders/new">+ تسجيل يدوي</Link>
+          {orders && <Link className="btn" href="/admin/orders/new">+ تسجيل يدوي</Link>}
           <Link className="btn ghost" href={`/admin/courses/${courseId}`}>العودة للدورة</Link>
         </>} />
       {list.length === 0 ? <div className={p.empty}>لا تسجيلات بعد.</div> : (
@@ -44,7 +46,7 @@ export function LearnersBoard({ courseId, title, enrolls, interest }: { courseId
                 <td className={`${p.muted} num`}>{when(x.e.createdAt)}</td>
                 <td>
                   <Badge tone={x.e.status === 'active' ? 'open' : 'draft'}>{x.e.status === 'active' ? 'نشط' : 'ملغى'}</Badge>{' '}
-                  <button className={p.iconBtn} onClick={() => {
+                  {orders && <button className={p.iconBtn} onClick={() => {
                     const next = x.e.status === 'active' ? 'canceled' : 'active'
                     if (next === 'canceled' && !confirm(`إلغاء تسجيل ${x.l.name}؟ لا يُسترد المبلغ تلقائياً — الاسترداد من صفحة الطلب.`)) return
                     const prev = x.e.status
@@ -53,7 +55,7 @@ export function LearnersBoard({ courseId, title, enrolls, interest }: { courseId
                       const r = await setEnrollment(x.e.id, next)
                       if (!r.ok) { setList((l) => l.map((y) => (y.e.id === x.e.id ? { ...y, e: { ...y.e, status: prev } } : y))); alert(r.error) }
                     })
-                  }}>{x.e.status === 'active' ? 'إلغاء' : 'تفعيل'}</button>
+                  }}>{x.e.status === 'active' ? 'إلغاء' : 'تفعيل'}</button>}
                 </td>
               </tr>
             ))}

@@ -36,6 +36,7 @@ export function TeamBoard({ members, mode, meId }: { members: MemberRow[]; mode:
                 <td><strong>{m.displayName || m.email}</strong><div className={p.muted} dir="ltr" style={{ textAlign: 'end' }}>{m.email}</div></td>
                 <td>
                   <select aria-label="الدور" className={p.search} style={{ minInlineSize: 0, minBlockSize: 36 }} value={m.role} onChange={(e) => act(() => setMemberRole(m.userId, e.target.value as Role))}>
+                    {!(ROLES as readonly string[]).includes(m.role) && <option value={m.role} disabled>بانتظار التفعيل — اختر دوراً</option>}
                     {ROLES.map((r) => <option key={r} value={r}>{ROLE_LABEL[r]}</option>)}
                   </select>
                 </td>

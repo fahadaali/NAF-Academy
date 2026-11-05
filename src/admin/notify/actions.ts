@@ -98,6 +98,7 @@ export async function runNow(): Promise<{ ok: boolean; text: string }> {
 
 export async function cancelNotifications(ids: string[]) {
   const st = await requirePermission('notify.manage')
+  if (!Array.isArray(ids) || !ids.every((x) => typeof x === 'string')) return { ok: false, n: 0 }
   const r = await db.update(s.notifications).set({ status: 'cancelled', error: `ألغاه ${st.name}`, updatedAt: new Date().toISOString() })
     .where(and(inList(s.notifications.id, ids.slice(0, 200)), eq(s.notifications.status, 'pending'))).returning({ id: s.notifications.id })
   await audit(st.name, 'cancel', 'notify', '-', `${r.length} رسالة`)

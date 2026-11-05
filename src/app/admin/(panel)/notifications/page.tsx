@@ -1,4 +1,4 @@
-import { requirePermission } from '@/server/auth'
+import { requirePermission, staffCan } from '@/server/auth'
 import { notifySettings } from '@/server/notify/engine'
 import { channelOpen } from '@/server/notify/channels'
 import { siteUrl } from '@/server/site'
@@ -13,7 +13,7 @@ export default async function Notifications() {
   return (
     <>
       <PageHead title="الرسائل الآلية" sub={state || 'القنوات مفتوحة — تُجدول الرسائل وتُرسل كل 5 دقائق'}
-        actions={<><a className="btn ghost" href="/admin/notifications/queue">الطابور</a><a className="btn ghost" href="/admin/settings/channels">القنوات</a></>} />
+        actions={<><a className="btn ghost" href="/admin/notifications/queue">الطابور</a>{(await staffCan('channels.manage')) && <a className="btn ghost" href="/admin/settings/channels">القنوات</a>}</>} />
       <NotifyEditor initial={cfg} staffEmail={st.email ?? ''} />
     </>
   )

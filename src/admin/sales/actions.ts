@@ -91,6 +91,7 @@ export async function saveCoupon(id: string | null, raw: CouponInput): Promise<R
     throw e
   }
   await audit(admin.name, id ? 'update' : 'create', 'coupon', cid, p.data.code, p.data)
+  revalidatePath('/admin/coupons', 'layout')
   return { ok: true, id: cid }
 }
 
@@ -112,12 +113,15 @@ export async function generateBatch(raw: CouponInput & { count: number; prefix: 
   for (const part of chunksOf(s.coupons, list))
     await db.insert(s.coupons).values(part.map((code) => ({ ...p.data, id: randomUUID(), code, batch, label: p.data.label || `دفعة ${batch}` })))
   await audit(admin.name, 'batch', 'coupon', batch, `${n} كوداً ${prefix}`)
+  revalidatePath('/admin/coupons', 'layout')
   return { ok: true, codes: list }
 }
 
 export async function setCouponActive(id: string, active: boolean) {
   const admin = await requirePermission('sales.coupons')
+  if (typeof active !== 'boolean' || typeof id !== 'string') return
   await db.update(s.coupons).set({ active }).where(eq(s.coupons.id, id))
+  revalidatePath('/admin/coupons', 'layout')
   await audit(admin.name, active ? 'enable' : 'disable', 'coupon', id, active ? 'تفعيل' : 'إيقاف')
 }
 
@@ -125,15 +129,18 @@ export async function trashCoupon(id: string) {
   const admin = await requirePermission('sales.coupons')
   await db.update(s.coupons).set({ deletedAt: new Date().toISOString() }).where(eq(s.coupons.id, id))
   await audit(admin.name, 'trash', 'coupon', id, 'نُقل إلى المحذوفات')
+  revalidatePath('/admin/coupons', 'layout')
 }
 
 /* ───────── الطلبات ───────── */
 
 export async function refundAction(orderId: string, amountSar: number, reason: string, cancel: boolean) {
   const admin = await requirePermission('sales.refund')
+  if (typeof orderId !== 'string' || typeof amountSar !== 'number' || !Number.isFinite(amountSar) || typeof cancel !== 'boolean' || typeof reason !== 'string') return { ok: false, error: 'بيانات غير صالحة' }
   if (!reason.trim()) return { ok: false, error: 'اذكر سبب الاسترداد' }
   const r = await refundOrder(orderId, Math.round(amountSar * 100), reason.trim().slice(0, 300), cancel, admin.name)
-  revalidatePath(`/admin/orders/${orderId}`)
+  /* إلغاء التسجيلات يحرّر مقاعد — تُحدَّث الصفحات العامة فوراً لا بعد خمس دقائق */
+  revalidatePath('/', 'layout')
   return r
 }
 
@@ -141,7 +148,7 @@ export async function cancelPending(orderId: string) {
   const admin = await requirePermission('sales.orders')
   await db.update(s.orders).set({ status: 'canceled', updatedAt: new Date().toISOString() }).where(and(eq(s.orders.id, orderId), eq(s.orders.status, 'pending')))
   await audit(admin.name, 'cancel', 'order', orderId, 'إلغاء طلب معلّق')
-  revalidatePath(`/admin/orders/${orderId}`)
+  revalidatePath('/', 'layout')
 }
 
 const manualInput = z.object({

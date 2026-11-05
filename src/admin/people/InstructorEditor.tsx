@@ -6,8 +6,10 @@ import { saveInstructor, trash } from '@/admin/actions'
 import type { Errors, InstructorInput } from '@/admin/schemas'
 import { Field, Grid, Input, ListEditor, PageHead, SaveBar, Section, Segmented, Switch, Textarea, RowTools, useSortable } from '@/admin/ui/kit'
 import { MediaPicker } from '@/admin/ui/MediaPicker'
+import { useCan } from '@/admin/ui/perms'
 
 export function InstructorEditor({ id, initial, media }: { id: string | null; initial: InstructorInput; media: Media[] }) {
+  const write = useCan()('content.write')
   const router = useRouter()
   const [v, setV] = useState(initial)
   const [saved, setSaved] = useState(JSON.stringify(initial))
@@ -54,7 +56,7 @@ export function InstructorEditor({ id, initial, media }: { id: string | null; in
         {errors[Object.keys(errors).find((k) => k.startsWith('links')) ?? ''] && <span style={{ color: 'var(--danger)', fontSize: 13 }}>رابط غير صالح</span>}
         <button type="button" className="btn ghost" style={{ justifySelf: 'start' }} onClick={() => set('links', [...v.links, { label: '', url: '' }])}>+ رابط</button>
       </Section>
-      <SaveBar dirty={JSON.stringify(v) !== saved} saving={saving} message={msg} onSave={save}
+      <SaveBar readOnly={write ? undefined : 'للعرض فقط — التعديل لمن يملك صلاحية المحتوى'} dirty={JSON.stringify(v) !== saved} saving={saving} message={msg} onSave={save}
         extra={id ? <button type="button" className="btn ghost" onClick={async () => { if (confirm('نقل المدرب إلى المحذوفات؟')) { await trash('instructor', id); router.push('/admin/instructors') } }}>حذف</button> : null} />
     </>
   )

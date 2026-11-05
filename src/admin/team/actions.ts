@@ -53,6 +53,7 @@ export async function setMemberRole(userId: string, role: Role): Promise<{ ok: b
 
 export async function setMemberActive(userId: string, active: boolean): Promise<{ ok: boolean; error?: string }> {
   const me = await requirePermission('team.manage')
+  if (typeof active !== 'boolean' || typeof userId !== 'string') return { ok: false, error: 'بيانات غير صالحة' }
   const [m] = await db.select().from(s.members).where(eq(s.members.userId, userId))
   if (!m) return { ok: false, error: 'العضو غير موجود' }
   if (!active && userId === me.id) return { ok: false, error: 'لا يمكنك إيقاف نفسك' }
@@ -64,8 +65,13 @@ export async function setMemberActive(userId: string, active: boolean): Promise<
   return { ok: true }
 }
 
-export async function saveChannels(v: ChannelSettings): Promise<{ ok: boolean; error?: string }> {
+export async function saveChannels(raw: ChannelSettings): Promise<{ ok: boolean; error?: string }> {
   const me = await requirePermission('channels.manage')
+  const parsed = z.object({ emailEnabled: z.boolean(), smsEnabled: z.boolean(), pushEnabled: z.boolean() }).safeParse(raw)
+  if (!parsed.success) return { ok: false, error: 'بيانات غير صالحة' }
+  const v = parsed.data
+  /* الدخول بالجوال وحده لا يكفي للشراء (لا يُنشئ حساباً جديداً) — البريد شرط لفتح الجوال */
+  if (v.smsEnabled && !v.emailEnabled) return { ok: false, error: 'فعّل البريد أولاً: الرسائل النصية وحدها لا تكفي لتسجيل المتدربين الجدد' }
   if (v.emailEnabled && !channelState('email').configured) return { ok: false, error: channelState('email').problem }
   if (v.smsEnabled && !channelState('sms').configured) return { ok: false, error: channelState('sms').problem }
   if (v.pushEnabled && !channelState('push').configured) return { ok: false, error: channelState('push').problem }

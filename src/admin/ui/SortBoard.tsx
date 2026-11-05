@@ -5,10 +5,12 @@ import Link from 'next/link'
 import { reorder, trash, type Entity } from '@/admin/actions'
 import { Badge, RowTools, useSortable } from './kit'
 import p from './panel.module.css'
+import { useCan } from './perms'
 
 export type BoardItem = { id: string; title: string; sub: string; href: string; thumb?: string; glyph?: string; badge?: { tone: string; text: string } }
 
 export function SortBoard({ items, entity }: { items: BoardItem[]; entity: Extract<Entity, 'track' | 'instructor'> }) {
+  const write = useCan()('content.write')
   const [list, setList] = useState(items)
   const [, start] = useTransition()
   const { props, move } = useSortable(list, (next) => { setList(next); start(() => reorder(entity, next.map((x) => x.id))) })
@@ -17,7 +19,7 @@ export function SortBoard({ items, entity }: { items: BoardItem[]; entity: Extra
     <table className={p.table}>
       <tbody>
         {list.map((it, i) => (
-          <tr key={it.id} {...props(i)}>
+          <tr key={it.id} {...(write ? props(i) : {})}>
             <td>
               <div className={p.cellRow}>
                 <span className={p.thumb}>
@@ -33,12 +35,12 @@ export function SortBoard({ items, entity }: { items: BoardItem[]; entity: Extra
             <td>{it.badge && <Badge tone={it.badge.tone}>{it.badge.text}</Badge>}</td>
             <td style={{ inlineSize: 1 }}>
               <div className={p.cellRow} style={{ gap: 4 }}>
-                <Link className={p.iconBtn} href={it.href}>تحرير</Link>
-                <RowTools i={i} n={list.length} move={move} onRemove={() => {
+                <Link className={p.iconBtn} href={it.href}>{write ? 'تحرير' : 'عرض'}</Link>
+                {write && <RowTools i={i} n={list.length} move={move} onRemove={() => {
                   if (!confirm(`نقل «${it.title}» إلى المحذوفات؟`)) return
                   setList((l) => l.filter((x) => x.id !== it.id))
                   start(() => trash(entity, it.id))
-                }} />
+                }} />}
               </div>
             </td>
           </tr>

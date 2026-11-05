@@ -7,8 +7,9 @@ export function ssoConfig(env: Record<string, unknown>): AuthConfig {
     publicPaths: ['/auth/callback', '/auth/backchannel-logout', '/auth/logout', '/denied', '/admin/login'],
     publicPrefixes: [],
     deniedPath: '/denied',
-    /* أقل صلاحية لمن يدخل أول مرة بلا دعوة — يرفعها المالك من صفحة الفريق */
-    defaultRole: 'support',
+    /* من يدخل أول مرة بلا دعوة: «بانتظار التفعيل» — ليس دوراً، فلا يرى من اللوحة شيئاً
+       حتى يمنحه المالك دوراً من «الفريق والصلاحيات». المدعوّ بالبريد يحتفظ بدوره (linkInvite قبل الإدراج) */
+    defaultRole: 'pending',
     timeFormat: 'epoch',
     onClaims: linkInvite,
   })

@@ -7,8 +7,10 @@ import { trash, updateMedia, uploadMedia } from '@/admin/actions'
 import { Field, Input, PageHead } from '@/admin/ui/kit'
 import { urlOf } from '@/admin/ui/MediaPicker'
 import s from './library.module.css'
+import { useCan } from '@/admin/ui/perms'
 
 export function Library({ items }: { items: Media[] }) {
+  const write = useCan()('content.write')
   const router = useRouter()
   const params = useSearchParams()
   const [sel, setSel] = useState<string | null>(params.get('focus') ?? items[0]?.id ?? null)
@@ -37,7 +39,7 @@ export function Library({ items }: { items: Media[] }) {
 
   return (
     <>
-      <PageHead title="مكتبة الصور" sub={`${items.length} صورة — انقر على الصورة لتحديد نقطة التركيز`} actions={
+      <PageHead title="مكتبة الصور" sub={`${items.length} صورة${write ? ' — انقر على الصورة لتحديد نقطة التركيز' : ''}`} actions={!write ? null :
         <label className="btn" aria-disabled={busy > 0} style={{ cursor: 'pointer' }}>
           {busy ? `جارٍ رفع ${busy}…` : 'رفع صور'}
           <input type="file" multiple accept="image/jpeg,image/png,image/webp,image/avif" hidden onChange={(e) => e.target.files?.length && upload(e.target.files)} />
@@ -83,13 +85,13 @@ export function Library({ items }: { items: Media[] }) {
             </Field>
             <p className={`${s.meta} num`}>{cur.width}×{cur.height} · {Math.round(cur.size / 1024)} ك.ب · {cur.mime.replace('image/', '')}</p>
             <div className={s.actions}>
-              <button className="btn" disabled={!changed} onClick={async () => { await updateMedia(cur.id, d); router.refresh() }}>حفظ</button>
-              <button className="btn ghost" onClick={async () => {
+              {write && <button className="btn" disabled={!changed} onClick={async () => { await updateMedia(cur.id, d); router.refresh() }}>حفظ</button>}
+              {write && <button className="btn ghost" onClick={async () => {
                 if (!confirm('نقل الصورة إلى المحذوفات؟ ستختفي من أي دورة تستخدمها.')) return
                 await trash('media', cur.id)
                 setSel(null)
                 router.refresh()
-              }}>حذف</button>
+              }}>حذف</button>}
             </div>
           </aside>
         )}

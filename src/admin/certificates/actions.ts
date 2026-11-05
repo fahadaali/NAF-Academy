@@ -67,6 +67,7 @@ export async function regenerateCertificate(id: string) {
   const st = await requirePermission('certificates.manage')
   await regeneratePdf(id)
   await audit(st.name, 'regenerate', 'certificate', id, '')
+  refresh()
   return { ok: true }
 }
 

@@ -5,6 +5,7 @@ import { METHOD_LABEL, ORDER_LABEL, ORDER_TONE, sar, when } from '@/admin/sales/
 import { CancelPending, RefundPanel, SeatRow } from '@/admin/sales/OrderTools'
 import s from '@/admin/sales/sales.module.css'
 import p from '@/admin/ui/panel.module.css'
+import { staffCan } from '@/server/auth'
 
 export default async function OrderPage({ params }: { params: Promise<{ id: string }> }) {
   const d = await orderDetail((await params).id)
@@ -14,10 +15,12 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
   const status = expired ? 'expired' : o.status
   const left = o.total - o.refunded
   const buyerUrl = `/orders/${o.number}?t=${o.token}`
+  /* أدوات الطلب بصلاحيتها: الاسترداد للمالية، والإلغاء وتخصيص المقاعد لمن يدير الطلبات */
+  const [canRefund, canOrders] = await Promise.all([staffCan('sales.refund'), staffCan('sales.orders')])
   return (
     <>
       <PageHead title={`الطلب ${o.number}`} sub={`${when(o.createdAt)} · ${METHOD_LABEL[o.method]}${o.createdBy !== 'web' ? ` · أنشأه ${o.createdBy}` : ''}`}
-        actions={<><Badge tone={ORDER_TONE[status]}>{ORDER_LABEL[status]}</Badge><a className="btn ghost" href={buyerUrl} target="_blank" rel="noreferrer">صفحة المشتري ↗</a>{o.status === 'pending' && <CancelPending orderId={o.id} />}</>} />
+        actions={<><Badge tone={ORDER_TONE[status]}>{ORDER_LABEL[status]}</Badge><a className="btn ghost" href={buyerUrl} target="_blank" rel="noreferrer">صفحة المشتري ↗</a>{o.status === 'pending' && canOrders && <CancelPending orderId={o.id} />}</>} />
       <div className={s.two}>
         <section className={s.panel}>
           <h2>المشتري</h2>
@@ -38,14 +41,14 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
           {o.refunded > 0 && <div className={s.row}><span>المسترد</span><span className="num">{sar(o.refunded)}</span></div>}
           {invoices.map((inv) => <a key={inv.id} className={p.muted} href={`/orders/${o.number}/invoice/${inv.number}?t=${o.token}`} target="_blank" rel="noreferrer">{inv.kind === 'invoice' ? 'الفاتورة' : 'إشعار دائن'} {inv.number} ↗</a>)}
         </section>
-        {(o.status === 'paid' || o.status === 'partially_refunded') && left > 0 && <RefundPanel orderId={o.id} left={left} />}
+        {(o.status === 'paid' || o.status === 'partially_refunded') && left > 0 && canRefund && <RefundPanel orderId={o.id} left={left} />}
         {grants.length > 0 && (
           <section className={s.panel}>
             <h2>مقاعد الطلب الجماعي <span className="num">({grants.filter((g) => g.enrollmentId).length}/{grants.length})</span></h2>
             {grants.map((g, i) => (
               <div key={g.id} className={s.row}>
                 <span className="num">المقعد {i + 1}</span>
-                {g.enrollmentId ? <span dir="ltr">{g.email}</span> : <SeatRow grantId={g.id} />}
+                {g.enrollmentId ? <span dir="ltr">{g.email}</span> : canOrders ? <SeatRow grantId={g.id} /> : <span className={p.muted}>شاغر</span>}
               </div>
             ))}
           </section>

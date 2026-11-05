@@ -20,6 +20,7 @@ import { STATUS_HINT, STATUS_LABEL, STATUS_ORDER } from './labels'
 import { LessonDetail } from './LessonDetail'
 import { DEFAULT_RULES } from '@/lib/certificate'
 import styles from './editor.module.css'
+import { useCan } from '@/admin/ui/perms'
 
 const TABS = [
   ['basics', 'الأساسيات'], ['pricing', 'التسعير والعروض'], ['schedule', 'الموعد والمكان'], ['content', 'المحتوى'],
@@ -45,6 +46,7 @@ type Props = {
 }
 
 export function CourseEditor({ id, initial, previewToken, tracks, instructors, media, templates }: Props) {
+  const write = useCan()('content.write')
   const router = useRouter()
   const [v, setV] = useState<CourseInput>(initial)
   const [saved, setSaved] = useState(JSON.stringify(initial))
@@ -290,6 +292,7 @@ export function CourseEditor({ id, initial, previewToken, tracks, instructors, m
           )}
 
           <SaveBar
+            readOnly={write ? undefined : 'للعرض فقط — التعديل لمن يملك صلاحية المحتوى'}
             dirty={dirty}
             saving={saving}
             message={msg}

@@ -101,14 +101,18 @@ export async function currentStaff(): Promise<Staff | null> {
 /** للوحة: عضو فريق بأي دور — وإلا إلى الدخول */
 export async function requireAdmin(): Promise<Staff> {
   const st = await currentStaff()
-  if (!st) redirect(staffMode() === 'naf-auth' ? '/admin' : '/admin/login')
+  if (!st) {
+    /* داخلٌ موثَّق بلا دور صالح أو موقوف: صفحة رفض واضحة — لا إعادة توجيه إلى /admin تدور بلا نهاية */
+    if (staffMode() === 'naf-auth') redirect((await headers()).get(H_SUB) ? '/denied?r=pending' : '/admin')
+    redirect('/admin/login')
+  }
   return st
 }
 
 /** لكل صفحة وإجراء: صلاحية محددة. الإجراء الممنوع لا يُنفَّذ، والصفحة تعود للوحة برسالة. */
 export async function requirePermission(perm: Perm): Promise<Staff> {
   const st = await requireAdmin()
-  if (!can(st.role, perm, st.perms)) redirect(`/admin?denied=${perm}`)
+  if (!can(st.role, perm, st.perms)) redirect(can(st.role, 'content.read', st.perms) ? `/admin?denied=${perm}` : '/denied')
   return st
 }
 

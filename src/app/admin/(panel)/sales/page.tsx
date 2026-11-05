@@ -6,8 +6,10 @@ import { gatewayStatus } from '@/server/payments/gateway'
 import { paymentSettings } from '@/server/settings'
 import s from '@/admin/sales/sales.module.css'
 import p from '@/admin/ui/panel.module.css'
+import { staffCan } from '@/server/auth'
 
 export default async function Sales() {
+  const [canPay, canOrders] = await Promise.all([staffCan('payments.manage'), staffCan('sales.orders')])
   const [o, settings] = await Promise.all([salesOverview(), paymentSettings()])
   const st = gatewayStatus()
   const days = Array.from({ length: 30 }, (_, i) => {
@@ -18,7 +20,7 @@ export default async function Sales() {
   return (
     <>
       <PageHead title="المبيعات" sub={settings.enabled && st.configured ? 'الدفع الإلكتروني مفعّل' : 'الدفع الإلكتروني مقفل — الطلبات اليدوية والمنح تعمل'}
-        actions={<><Link className="btn ghost" href="/admin/settings/payments">إعدادات الدفع</Link><Link className="btn" href="/admin/orders/new">+ طلب يدوي</Link></>} />
+        actions={<>{canPay && <Link className="btn ghost" href="/admin/settings/payments">إعدادات الدفع</Link>}{canOrders && <Link className="btn" href="/admin/orders/new">+ طلب يدوي</Link>}</>} />
       <div className={s.kpis}>
         <div className={s.kpi}><strong className="num" data-count>{sar(o.net30)}</strong><span>صافي الإيراد — 30 يوماً (ر.س)</span></div>
         <div className={s.kpi}><strong className="num" data-count>{o.orders30}</strong><span>طلب مدفوع — 30 يوماً</span></div>

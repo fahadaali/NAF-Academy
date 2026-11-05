@@ -8,10 +8,12 @@ import { z } from 'zod'
 import { db, schema as s } from '@/server/db'
 import { requirePermission } from '@/server/auth'
 import type { Perm } from '@/lib/permissions'
+import { TRASH_OWNER } from './trash-perms'
 import { audit } from '@/server/audit'
 import { deleteObject, putObject } from '@/server/storage'
 import type { HomeContent } from '@/content/home-defaults'
 import type { CourseStatus } from '@/content/types'
+import { COURSE_STATUS } from '@/lib/enums'
 import { chunksOf, inList } from '@/server/db/limits'
 import {
   courseInput, errorsOf, homeInput, instructorInput, trackInput,
@@ -19,6 +21,7 @@ import {
 } from './schemas'
 
 const now = () => new Date().toISOString()
+const idInput = z.string().min(1).max(64)
 const token = () => randomUUID().replace(/-/g, '')
 const refresh = () => revalidatePath('/', 'layout')
 
@@ -95,6 +98,8 @@ export async function saveCourse(id: string | null, raw: CourseInput, opts: { co
 
 export async function setCourseStatus(id: string, status: CourseStatus) {
   const admin = await requirePermission('content.write')
+  /* SQLite لا يفرض القيم المعدودة — يُتحقق هنا قبل الكتابة */
+  if (!z.enum(COURSE_STATUS).safeParse(status).success || !idInput.safeParse(id).success) return
   await db.update(s.courses).set({ status, updatedAt: now() }).where(eq(s.courses.id, id))
   await audit(admin.name, 'status', 'course', id, status)
   refresh()
@@ -103,6 +108,7 @@ export async function setCourseStatus(id: string, status: CourseStatus) {
 /** نسخة لدفعة جديدة: مسودة، بلا مقاعد محجوزة ولا مواعيد، بالمنهج والمدربين */
 export async function duplicateCourse(id: string): Promise<Result> {
   const admin = await requirePermission('content.write')
+  if (!idInput.safeParse(id).success) return { ok: false, errors: {}, message: 'غير موجودة' }
   const [c] = await db.select().from(s.courses).where(eq(s.courses.id, id))
   if (!c) return { ok: false, errors: {}, message: 'غير موجودة' }
   const nid = randomUUID()
@@ -128,11 +134,13 @@ export async function duplicateCourse(id: string): Promise<Result> {
   const moved = await db.update(s.interest).set({ courseId: nid, updatedAt: now() })
     .where(and(eq(s.interest.courseId, id), eq(s.interest.kind, 'next_cohort'), isNull(s.interest.notifiedAt))).returning({ id: s.interest.id })
   await audit(admin.name, 'duplicate', 'course', nid, `نسخة من ${c.title}${moved.length ? ` · نُقل ${moved.length} من قائمة «الدفعة القادمة»` : ''}`)
+  refresh()
   return { ok: true, id: nid }
 }
 
 export async function reorder(entity: 'course' | 'track' | 'instructor', ids: string[]) {
   const admin = await requirePermission('content.write')
+  if (!z.enum(['course', 'track', 'instructor']).safeParse(entity).success || !z.array(idInput).max(500).safeParse(ids).success) return
   const table = entity === 'course' ? s.courses : entity === 'track' ? s.tracks : s.instructors
   for (const [i, id] of ids.entries()) await db.update(table).set({ sortOrder: i }).where(eq(table.id, id))
   await audit(admin.name, 'reorder', entity, '-', `${ids.length} عناصر`)
@@ -180,13 +188,8 @@ const tables = {
   organization: s.organizations, template: s.certificateTemplates,
 } as const
 export type Entity = keyof typeof tables
-/* السلة واحدة، وصلاحية كل عنصر صلاحية قسمه: من يحذف الكوبون يسترجعه، ولا يسترجعه غيره */
-const OWNER: Record<Entity, Perm> = {
-  course: 'content.write', track: 'content.write', instructor: 'content.write', media: 'content.write',
-  coupon: 'sales.coupons', organization: 'corporate.manage', template: 'certificates.manage',
-}
+const OWNER: Record<Entity, Perm> = TRASH_OWNER
 const isEntity = (e: unknown): e is Entity => typeof e === 'string' && Object.hasOwn(tables, e)
-const idInput = z.string().min(1).max(64)
 
 export async function trash(entity: Entity, id: string) {
   if (!isEntity(entity)) return
@@ -284,11 +287,13 @@ export async function uploadMedia(form: FormData): Promise<{ ok: boolean; id?: s
   const alt = String(form.get('alt') ?? '').slice(0, 200) || file.name.replace(/\.[^.]+$/, '').slice(0, 200)
   await db.insert(s.media).values({ id, key, mime: file.type, width, height, size: file.size, alt })
   await audit(admin.name, 'upload', 'media', id, alt)
+  revalidatePath('/admin/media')
   return { ok: true, id }
 }
 
 export async function updateMedia(id: string, v: { alt: string; focalX: number; focalY: number }) {
   const admin = await requirePermission('content.write')
+  if (!idInput.safeParse(id).success || !z.object({ alt: z.string().max(400), focalX: z.number(), focalY: z.number() }).safeParse(v).success) return
   const clamp = (n: number) => Math.max(0, Math.min(100, Number.isFinite(n) ? n : 50))
   await db.update(s.media).set({ alt: v.alt.slice(0, 200), focalX: clamp(v.focalX), focalY: clamp(v.focalY), updatedAt: now() }).where(eq(s.media.id, id))
   await audit(admin.name, 'update', 'media', id, v.alt)
