@@ -1,0 +1,26 @@
+.timeline { position: relative; background: var(--surface-2); }
+.stage { position: sticky; inset-block-start: 0; min-block-size: 100svh; display: grid; grid-template-columns: minmax(0, 1fr); align-content: center; gap: 34px; overflow: hidden; padding-block: calc(var(--header-h) + 20px) 40px; }
+.head { display: grid; gap: 10px; grid-template-columns: 1fr auto; align-items: end; }
+.head > :first-child { grid-column: 1 / -1; }
+.head h2 { display: block; }
+.all { font-weight: 700; color: var(--accent); padding: 10px 0; border-block-end: 1.5px solid currentColor; }
+.rail { position: relative; min-inline-size: 0; }
+.line { position: absolute; inset-inline: 0; inset-block-start: -18px; block-size: 1px; background: var(--line-strong); }
+.line span { position: absolute; inset: 0; background: var(--gold-3); transform-origin: right; transform: scaleX(var(--p, 0)); }
+.track {
+  display: flex; gap: 24px; inline-size: max-content; align-items: stretch;
+  padding-inline: max(var(--gutter), calc((100vw - var(--max)) / 2)); will-change: transform;
+}
+.track > * { flex: none; }
+
+@media (max-width: 720px) {
+  .stage { position: relative; min-block-size: auto; padding-block: 90px 60px; }
+  .rail { overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; padding-block-end: 10px; }
+  .rail::-webkit-scrollbar { display: none; }
+  .track > * { scroll-snap-align: center; }
+  .line { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .stage { position: relative; }
+  .rail { overflow-x: auto; }
+}

@@ -1,0 +1,166 @@
+/* ============================================================
+   أكاديمية ناف — رموز الهوية
+   المرجع الوحيد للألوان والمقاسات. منصة خارجية: لا علاقة لها بـ naf-ui.
+   ============================================================ */
+
+@font-face {
+  font-family: 'Thmanyah';
+  src: url('/fonts/thmanyah-regular.woff2') format('woff2');
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Thmanyah';
+  src: url('/fonts/thmanyah-medium.woff2') format('woff2');
+  font-weight: 500;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Thmanyah';
+  src: url('/fonts/thmanyah-bold.woff2') format('woff2');
+  font-weight: 700;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Thmanyah';
+  src: url('/fonts/thmanyah-black.woff2') format('woff2');
+  font-weight: 900;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Riyal';
+  src: url('/fonts/riyal.woff2') format('woff2');
+  font-weight: 400 600;
+  font-display: block;
+  unicode-range: U+20C1, U+E900;
+}
+@font-face {
+  font-family: 'Riyal';
+  src: url('/fonts/riyal-bold.woff2') format('woff2');
+  font-weight: 700 900;
+  font-display: block;
+  unicode-range: U+20C1, U+E900;
+}
+
+:root {
+  /* — اللوحة الخام — */
+  --night-0: #070e16;
+  --night-1: #0b1520;
+  --night-2: #111e2b;
+  --night-3: #1a2a3a;
+  --gold-1: #8a6a2c;
+  --gold-2: #b38c45;
+  --gold-3: #c9a25a;
+  --gold-4: #e0bc6e;
+  --gold-5: #f3dfae;
+  --ivory-0: #fdfbf6;
+  --ivory-1: #f6f2e8;
+  --ivory-2: #ece6d6;
+  --olive-1: #4c5a3a;
+  --olive-2: #6f7f55;
+  --olive-3: #a3b386;
+  --ember: #b5543a;
+
+  /* — الأدوار (الوضع الفاتح) — */
+  --bg: var(--ivory-1);
+  --surface: var(--ivory-0);
+  --surface-2: var(--ivory-2);
+  --text: #14202b;
+  --text-soft: #36424e;
+  --muted: #5b6470;
+  --line: rgb(20 32 43 / 0.12);
+  --line-strong: rgb(20 32 43 / 0.22);
+  --accent: var(--gold-1);
+  --accent-strong: #6f5320;
+  --accent-glow: var(--gold-3);
+  --secondary: var(--olive-1);
+  --danger: var(--ember);
+  --scrim: rgb(7 14 22 / 0.62);
+  --glass: rgb(253 251 246 / 0.84);
+
+  /* سطح المشاهد السردية — ليلي دائماً في الوضعين */
+  --scene-bg: var(--night-1);
+  --scene-text: #efe9db;
+  --scene-muted: #a6adb4;
+  --scene-line: rgb(239 233 219 / 0.12);
+
+  /* — الخط — */
+  --font: 'Thmanyah', 'Thmanyah Fallback', system-ui, -apple-system, 'Segoe UI', 'Noto Sans Arabic', sans-serif;
+  --fs-display: clamp(40px, 7.6vw, 92px);
+  --fs-scene: clamp(28px, 4.4vw, 52px);
+  --fs-title: clamp(22px, 2.6vw, 32px);
+  --fs-statement: clamp(19px, 2.2vw, 26px);
+  --fs-body: clamp(16px, 1.15vw, 18px);
+  --fs-small: 14px;
+  --fs-eyebrow: clamp(13px, 1.1vw, 15px);
+  --lh-tight: 1.15;
+  --lh-body: 1.75;
+
+  /* — المقاسات — */
+  --gutter: clamp(16px, 4vw, 56px);
+  --max: 1240px;
+  --radius-s: 10px;
+  --radius-m: 16px;
+  --radius-l: 28px;
+  --touch-min: 48px;
+  --header-h: 68px;
+
+  /* — الحركة: مرآة src/motion/tokens.ts — */
+  --t-fast: 140ms;
+  --t-base: 220ms;
+  --t-gentle: 320ms;
+  --t-reveal: 780ms;
+  --t-sweep: 860ms;
+  --ease-in: cubic-bezier(.2,.85,.25,1);
+  --ease-move: cubic-bezier(.4,0,.2,1);
+  --ease-out: cubic-bezier(.4,0,1,1);
+  --ease-glide: cubic-bezier(.22,.82,.2,1);
+  --ease-travel: cubic-bezier(.65,0,.25,1);
+
+  /* — الظلال — */
+  --shadow-1: 0 1px 2px rgb(7 14 22 / 0.06), 0 4px 16px rgb(7 14 22 / 0.06);
+  --shadow-2: 0 2px 6px rgb(7 14 22 / 0.08), 0 18px 48px rgb(7 14 22 / 0.14);
+  --shadow-glow: 0 0 0 1px rgb(201 162 90 / 0.25), 0 12px 40px rgb(201 162 90 / 0.18);
+
+  color-scheme: light;
+}
+
+/* — الوضع الداكن: يتبع الجهاز ما لم يختر الزائر — */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --bg: var(--night-1);
+    --surface: var(--night-2);
+    --surface-2: var(--night-3);
+    --text: #eee8da;
+    --text-soft: #d3cdbf;
+    --muted: #a3a9b0;
+    --line: rgb(238 232 218 / 0.1);
+    --line-strong: rgb(238 232 218 / 0.2);
+    --accent: var(--gold-4);
+    --accent-strong: var(--gold-5);
+    --secondary: var(--olive-3);
+    --glass: rgb(11 21 32 / 0.82);
+    --scene-bg: var(--night-0);
+    --shadow-1: 0 1px 2px rgb(0 0 0 / 0.3), 0 4px 16px rgb(0 0 0 / 0.25);
+    --shadow-2: 0 2px 6px rgb(0 0 0 / 0.35), 0 18px 48px rgb(0 0 0 / 0.45);
+    color-scheme: dark;
+  }
+}
+:root[data-theme='dark'] {
+  --bg: var(--night-1);
+  --surface: var(--night-2);
+  --surface-2: var(--night-3);
+  --text: #eee8da;
+  --text-soft: #d3cdbf;
+  --muted: #a3a9b0;
+  --line: rgb(238 232 218 / 0.1);
+  --line-strong: rgb(238 232 218 / 0.2);
+  --accent: var(--gold-4);
+  --accent-strong: var(--gold-5);
+  --secondary: var(--olive-3);
+  --glass: rgb(11 21 32 / 0.82);
+  --scene-bg: var(--night-0);
+  --shadow-1: 0 1px 2px rgb(0 0 0 / 0.3), 0 4px 16px rgb(0 0 0 / 0.25);
+  --shadow-2: 0 2px 6px rgb(0 0 0 / 0.35), 0 18px 48px rgb(0 0 0 / 0.45);
+  color-scheme: dark;
+}

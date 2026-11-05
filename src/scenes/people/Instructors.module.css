@@ -1,0 +1,39 @@
+.people { padding-block: clamp(90px, 16vh, 180px); background: var(--bg); }
+.title { display: block; margin-block: 12px 48px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 22px; perspective: 1200px; }
+.item[data-display='compact'] .portrait { aspect-ratio: 16 / 9; }
+.card {
+  --rx: 0deg; --ry: 0deg; --gx: 50%; --gy: 50%;
+  position: relative; display: grid; border-radius: var(--radius-l); overflow: hidden; block-size: 100%;
+  background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow-1);
+  transform: rotateX(var(--rx)) rotateY(var(--ry)); transform-style: preserve-3d;
+  transition: transform var(--t-gentle) var(--ease-glide), box-shadow var(--t-gentle);
+}
+.card::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(400px circle at var(--gx) var(--gy), rgb(201 162 90 / 0.14), transparent 50%);
+  opacity: 0; transition: opacity var(--t-gentle);
+}
+.card:hover { box-shadow: var(--shadow-2); }
+.card:hover::after { opacity: 1; }
+.portrait {
+  position: relative; aspect-ratio: 4 / 4.2; display: grid; place-items: center; overflow: hidden;
+  background: radial-gradient(70% 60% at 50% 40%, var(--night-3), var(--night-1));
+}
+.js .item .portrait { clip-path: inset(100% 0 0 0); }
+.js .item:global(.in) .portrait { clip-path: inset(0 0 0 0); transition: clip-path calc(var(--t-gentle) * 3.5) var(--ease-travel) calc(var(--d) * 90ms); }
+.bust { position: relative; z-index: 1; inline-size: 46%; fill: none; stroke: var(--gold-3); stroke-width: 1.4; stroke-linecap: round; transform: translateY(8%); filter: drop-shadow(0 0 12px rgb(201 162 90 / 0.3)); }
+.item[data-display='compact'] .bust { inline-size: 26%; }
+.rings {
+  position: absolute; inset: 14%; border-radius: 50%;
+  box-shadow: 0 0 0 1px rgb(201 162 90 / 0.22), 0 0 0 22px rgb(201 162 90 / 0.015), 0 0 0 23px rgb(201 162 90 / 0.08);
+  border-top: 1px solid rgb(201 162 90 / 0.5);
+  animation: spin 30s linear infinite;
+}
+@keyframes spin { to { transform: rotate(1turn); } }
+.info { padding: 20px 22px 24px; display: grid; gap: 4px; align-content: start; }
+.badge { justify-self: start; font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 999px; background: color-mix(in srgb, var(--gold-3) 18%, transparent); color: var(--accent); margin-block-end: 6px; }
+.name { font-size: 20px; font-weight: 800; }
+.role { color: var(--accent); font-weight: 600; font-size: 15px; }
+.hl { display: grid; gap: 4px; margin-block-start: 10px; font-size: 14px; color: var(--text-soft); }
+.hl li::before { content: '— '; color: var(--gold-3); }

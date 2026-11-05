@@ -1,0 +1,61 @@
+.opening { position: relative; block-size: 360svh; background: var(--scene-bg); color: var(--scene-text); }
+.stage { position: sticky; inset-block-start: 0; block-size: 100svh; overflow: hidden; isolation: isolate; }
+.canvas { position: absolute; inset: 0; inline-size: 100%; block-size: 100%; z-index: 0; }
+.vignette {
+  position: absolute; inset: 0; z-index: 1; pointer-events: none;
+  background:
+    radial-gradient(60% 50% at 50% 50%, transparent 0%, rgb(7 14 22 / 0.0) 40%, rgb(7 14 22 / 0.65) 100%),
+    radial-gradient(40% 35% at 50% 55%, rgb(201 162 90 / calc(0.04 + var(--p, 0) * 0.1)), transparent 70%);
+}
+
+.head {
+  position: absolute; inset-inline: 0; inset-block-start: 50%; z-index: 2;
+  transform: translate3d(0, calc(-50% - (1 - var(--head, 1)) * 12vh), 0);
+  opacity: var(--head, 1); pointer-events: none;
+  display: grid; justify-items: start; gap: 22px;
+}
+.eyebrow { color: var(--gold-4); opacity: 0; transform: translateY(10px); transition: opacity var(--t-reveal) var(--ease-glide), transform var(--t-reveal) var(--ease-glide); }
+.eyebrow[data-live='1'] { opacity: 1; transform: none; }
+.title { display: block; font-size: var(--fs-display); font-weight: 900; line-height: 1.05; letter-spacing: -0.02em; max-inline-size: 12ch; }
+.title :global(.w:last-child) > span { color: var(--gold-4); }
+.hint {
+  display: inline-flex; align-items: center; gap: 12px; margin-block-start: 18px; font-size: 14px; color: var(--scene-muted);
+  opacity: 0; transition: opacity var(--t-reveal) var(--ease-glide) calc(var(--t-gentle) * 3);
+}
+.hint[data-live='1'] { opacity: 1; }
+.mouse { inline-size: 22px; block-size: 34px; border-radius: 12px; box-shadow: inset 0 0 0 1.5px currentColor; display: grid; justify-items: center; padding-block-start: 6px; }
+.mouse span { inline-size: 3px; block-size: 7px; border-radius: 2px; background: var(--gold-4); animation: cue 1.8s var(--ease-in) infinite; }
+@keyframes cue { 0% { transform: translateY(0); opacity: 1; } 70% { transform: translateY(10px); opacity: 0; } 100% { opacity: 0; } }
+
+.phases { position: absolute; inset-inline: 0; inset-block-end: 13svh; z-index: 2; display: grid; place-items: center; text-align: center; pointer-events: none; }
+.phase { grid-area: 1 / 1; font-size: var(--fs-scene); font-weight: 800; padding-inline: var(--gutter); transition: opacity var(--t-gentle) var(--ease-move); }
+.phase[data-on='0'] { opacity: 0; }
+
+.final {
+  position: absolute; inset-inline: 0; inset-block-end: 5svh; z-index: 3; display: flex; justify-content: center;
+  opacity: 0; transform: translateY(16px); pointer-events: none;
+  transition: opacity var(--t-reveal) var(--ease-glide), transform var(--t-reveal) var(--ease-glide);
+}
+.final[data-on='1'] { opacity: 1; transform: none; pointer-events: auto; }
+
+.meter { position: absolute; inset-inline-end: var(--gutter); inset-block: 30svh; inline-size: 2px; background: var(--scene-line); border-radius: 2px; z-index: 2; }
+.meter span { position: absolute; inset: 0; background: var(--gold-3); transform-origin: top; transform: scaleY(var(--p, 0)); border-radius: 2px; }
+
+.calmMark { display: none; }
+
+@media (max-width: 720px) {
+  .phases { inset-block-end: 16svh; }
+  .meter { display: none; }
+}
+
+/* بلا حركة: لا تثبيت، كل شيء ظاهر، والعلامة ثابتة */
+@media (prefers-reduced-motion: reduce) {
+  .opening { block-size: auto; }
+  .stage { position: relative; block-size: auto; min-block-size: 100svh; padding-block: 18svh 10svh; display: grid; gap: 40px; }
+  .head { position: relative; inset: auto; transform: none; opacity: 1; }
+  .phases { position: relative; inset: auto; gap: 10px; }
+  .phase { grid-area: auto; font-size: var(--fs-statement); opacity: 1 !important; }
+  .final { position: relative; inset: auto; opacity: 1; transform: none; pointer-events: auto; }
+  .canvas, .meter, .hint { display: none; }
+  .calmMark { display: grid; place-items: center; color: var(--gold-3); }
+}

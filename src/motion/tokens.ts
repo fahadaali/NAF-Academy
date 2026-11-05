@@ -1,0 +1,67 @@
+/* رموز الحركة — كل مدة ومنحنى في المنصة مشتقّ من هنا.
+   ثلاث مدد أساسية، وكل توقيت آخر مركّب منها، فيبقى الإيقاع واحداً. */
+
+export const duration = { fast: 140, base: 220, gentle: 320 } as const
+const d = duration
+
+type Curve = readonly [number, number, number, number]
+export const curve = {
+  in: [0.2, 0.85, 0.25, 1],
+  move: [0.4, 0, 0.2, 1],
+  out: [0.4, 0, 1, 1],
+  glide: [0.22, 0.82, 0.2, 1],
+  travel: [0.65, 0, 0.25, 1],
+} as const satisfies Record<string, Curve>
+
+export const css = Object.fromEntries(
+  Object.entries(curve).map(([k, c]) => [k, `cubic-bezier(${c.join(',')})`]),
+) as Record<keyof typeof curve, string>
+
+/* توقيتات مركّبة */
+export const timing = {
+  hover: d.fast,
+  reveal: d.gentle * 2 + d.fast, // 780
+  wordStagger: d.fast / 2.8, // ~50 لكل كلمة
+  count: d.gentle * 5, // 1600 للعدّادات
+  curtain: d.gentle * 4, // 1280 رفع الستار
+  curtainMax: d.gentle * 15, // سقف احتياطي
+  flip: d.gentle * 2, // تقليب المجلدات
+  themeSweep: d.gentle * 2 + d.base, // 860 دائرة تبديل الوضع
+} as const
+
+/* ── bezier محسوب يدوياً للمشاهد المربوطة بالتمرير (نيوتن-رافسون) ── */
+export function bezier([x1, y1, x2, y2]: Curve): (t: number) => number {
+  const sample = (a1: number, a2: number, t: number) =>
+    ((1 - 3 * a2 + 3 * a1) * t + (3 * a2 - 6 * a1)) * t * t + 3 * a1 * t
+  const slope = (a1: number, a2: number, t: number) =>
+    3 * (1 - 3 * a2 + 3 * a1) * t * t + 2 * (3 * a2 - 6 * a1) * t + 3 * a1
+  return (x) => {
+    if (x <= 0) return 0
+    if (x >= 1) return 1
+    let t = x
+    for (let i = 0; i < 8; i++) {
+      const err = sample(x1, x2, t) - x
+      const s = slope(x1, x2, t)
+      if (Math.abs(err) < 1e-5 || !s) break
+      t -= err / s
+    }
+    return sample(y1, y2, Math.min(1, Math.max(0, t)))
+  }
+}
+
+export const ease = {
+  in: bezier(curve.in),
+  move: bezier(curve.move),
+  glide: bezier(curve.glide),
+  travel: bezier(curve.travel),
+}
+
+/* أدوات المشاهد */
+export const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v)
+export const smooth = (t: number) => t * t * (3 - 2 * t)
+/** تقدّم داخل نافذة [a,b] من تقدّم كلّي */
+export const span = (p: number, [a, b]: readonly [number, number]) => clamp01((p - a) / (b - a))
+export const lerp = (a: number, b: number, t: number) => a + (b - a) * t
+
+export const prefersCalm = () =>
+  typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches

@@ -1,0 +1,11 @@
+.footer { background: var(--scene-bg); color: var(--scene-text); padding-block: clamp(90px, 16vh, 170px) 36px; }
+.cta { display: grid; justify-items: start; gap: 28px; padding-block-end: 90px; border-block-end: 1px solid var(--scene-line); }
+.big { font-size: var(--fs-display); font-weight: 900; line-height: 1.05; max-inline-size: 14ch; }
+.bottom { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 20px; padding-block-start: 30px; }
+.mark { display: inline-flex; align-items: center; gap: 10px; }
+.mark :global(.emblem) { color: var(--gold-3); }
+.mark :global(.wordmark-text) { display: grid; line-height: 1.2; }
+.mark :global(small) { font-size: 11px; opacity: 0.7; }
+.links { display: flex; flex-wrap: wrap; gap: 6px 22px; font-size: 15px; color: var(--scene-muted); }
+.links a:hover { color: var(--gold-4); }
+.copy { inline-size: 100%; font-size: 13px; color: var(--scene-muted); }

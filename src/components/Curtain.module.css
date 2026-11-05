@@ -1,0 +1,24 @@
+.curtain {
+  position: fixed; inset: 0; z-index: 90; display: none;
+  place-items: center; background: var(--night-0); color: var(--gold-3);
+}
+:global(html.opening) .curtain { display: grid; }
+:global(html.unveil) .curtain {
+  animation: lift calc(var(--t-gentle) * 4) var(--ease-travel) forwards;
+}
+.core { display: grid; justify-items: center; gap: 18px; }
+.name {
+  font-size: 18px; font-weight: 700; letter-spacing: 0.04em; color: var(--scene-text);
+  animation: fade calc(var(--t-gentle) * 2) var(--ease-glide) calc(var(--t-gentle) * 3) both;
+}
+.core :global(.emblem-ring) { stroke-dasharray: 1; stroke-dashoffset: 1; animation: draw calc(var(--t-gentle) * 4) var(--ease-travel) forwards; }
+.core :global(.emblem-bar) { transform-box: fill-box; transform-origin: bottom; transform: scaleY(0); animation: rise calc(var(--t-gentle) * 2) var(--ease-glide) calc(var(--t-gentle) * 1.4 + var(--i) * var(--t-fast)) forwards; }
+.core :global(.emblem-dot) { opacity: 0; transform-box: fill-box; transform-origin: center; animation: pop var(--t-gentle) var(--ease-in) calc(var(--t-gentle) * 3) forwards; }
+@keyframes draw { to { stroke-dashoffset: 0; } }
+@keyframes rise { to { transform: scaleY(1); } }
+@keyframes pop { from { opacity: 0; transform: rotate(45deg) scale(0); } to { opacity: 1; transform: rotate(45deg) scale(1); } }
+@keyframes fade { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes lift {
+  0% { clip-path: inset(0 0 0 0); }
+  100% { clip-path: inset(0 0 100% 0); }
+}
