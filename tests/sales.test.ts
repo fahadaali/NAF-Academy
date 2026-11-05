@@ -164,8 +164,9 @@ test('عودة المتصفح وWebhook معاً: إتمام واحد فقط (ت
   assert.ok(r.ok)
   if (!r.ok) return
   const pid = `mock_${r.order.id}_${r.order.total}_paid`
-  const out = await Promise.all([m.confirmPayment(pid, r.order.id), m.confirmPayment(pid, r.order.id), m.finalizeOrder(r.order.id, { method: 'gateway', paymentId: pid })])
-  assert.ok(out.slice(0, 2).every((x) => x.outcome === 'paid'))
+  const [a, b] = await Promise.all([m.confirmPayment(pid, r.order.id), m.confirmPayment(pid, r.order.id), m.finalizeOrder(r.order.id, { method: 'gateway', paymentId: pid })])
+  assert.equal(a.outcome, 'paid')
+  assert.equal(b.outcome, 'paid')
   const { eq } = await import('drizzle-orm')
   assert.equal((await db.select().from(s.enrollments).where(eq(s.enrollments.orderId, r.order.id))).length, 1)
   assert.equal((await db.select().from(s.invoices).where(eq(s.invoices.orderId, r.order.id))).length, 1)

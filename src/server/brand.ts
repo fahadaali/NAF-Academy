@@ -1,7 +1,6 @@
 import 'server-only'
 /* قراءة الهوية من الإعدادات وتحويل معرّفات الصور إلى روابط — مصدر واحد لكل موضع في المنصة */
 import { cache } from 'react'
-import { inArray } from 'drizzle-orm'
 import { db, schema as s } from './db'
 import { getSetting } from './settings'
 import { getObject } from './storage'
