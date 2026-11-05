@@ -4,8 +4,10 @@ import { randomUUID } from 'node:crypto'
 import { revalidatePath } from 'next/cache'
 import { and, count, eq, isNotNull, isNull } from 'drizzle-orm'
 import { imageSize } from 'image-size'
+import { z } from 'zod'
 import { db, schema as s } from '@/server/db'
 import { requirePermission } from '@/server/auth'
+import type { Perm } from '@/lib/permissions'
 import { audit } from '@/server/audit'
 import { deleteObject, putObject } from '@/server/storage'
 import type { HomeContent } from '@/content/home-defaults'
@@ -22,17 +24,23 @@ const refresh = () => revalidatePath('/', 'layout')
 
 function uniqueError(e: unknown): Result | null {
   const m = String((e as Error)?.message ?? e) + String((e as { cause?: unknown })?.cause ?? '')
-  return /UNIQUE/i.test(m) ? { ok: false, errors: { slug: 'هذا الرابط مستخدم من قبل' } } : null
+  return /UNIQUE/i.test(m) ? { ok: false, errors: { slug: 'هذا الرابط مستخدم من قبل — ربما لعنصر في سلة المحذوفات' } } : null
 }
 
 /* ───────── الدورات ───────── */
 
-export async function saveCourse(id: string | null, raw: CourseInput): Promise<Result> {
+export async function saveCourse(id: string | null, raw: CourseInput, opts: { confirmDrop?: boolean } = {}): Promise<Result> {
   const admin = await requirePermission('content.write')
   const p = courseInput.safeParse(raw)
   if (!p.success) return { ok: false, errors: errorsOf(p.error), message: 'راجع الحقول المعلّمة' }
   const { instructorIds, curriculum, tiers, groupRules, ...v } = p.data
   const cid = id ?? randomUUID()
+  /* درس أو باقة أُزيلت من المحرّر ولها سجلات متدربين أو طلبات: لا تُحذف بصمت (الحذف يمحو التقدّم والواجبات والحضور) —
+     يُطلب تأكيد صريح أولاً */
+  if (id && !opts.confirmDrop) {
+    const warn = await dropRisks(id, curriculum, tiers)
+    if (warn) return { ok: false, errors: {}, message: warn, confirm: warn }
+  }
   try {
     if (id) await db.update(s.courses).set({ ...v, updatedAt: now() }).where(eq(s.courses.id, id))
     else await db.insert(s.courses).values({ ...v, id: cid, previewToken: token() })
@@ -167,11 +175,23 @@ export async function saveInstructor(id: string | null, raw: InstructorInput): P
 
 /* ───────── الحذف الناعم والاسترجاع ───────── */
 
-const tables = { course: s.courses, track: s.tracks, instructor: s.instructors, media: s.media, coupon: s.coupons } as const
+const tables = {
+  course: s.courses, track: s.tracks, instructor: s.instructors, media: s.media, coupon: s.coupons,
+  organization: s.organizations, template: s.certificateTemplates,
+} as const
 export type Entity = keyof typeof tables
+/* السلة واحدة، وصلاحية كل عنصر صلاحية قسمه: من يحذف الكوبون يسترجعه، ولا يسترجعه غيره */
+const OWNER: Record<Entity, Perm> = {
+  course: 'content.write', track: 'content.write', instructor: 'content.write', media: 'content.write',
+  coupon: 'sales.coupons', organization: 'corporate.manage', template: 'certificates.manage',
+}
+const isEntity = (e: unknown): e is Entity => typeof e === 'string' && Object.hasOwn(tables, e)
+const idInput = z.string().min(1).max(64)
 
 export async function trash(entity: Entity, id: string) {
-  const admin = await requirePermission('content.write')
+  if (!isEntity(entity)) return
+  const admin = await requirePermission(OWNER[entity])
+  if (!idInput.safeParse(id).success) return
   const t = tables[entity]
   await db.update(t).set({ deletedAt: now() }).where(eq(t.id, id))
   await audit(admin.name, 'trash', entity, id, 'نُقل إلى المحذوفات')
@@ -179,7 +199,9 @@ export async function trash(entity: Entity, id: string) {
 }
 
 export async function restore(entity: Entity, id: string) {
-  const admin = await requirePermission('content.write')
+  if (!isEntity(entity)) return
+  const admin = await requirePermission(OWNER[entity])
+  if (!idInput.safeParse(id).success) return
   const t = tables[entity]
   await db.update(t).set({ deletedAt: null }).where(eq(t.id, id))
   await audit(admin.name, 'restore', entity, id, 'استُرجع من المحذوفات')
@@ -190,6 +212,7 @@ export async function restore(entity: Entity, id: string) {
     ويرفض حذف دورة لها طلبات أو تسجيلات (تُؤرشف بدلاً من ذلك) حفاظاً على السجل المالي. */
 export async function purge(entity: Entity, id: string, confirm: string): Promise<{ ok: boolean; error?: string }> {
   const admin = await requirePermission('trash.purge')
+  if (!isEntity(entity) || !idInput.safeParse(id).success) return { ok: false, error: 'عنصر غير صالح' }
   if (confirm !== 'حذف') return { ok: false, error: 'لم يُؤكَّد الحذف' }
   const t = tables[entity]
   const [row] = await db.select().from(t).where(and(eq(t.id, id), isNotNull(t.deletedAt)))
@@ -210,9 +233,19 @@ export async function purge(entity: Entity, id: string, confirm: string): Promis
     const [used] = await db.select({ n: count() }).from(s.couponRedemptions).where(eq(s.couponRedemptions.couponId, id))
     if (used.n) return { ok: false, error: 'استُخدم هذا الكوبون في طلبات — يبقى في السجل موقوفاً ولا يُحذف نهائياً' }
   }
+  if (entity === 'template') {
+    const [def] = await db.select({ d: s.certificateTemplates.isDefault }).from(s.certificateTemplates).where(eq(s.certificateTemplates.id, id))
+    if (def?.d) return { ok: false, error: 'القالب الافتراضي لا يُحذف — اجعل غيره افتراضياً أولاً' }
+    /* الدورات التي تشير إليه تعود للقالب الافتراضي؛ والشهادات الصادرة لقطات لا تتأثر */
+    const refs = await db.select({ id: s.courses.id, c: s.courses.certificate }).from(s.courses)
+    for (const r of refs) if (r.c?.templateId === id) await db.update(s.courses).set({ certificate: { ...r.c, templateId: null } }).where(eq(s.courses.id, r.id))
+  }
   if (entity === 'track') await db.update(s.courses).set({ trackId: null }).where(eq(s.courses.trackId, id))
   if (entity === 'instructor') await db.delete(s.courseInstructors).where(eq(s.courseInstructors.instructorId, id))
   if (entity === 'media') {
+    /* صورة في الهوية أو في قالب شهادة لا تُحذف نهائياً — وإلا اختفى الشعار بصمت وتعذّر حفظ الهوية */
+    const used = await mediaInUse(id)
+    if (used.length) return { ok: false, error: `الصورة مستعملة في: ${used.join('، ')} — غيّرها هناك أولاً` }
     await db.update(s.courses).set({ coverId: null }).where(eq(s.courses.coverId, id))
     await db.update(s.tracks).set({ coverId: null }).where(eq(s.tracks.coverId, id))
     await db.update(s.instructors).set({ photoId: null }).where(eq(s.instructors.photoId, id))
@@ -278,4 +311,42 @@ export async function saveHome(value: HomeContent): Promise<{ ok: boolean; messa
   await audit(admin.name, 'update', 'home', 'home', 'الصفحة الرئيسية', clean)
   refresh()
   return { ok: true }
+}
+
+/** أين تُستعمل الصورة مما لا يحتمل غيابها: الهوية (الشعارات والأيقونة) وقوالب الشهادات */
+async function mediaInUse(id: string): Promise<string[]> {
+  const out: string[] = []
+  const [brand] = await db.select().from(s.settings).where(eq(s.settings.key, 'brand'))
+  const b = (brand?.value ?? {}) as { academy?: { light?: string | null; dark?: string | null }; naf?: { light?: string | null; dark?: string | null }; icon?: string | null }
+  if (b.academy?.light === id || b.academy?.dark === id) out.push('شعار الأكاديمية')
+  if (b.naf?.light === id || b.naf?.dark === id) out.push('شعار شركة ناف')
+  if (b.icon === id) out.push('أيقونة التطبيق')
+  const tpls = await db.select({ name: s.certificateTemplates.name, design: s.certificateTemplates.design }).from(s.certificateTemplates)
+  for (const t of tpls) if (JSON.stringify(t.design ?? {}).includes(`"${id}"`)) out.push(`قالب الشهادة «${t.name}»`)
+  return out
+}
+
+/** ما سيضيع إن حُفظ المنهج والباقات كما هي: دروس أُزيلت ولها سجلات متدربين، وباقات أُزيلت عليها طلبات */
+async function dropRisks(courseId: string, curriculum: CourseInput['curriculum'], tiers: CourseInput['tiers']): Promise<string | null> {
+  const keepL = new Set(curriculum.flatMap((m) => m.lessons.map((l) => l.id).filter(Boolean) as string[]))
+  const old = await db.select({ id: s.lessons.id, title: s.lessons.title }).from(s.lessons).innerJoin(s.modules, eq(s.modules.id, s.lessons.moduleId)).where(eq(s.modules.courseId, courseId))
+  const gone = old.filter((l) => !keepL.has(l.id))
+  const lines: string[] = []
+  if (gone.length) {
+    const ids = gone.map((g) => g.id)
+    const tables = [s.lessonProgress, s.attendance, s.quizAttempts, s.submissions, s.questions, s.notes] as const
+    const touched = new Map<string, Set<string>>()
+    for (const t of tables) {
+      const rows = await db.select({ lessonId: t.lessonId, learnerId: t.learnerId }).from(t).where(inList(t.lessonId, ids))
+      for (const r of rows) (touched.get(r.lessonId) ?? touched.set(r.lessonId, new Set()).get(r.lessonId)!).add(r.learnerId)
+    }
+    for (const g of gone) if (touched.get(g.id)?.size) lines.push(`«${g.title}» (${touched.get(g.id)!.size} متدرب)`)
+  }
+  const keepT = new Set(tiers.map((t) => t.id).filter(Boolean) as string[])
+  const oldT = await db.select({ id: s.priceTiers.id, name: s.priceTiers.name }).from(s.priceTiers).where(eq(s.priceTiers.courseId, courseId))
+  for (const t of oldT.filter((x) => !keepT.has(x.id))) {
+    const [o] = await db.select({ n: count() }).from(s.orderItems).where(eq(s.orderItems.tierId, t.id))
+    if (o.n) lines.push(`باقة «${t.name}» (${o.n} طلب)`)
+  }
+  return lines.length ? `ستُحذف نهائياً مع سجلاتها: ${lines.join('، ')}. أبقها، أو أكّد الحذف.` : null
 }

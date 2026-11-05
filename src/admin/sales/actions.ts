@@ -3,7 +3,7 @@ import { assignSeatCore } from '@/server/seats'
 /* إجراءات المبيعات في اللوحة — الإعدادات، والكوبونات، والاسترداد، والطلب اليدوي، وتخصيص المقاعد. */
 import { randomBytes, randomUUID } from 'node:crypto'
 import { revalidatePath } from 'next/cache'
-import { and, eq } from 'drizzle-orm'
+import { and, eq, isNull } from 'drizzle-orm'
 import { z } from 'zod'
 import { db, schema as s } from '@/server/db'
 import { requirePermission } from '@/server/auth'
@@ -123,7 +123,7 @@ export async function setCouponActive(id: string, active: boolean) {
 
 export async function trashCoupon(id: string) {
   const admin = await requirePermission('sales.coupons')
-  await db.update(s.coupons).set({ deletedAt: new Date().toISOString(), active: false }).where(eq(s.coupons.id, id))
+  await db.update(s.coupons).set({ deletedAt: new Date().toISOString() }).where(eq(s.coupons.id, id))
   await audit(admin.name, 'trash', 'coupon', id, 'نُقل إلى المحذوفات')
 }
 
@@ -179,9 +179,27 @@ export async function assignSeat(grantId: string, email: string, name: string): 
 }
 
 /** إلغاء تسجيل أو إضافته يدوياً من صفحة المسجّلين */
-export async function setEnrollment(enrollmentId: string, status: 'active' | 'canceled') {
+export async function setEnrollment(enrollmentId: string, status: 'active' | 'canceled'): Promise<{ ok: boolean; error?: string }> {
   const admin = await requirePermission('sales.orders')
-  await db.update(s.enrollments).set({ status, updatedAt: new Date().toISOString() }).where(eq(s.enrollments.id, enrollmentId))
+  if (status !== 'active' && status !== 'canceled') return { ok: false, error: 'حالة غير صالحة' }
+  const [en] = await db.select().from(s.enrollments).where(eq(s.enrollments.id, enrollmentId))
+  if (!en) return { ok: false, error: 'التسجيل غير موجود' }
+  if (status === 'canceled') {
+    /* مقعد الطلب الجماعي يعود شاغراً فيُخصَّص لغيره */
+    await db.update(s.seatGrants).set({ enrollmentId: null, email: null }).where(eq(s.seatGrants.enrollmentId, enrollmentId))
+  } else if (en.source === 'seat' && en.orderId) {
+    const [free] = await db.select({ id: s.seatGrants.id }).from(s.seatGrants).where(and(eq(s.seatGrants.orderId, en.orderId), eq(s.seatGrants.courseId, en.courseId), isNull(s.seatGrants.enrollmentId)))
+    if (!free) return { ok: false, error: 'لا مقعد شاغر في طلب المؤسسة — خُصّصت مقاعده كلها' }
+    const [learner] = await db.select({ email: s.learners.email }).from(s.learners).where(eq(s.learners.id, en.learnerId))
+    const got = await db.update(s.seatGrants).set({ enrollmentId, email: learner?.email ?? null }).where(and(eq(s.seatGrants.id, free.id), isNull(s.seatGrants.enrollmentId))).returning({ id: s.seatGrants.id })
+    if (!got.length) return { ok: false, error: 'خُصّص المقعد للتو لغيره — أعد المحاولة' }
+  }
+  try {
+    await db.update(s.enrollments).set({ status, updatedAt: new Date().toISOString() }).where(eq(s.enrollments.id, enrollmentId))
+  } catch {
+    return { ok: false, error: 'للمتدرب تسجيل نشط آخر في الدورة' }
+  }
   await audit(admin.name, status === 'active' ? 'restore' : 'cancel', 'enrollment', enrollmentId, status === 'active' ? 'تفعيل تسجيل' : 'إلغاء تسجيل')
   revalidatePath('/', 'layout')
+  return { ok: true }
 }

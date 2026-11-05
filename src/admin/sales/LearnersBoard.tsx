@@ -47,8 +47,12 @@ export function LearnersBoard({ courseId, title, enrolls, interest }: { courseId
                   <button className={p.iconBtn} onClick={() => {
                     const next = x.e.status === 'active' ? 'canceled' : 'active'
                     if (next === 'canceled' && !confirm(`إلغاء تسجيل ${x.l.name}؟ لا يُسترد المبلغ تلقائياً — الاسترداد من صفحة الطلب.`)) return
+                    const prev = x.e.status
                     setList((l) => l.map((y) => (y.e.id === x.e.id ? { ...y, e: { ...y.e, status: next } } : y)))
-                    start(() => setEnrollment(x.e.id, next))
+                    start(async () => {
+                      const r = await setEnrollment(x.e.id, next)
+                      if (!r.ok) { setList((l) => l.map((y) => (y.e.id === x.e.id ? { ...y, e: { ...y.e, status: prev } } : y))); alert(r.error) }
+                    })
                   }}>{x.e.status === 'active' ? 'إلغاء' : 'تفعيل'}</button>
                 </td>
               </tr>

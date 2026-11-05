@@ -36,7 +36,7 @@ export async function orgOverview(orgId: string) {
   const [enr, certs] = ids.length && sponsored.length
     ? await Promise.all([
       db.select({ e: s.enrollments, title: s.courses.title, slug: s.courses.slug }).from(s.enrollments).innerJoin(s.courses, eq(s.courses.id, s.enrollments.courseId))
-        .where(and(inList(s.enrollments.learnerId, ids), eq(s.enrollments.status, 'active'), inList(s.enrollments.orderId, sponsored))),
+        .where(and(inList(s.enrollments.learnerId, ids), eq(s.enrollments.status, 'active'), inList(s.enrollments.orderId, sponsored), isNull(s.courses.deletedAt))),
       db.select().from(s.certificates).where(and(inList(s.certificates.learnerId, ids), eq(s.certificates.status, 'issued'))),
     ])
     : [[], []]

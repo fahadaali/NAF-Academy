@@ -1,4 +1,4 @@
-import { and, eq } from 'drizzle-orm'
+import { and, eq, isNull } from 'drizzle-orm'
 import { db, schema as s } from '@/server/db'
 import { currentLearner } from '@/server/learner-auth'
 import { formatDay, formatHijri, formatTime } from '@/lib/dates'
@@ -12,7 +12,7 @@ export default async function MyCourses() {
   const me = (await currentLearner())!
   const rows = await db.select({ e: s.enrollments, c: s.courses, tier: s.priceTiers.name }).from(s.enrollments)
     .innerJoin(s.courses, eq(s.courses.id, s.enrollments.courseId)).leftJoin(s.priceTiers, eq(s.priceTiers.id, s.enrollments.tierId))
-    .where(and(eq(s.enrollments.learnerId, me.id), eq(s.enrollments.status, 'active')))
+    .where(and(eq(s.enrollments.learnerId, me.id), eq(s.enrollments.status, 'active'), isNull(s.courses.deletedAt)))
   if (!rows.length)
     return <div className={st.empty}><strong>لم تسجّل في دورة بعد.</strong><a className="btn" href="/courses">تصفّح الدورات</a></div>
   const now = Date.now()

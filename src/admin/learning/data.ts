@@ -13,7 +13,7 @@ export async function submissionsQueue(status: 'submitted' | 'accepted' | 'revis
     .innerJoin(s.lessons, eq(s.lessons.id, s.submissions.lessonId))
     .innerJoin(s.courses, eq(s.courses.id, s.submissions.courseId))
     .leftJoin(s.assets, eq(s.assets.id, s.submissions.assetId))
-    .where(status === 'all' ? undefined : eq(s.submissions.status, status))
+    .where(and(isNull(s.courses.deletedAt), status === 'all' ? undefined : eq(s.submissions.status, status)))
     .orderBy(status === 'submitted' ? asc(s.submissions.createdAt) : desc(s.submissions.createdAt)).limit(300)
 }
 
@@ -24,7 +24,7 @@ export async function questionsQueue(open: boolean) {
     .innerJoin(s.learners, eq(s.learners.id, s.questions.learnerId))
     .innerJoin(s.lessons, eq(s.lessons.id, s.questions.lessonId))
     .innerJoin(s.courses, eq(s.courses.id, s.questions.courseId))
-    .where(open ? isNull(s.questions.answer) : sql`${s.questions.answer} is not null`)
+    .where(and(isNull(s.courses.deletedAt), open ? isNull(s.questions.answer) : sql`${s.questions.answer} is not null`))
     .orderBy(open ? asc(s.questions.createdAt) : desc(s.questions.answeredAt)).limit(300)
 }
 

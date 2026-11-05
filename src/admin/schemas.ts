@@ -176,7 +176,7 @@ export const instructorInput = z.object({
 export type InstructorInput = z.input<typeof instructorInput>
 
 export type Errors = Record<string, string>
-export type Result = { ok: true; id: string } | { ok: false; errors: Errors; message?: string }
+export type Result = { ok: true; id: string } | { ok: false; errors: Errors; message?: string; /** يحتاج تأكيداً صريحاً ثم إعادة الإرسال */ confirm?: string }
 
 /** أخطاء zod ← خريطة مسار ← رسالة */
 export function errorsOf(e: z.ZodError): Errors {

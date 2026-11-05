@@ -67,7 +67,8 @@ export function CourseEditor({ id, initial, previewToken, tracks, instructors, m
 
   const save = async () => {
     setSaving(true)
-    const r = await saveCourse(id, v)
+    let r = await saveCourse(id, v)
+    if (!r.ok && r.confirm && window.confirm(r.confirm)) r = await saveCourse(id, v, { confirmDrop: true })
     setSaving(false)
     if (!r.ok) {
       setErrors(r.errors)
@@ -369,7 +370,7 @@ function LessonList({ value, onChange, errors, prefix }: { value: Curriculum[num
           <button type="button" className={styles.detailBtn} aria-expanded={open === (l.id ?? String(i))} data-err={bad(i) ? '1' : '0'} onClick={() => setOpen(open === (l.id ?? String(i)) ? null : l.id ?? String(i))}>
             التفاصيل {open === (l.id ?? String(i)) ? '▴' : '▾'}
           </button>
-          <RowTools i={i} n={value.length} move={move} onRemove={() => onChange(value.filter((_, k) => k !== i))} />
+          <RowTools i={i} n={value.length} move={move} onRemove={() => (!l.id || confirm(`حذف الدرس «${l.title || 'بلا عنوان'}»؟ يُحذف عند الحفظ.`)) && onChange(value.filter((_, k) => k !== i))} />
         </div>
         {open === (l.id ?? String(i)) && <LessonDetail value={l} onChange={(p) => set(i, p)} err={(k) => errors[`${prefix}.${i}.${k}`]} />}
         </div>

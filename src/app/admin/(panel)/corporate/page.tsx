@@ -1,4 +1,4 @@
-import { count, desc, eq } from 'drizzle-orm'
+import { count, desc, eq, isNull } from 'drizzle-orm'
 import { db, schema as s } from '@/server/db'
 import { requirePermission } from '@/server/auth'
 import { corporateSettings } from '@/server/settings'
@@ -19,6 +19,8 @@ export default async function CorporateRequests({ searchParams }: { searchParams
     corporateSettings(),
   ])
   const n = new Map(counts.map((x) => [x.st, x.n]))
+  /* حساب المؤسسة المؤرشف (في السلة) لا يُربط إليه — يُعرض «إنشاء حساب» من جديد أو يُسترجع من السلة */
+  const liveOrgs = new Set((await db.select({ id: s.organizations.id }).from(s.organizations).where(isNull(s.organizations.deletedAt))).map((o) => o.id))
   return (
     <>
       <PageHead title="طلبات المؤسسات" sub="من نموذج «للمؤسسات» في الرئيسية — تابع كل طلب حتى التعاقد" actions={<a className="btn ghost" href="/admin/organizations">حسابات المؤسسات</a>} />
@@ -29,7 +31,7 @@ export default async function CorporateRequests({ searchParams }: { searchParams
       </div></div>
       {rows.length === 0 ? <div className={p.empty}>لا طلبات بعد.</div> : (
         <div className={c.list}>
-          {rows.map((r) => <RequestCard key={r.id} r={{ id: r.id, name: r.name, org: r.org, contact: r.contact, size: r.size, interests: r.interests, status: r.status, notes: r.notes, when: when(r.createdAt), orgId: r.organizationId }} />)}
+          {rows.map((r) => <RequestCard key={r.id} r={{ id: r.id, name: r.name, org: r.org, contact: r.contact, size: r.size, interests: r.interests, status: r.status, notes: r.notes, when: when(r.createdAt), orgId: r.organizationId && liveOrgs.has(r.organizationId) ? r.organizationId : null }} />)}
         </div>
       )}
     </>
