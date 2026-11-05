@@ -3,6 +3,7 @@ import 'server-only'
 import { and, asc, count, desc, eq, gte, inArray, isNull, sql, sum } from 'drizzle-orm'
 import { db, schema as s } from '@/server/db'
 import { requirePermission } from '@/server/auth'
+import { inList } from '@/server/db/limits'
 
 const PAID = ['paid', 'partially_refunded', 'refunded'] as const
 
@@ -34,7 +35,7 @@ export async function salesOverview() {
 export async function ordersList() {
   await requirePermission('sales.read')
   const rows = await db.select().from(s.orders).orderBy(desc(s.orders.createdAt)).limit(1000)
-  const items = rows.length ? await db.select().from(s.orderItems).where(inArray(s.orderItems.orderId, rows.map((r) => r.id))) : []
+  const items = rows.length ? await db.select().from(s.orderItems).where(inList(s.orderItems.orderId, rows.map((r) => r.id))) : []
   const now = new Date().toISOString()
   return rows.map((o) => ({
     ...o,

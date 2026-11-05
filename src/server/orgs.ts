@@ -4,6 +4,7 @@ import 'server-only'
 import { and, desc, eq, inArray, isNull, or, sql } from 'drizzle-orm'
 import { db, schema as s } from './db'
 import { progressOf } from './notify/engine'
+import { inList } from '@/server/db/limits'
 
 /** المؤسسات التي يديرها هذا المتدرب */
 export async function managedOrgs(learnerId: string) {
@@ -31,12 +32,12 @@ export async function orgOverview(orgId: string) {
   const ids = members.map((m) => m.l.id)
   const managers = members.filter((m) => m.role === 'manager').map((m) => m.l.id)
   /* الخصوصية: لا يرى المسؤول إلا الدورات التي رعتها المؤسسة (طلبات مسؤوليها) — لا ما اشتراه الموظف لنفسه */
-  const sponsored = managers.length ? (await db.select({ id: s.orders.id }).from(s.orders).where(inArray(s.orders.learnerId, managers))).map((o) => o.id) : []
+  const sponsored = managers.length ? (await db.select({ id: s.orders.id }).from(s.orders).where(inList(s.orders.learnerId, managers))).map((o) => o.id) : []
   const [enr, certs] = ids.length && sponsored.length
     ? await Promise.all([
       db.select({ e: s.enrollments, title: s.courses.title, slug: s.courses.slug }).from(s.enrollments).innerJoin(s.courses, eq(s.courses.id, s.enrollments.courseId))
-        .where(and(inArray(s.enrollments.learnerId, ids), eq(s.enrollments.status, 'active'), inArray(s.enrollments.orderId, sponsored))),
-      db.select().from(s.certificates).where(and(inArray(s.certificates.learnerId, ids), eq(s.certificates.status, 'issued'))),
+        .where(and(inList(s.enrollments.learnerId, ids), eq(s.enrollments.status, 'active'), inList(s.enrollments.orderId, sponsored))),
+      db.select().from(s.certificates).where(and(inList(s.certificates.learnerId, ids), eq(s.certificates.status, 'issued'))),
     ])
     : [[], []]
   const certsSeen = certs.filter((c) => enr.some((x) => x.e.learnerId === c.learnerId && x.e.courseId === c.courseId))
@@ -53,7 +54,7 @@ export async function orgOverview(orgId: string) {
   const seats = managers.length
     ? await db.select({ g: s.seatGrants, title: s.courses.title, number: s.orders.number }).from(s.seatGrants)
       .innerJoin(s.orders, eq(s.orders.id, s.seatGrants.orderId)).innerJoin(s.courses, eq(s.courses.id, s.seatGrants.courseId))
-      .where(and(inArray(s.orders.learnerId, managers), inArray(s.orders.status, ['paid', 'partially_refunded']))).orderBy(desc(s.orders.createdAt))
+      .where(and(inList(s.orders.learnerId, managers), inArray(s.orders.status, ['paid', 'partially_refunded']))).orderBy(desc(s.orders.createdAt))
     : []
   const enrolled = enr.length
   const completed = rows.reduce((a, r) => a + r.courses.filter((c) => c.pct >= 100).length, 0)

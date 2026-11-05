@@ -7,13 +7,14 @@ import { getSetting } from './settings'
 import { getObject } from './storage'
 import { DEFAULT_BRAND, pick, type BrandSettings, type BrandView, type LogoImg } from '@/lib/brand'
 import type { EmailBrand } from './notify/templates'
+import { inList } from '@/server/db/limits'
 
 export const brandSettings = () => getSetting<BrandSettings>('brand', DEFAULT_BRAND)
 
 export const brandView = cache(async (): Promise<BrandView> => {
   const b = await brandSettings()
   const ids = [b.academy.light, b.academy.dark, b.naf.light, b.naf.dark, b.icon].filter((x): x is string => !!x)
-  const rows = ids.length ? await db.select().from(s.media).where(inArray(s.media.id, ids)) : []
+  const rows = ids.length ? await db.select().from(s.media).where(inList(s.media.id, ids)) : []
   const img = (id: string | null): LogoImg | null => {
     const m = id ? rows.find((r) => r.id === id && !r.deletedAt) : undefined
     return m ? { url: `/media/${m.key}`, key: m.key, w: m.width, h: m.height } : null

@@ -3,7 +3,7 @@
    كل إجراء: صلاحية ← تحقق ← كتابة ← سجل ← إعادة توليد. */
 import { randomUUID } from 'node:crypto'
 import { revalidatePath } from 'next/cache'
-import { and, eq, inArray, isNull, ne } from 'drizzle-orm'
+import { and, eq, isNull, ne } from 'drizzle-orm'
 import { z } from 'zod'
 import { db, schema as s } from '@/server/db'
 import { requirePermission } from '@/server/auth'
@@ -11,6 +11,7 @@ import { audit } from '@/server/audit'
 import { certBrand, issueCertificate, recheckCourse, regeneratePdf } from '@/server/certificates'
 import { certificatePdf } from '@/server/certificates/pdf'
 import { BLOCKS, DEFAULT_DESIGN, type CertDesign } from '@/lib/certificate'
+import { inList } from '@/server/db/limits'
 
 const refresh = () => { revalidatePath('/admin/certificates', 'layout'); revalidatePath('/learn', 'layout') }
 
@@ -98,7 +99,7 @@ export type TemplateInput = z.input<typeof templateInput>
 async function checkImages(d: CertDesign) {
   const ids = [d.backgroundId, ...d.signatories.map((x) => x.signatureId)].filter(Boolean) as string[]
   if (!ids.length) return null
-  const rows = await db.select({ id: s.media.id, mime: s.media.mime }).from(s.media).where(inArray(s.media.id, ids))
+  const rows = await db.select({ id: s.media.id, mime: s.media.mime }).from(s.media).where(inList(s.media.id, ids))
   return rows.some((r) => r.mime !== 'image/png' && r.mime !== 'image/jpeg') ? 'صور الشهادة بصيغة PNG أو JPG فقط' : null
 }
 

@@ -14,6 +14,7 @@ import { runNotifications } from '@/server/notify/engine'
 import { siteUrl } from '@/server/site'
 import { EVENTS, EVENT_META, fill, type EventKey, type NotifySettings, type Template } from '@/lib/notify'
 import { formatDay, formatHijri, formatTime, formatWeekday } from '@/lib/dates'
+import { inList } from '@/server/db/limits'
 
 const tpl = z.object({
   enabled: z.boolean(),
@@ -98,7 +99,7 @@ export async function runNow(): Promise<{ ok: boolean; text: string }> {
 export async function cancelNotifications(ids: string[]) {
   const st = await requirePermission('notify.manage')
   const r = await db.update(s.notifications).set({ status: 'cancelled', error: `ألغاه ${st.name}`, updatedAt: new Date().toISOString() })
-    .where(and(inArray(s.notifications.id, ids.slice(0, 200)), eq(s.notifications.status, 'pending'))).returning({ id: s.notifications.id })
+    .where(and(inList(s.notifications.id, ids.slice(0, 200)), eq(s.notifications.status, 'pending'))).returning({ id: s.notifications.id })
   await audit(st.name, 'cancel', 'notify', '-', `${r.length} رسالة`)
   revalidatePath('/admin/notifications/queue')
   return { ok: true, n: r.length }

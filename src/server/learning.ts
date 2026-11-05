@@ -1,13 +1,14 @@
 import 'server-only'
 /* خدمة التعلّم — تجمع الدورة للمتدرب مع حالة كل درس، ولا تُخرج إلا ما يحق له رؤيته:
    رابط الجلسة لا يظهر إلا للمسجّل في نافذتها، وإجابات الاختبار لا تخرج قبل التسليم. */
-import { and, asc, desc, eq, inArray, isNull } from 'drizzle-orm'
+import { and, asc, desc, eq, isNull } from 'drizzle-orm'
 import { db, schema as s } from './db'
 import { availability, joinWindow, progressPct, publicQuiz, type Availability, type JoinState } from '@/lib/learning'
 import type { LessonFull, LearnerRow } from './db/schema'
 import type { PublicQuiz } from '@/lib/learning-types'
 import { playbackUrl } from './stream'
 import { ticketToken } from './tickets'
+import { inList } from '@/server/db/limits'
 
 export type LessonState = { id: string; title: string; type: LessonFull['type']; minutes: number; preview: boolean; access: Availability; done: boolean; startsAt: string | null }
 export type ModuleState = { id: string; title: string; lessons: LessonState[] }
@@ -22,7 +23,7 @@ export async function learnerCourse(slug: string, learner: LearnerRow | null) {
     ? await db.select().from(s.enrollments).where(and(eq(s.enrollments.learnerId, learner.id), eq(s.enrollments.courseId, course.id), eq(s.enrollments.status, 'active')))
     : []
   const mods = await db.select().from(s.modules).where(eq(s.modules.courseId, course.id)).orderBy(asc(s.modules.sortOrder))
-  const lessons = mods.length ? await db.select().from(s.lessons).where(inArray(s.lessons.moduleId, mods.map((m) => m.id))).orderBy(asc(s.lessons.sortOrder)) : []
+  const lessons = mods.length ? await db.select().from(s.lessons).where(inList(s.lessons.moduleId, mods.map((m) => m.id))).orderBy(asc(s.lessons.sortOrder)) : []
   const ordered = mods.flatMap((m) => lessons.filter((l) => l.moduleId === m.id))
   const prog = learner ? await db.select().from(s.lessonProgress).where(and(eq(s.lessonProgress.learnerId, learner.id), eq(s.lessonProgress.courseId, course.id))) : []
   const att = learner ? await db.select().from(s.attendance).where(and(eq(s.attendance.learnerId, learner.id), eq(s.attendance.courseId, course.id))) : []

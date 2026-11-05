@@ -2,13 +2,14 @@
 /* الهوية — حفظ الشعارات والأسماء. يُعاد توليد الصفحات فوراً، وتُعلَّم ملفات الشهادات الصادرة
    لتُولَّد من جديد بالشعار الجديد عند أول تنزيل (نصّها ولقطتها كما هي). */
 import { revalidatePath } from 'next/cache'
-import { inArray, isNotNull } from 'drizzle-orm'
+import { isNotNull } from 'drizzle-orm'
 import { z } from 'zod'
 import { db, schema as s } from '@/server/db'
 import { requirePermission } from '@/server/auth'
 import { audit } from '@/server/audit'
 import { setSetting } from '@/server/settings'
 import { LOGO_MIME } from '@/lib/brand'
+import { inList } from '@/server/db/limits'
 
 const id = z.string().uuid().nullable()
 const input = z.object({
@@ -29,7 +30,7 @@ export async function saveBrand(raw: BrandInput): Promise<{ ok: boolean; error?:
   const v = p.data
   const ids = [v.academy.light, v.academy.dark, v.naf.light, v.naf.dark, v.icon].filter((x): x is string => !!x)
   if (ids.length) {
-    const rows = await db.select({ id: s.media.id, mime: s.media.mime, w: s.media.width, h: s.media.height }).from(s.media).where(inArray(s.media.id, ids))
+    const rows = await db.select({ id: s.media.id, mime: s.media.mime, w: s.media.width, h: s.media.height }).from(s.media).where(inList(s.media.id, ids))
     if (rows.length !== new Set(ids).size) return { ok: false, error: 'صورة غير موجودة في المكتبة' }
     if (rows.some((r) => !LOGO_MIME.includes(r.mime))) return { ok: false, error: 'الشعارات بصيغة PNG فقط (بخلفية شفافة) — لتعمل في البريد والشهادة وصور المشاركة' }
     const icon = rows.find((r) => r.id === v.icon)

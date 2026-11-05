@@ -20,6 +20,7 @@ import { dripOpensAt } from '@/lib/learning'
 import { formatDay, formatHijri, formatTime, formatWeekday } from '@/lib/dates'
 import { formatAmount, priceView } from '@/lib/pricing'
 import { resolveStatus } from '@/lib/course-meta'
+import { chunksOf, inList } from '@/server/db/limits'
 
 /** مفتوحة الآن؟ «المجدولة» تُفتح بنفسها عند موعد نشرها — كما تراها الواجهة */
 const openNow = (c: { status: typeof s.courses.$inferSelect['status']; publishAt: string | null }, now: Date) => resolveStatus(c.status, c.publishAt, now) === 'open'
@@ -34,8 +35,8 @@ export async function notifySettings(): Promise<NotifySettings> {
 
 async function enqueue(rows: Omit<Row, 'id'>[]) {
   let n = 0
-  for (let i = 0; i < rows.length; i += 50) {
-    const r = await db.insert(s.notifications).values(rows.slice(i, i + 50).map((x) => ({ id: randomUUID(), ...x }))).onConflictDoNothing({ target: s.notifications.key }).returning({ id: s.notifications.id })
+  for (const part of chunksOf(s.notifications, rows)) {
+    const r = await db.insert(s.notifications).values(part.map((x) => ({ id: randomUUID(), ...x }))).onConflictDoNothing({ target: s.notifications.key }).returning({ id: s.notifications.id })
     n += r.length
   }
   return n
@@ -106,11 +107,11 @@ export async function progressOf(pairs: { learnerId: string; courseId: string }[
   const courseIds = [...new Set(pairs.map((p) => p.courseId))]
   const learnerIds = [...new Set(pairs.map((p) => p.learnerId))]
   const [totals, prog, att] = await Promise.all([
-    db.select({ courseId: s.modules.courseId, n: count() }).from(s.lessons).innerJoin(s.modules, eq(s.modules.id, s.lessons.moduleId)).where(inArray(s.modules.courseId, courseIds)).groupBy(s.modules.courseId),
+    db.select({ courseId: s.modules.courseId, n: count() }).from(s.lessons).innerJoin(s.modules, eq(s.modules.id, s.lessons.moduleId)).where(inList(s.modules.courseId, courseIds)).groupBy(s.modules.courseId),
     db.select({ learnerId: s.lessonProgress.learnerId, courseId: s.lessonProgress.courseId, done: sql<number>`sum(case when ${s.lessonProgress.completedAt} is not null then 1 else 0 end)`, last: max(s.lessonProgress.updatedAt) })
-      .from(s.lessonProgress).where(and(inArray(s.lessonProgress.courseId, courseIds), inArray(s.lessonProgress.learnerId, learnerIds))).groupBy(s.lessonProgress.learnerId, s.lessonProgress.courseId),
+      .from(s.lessonProgress).where(and(inList(s.lessonProgress.courseId, courseIds), inList(s.lessonProgress.learnerId, learnerIds))).groupBy(s.lessonProgress.learnerId, s.lessonProgress.courseId),
     db.select({ learnerId: s.attendance.learnerId, courseId: s.attendance.courseId, n: count() }).from(s.attendance)
-      .where(and(inArray(s.attendance.courseId, courseIds), inArray(s.attendance.learnerId, learnerIds))).groupBy(s.attendance.learnerId, s.attendance.courseId),
+      .where(and(inList(s.attendance.courseId, courseIds), inList(s.attendance.learnerId, learnerIds))).groupBy(s.attendance.learnerId, s.attendance.courseId),
   ])
   const total = new Map(totals.map((t) => [t.courseId, t.n]))
   const pr = new Map(prog.map((p) => [`${p.learnerId}:${p.courseId}`, p]))
@@ -129,7 +130,7 @@ export async function progressOf(pairs: { learnerId: string; courseId: string }[
 async function activeEnrollments(courseIds: string[]) {
   if (!courseIds.length) return []
   return db.select({ e: s.enrollments, l: s.learners }).from(s.enrollments).innerJoin(s.learners, eq(s.learners.id, s.enrollments.learnerId))
-    .where(and(inArray(s.enrollments.courseId, courseIds), eq(s.enrollments.status, 'active')))
+    .where(and(inList(s.enrollments.courseId, courseIds), eq(s.enrollments.status, 'active')))
 }
 
 async function sessionLessons(from: Date, to: Date) {
@@ -148,7 +149,7 @@ export async function planScan(now: Date, cfg: NotifySettings) {
     const maxOff = Math.max(...cfg.sessionOffsets.map((o) => o.minutes))
     const lessons = await sessionLessons(now, new Date(t + maxOff * MIN))
     const enr = await activeEnrollments([...new Set(lessons.map((x) => x.courseId))])
-    const pushers = new Set((enr.length ? await db.selectDistinct({ id: s.pushSubscriptions.learnerId }).from(s.pushSubscriptions).where(inArray(s.pushSubscriptions.learnerId, enr.map((x) => x.l.id))) : []).map((x) => x.id))
+    const pushers = new Set((enr.length ? await db.selectDistinct({ id: s.pushSubscriptions.learnerId }).from(s.pushSubscriptions).where(inList(s.pushSubscriptions.learnerId, enr.map((x) => x.l.id))) : []).map((x) => x.id))
     for (const { l, courseId } of lessons) for (const { e, l: who } of enr.filter((x) => x.e.courseId === courseId)) for (const o of cfg.sessionOffsets) {
       const d = reminderDue(l.startsAt!, o.minutes, now, e.createdAt)
       if (!d.due) continue
@@ -376,7 +377,7 @@ export async function dispatch(now: Date, opt: { limit?: number; keys?: string[]
   await db.update(s.notifications).set({ status: 'pending' }).where(and(eq(s.notifications.status, 'sending'), lt(s.notifications.updatedAt, iso(new Date(now.getTime() - 10 * MIN)))))
   const due = await db.select().from(s.notifications).where(and(
     eq(s.notifications.status, 'pending'), lte(s.notifications.sendAt, iso(now)),
-    opt.keys ? inArray(s.notifications.key, opt.keys) : undefined, opt.ids ? inArray(s.notifications.id, opt.ids) : undefined,
+    opt.keys ? inList(s.notifications.key, opt.keys) : undefined, opt.ids ? inList(s.notifications.id, opt.ids) : undefined,
   )).orderBy(asc(s.notifications.sendAt)).limit(opt.limit ?? 100)
 
   for (const n of due) {

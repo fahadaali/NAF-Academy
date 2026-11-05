@@ -54,7 +54,8 @@ export async function placeOrderAction(slug: string, raw: unknown): Promise<Plac
   const verify = (await channelOpen('email')) || (await channelOpen('sms'))
   if (verify && !me) return { ok: false, error: 'تحقّق من بريدك أولاً' }
   const buyer = me ? { ...p.data.buyer, email: me.email } : p.data.buyer
-  const r = await placeOrder({ slug, tierId: p.data.tierId, quantity: p.data.quantity, code: p.data.code || undefined, buyer, attendSelf: p.data.attendSelf })
+  /* صاحب الحساب المتحقَّق منه وحده يحدّث اسمه وجواله — الشراء بلا تحقق يملأ الفارغ فقط */
+  const r = await placeOrder({ slug, tierId: p.data.tierId, quantity: p.data.quantity, code: p.data.code || undefined, buyer, attendSelf: p.data.attendSelf, trusted: !!me })
   if (!r.ok) return { ok: false, error: r.error }
   const q = `t=${r.order.token}`
   return { ok: true, url: r.free ? `/orders/${r.order.number}?${q}` : `/orders/${r.order.number}/pay?${q}` }

@@ -73,7 +73,7 @@ export async function addOrgMember(orgId: string, raw: { email: string; name: st
   if (!p.success) return { ok: false, error: p.error.issues[0]?.message }
   const [o] = await db.select().from(s.organizations).where(eq(s.organizations.id, orgId))
   if (!o) return { ok: false, error: 'المؤسسة غير موجودة' }
-  const l = await upsertLearner({ name: p.data.name || p.data.email.split('@')[0], email: p.data.email, phone: '', org: o.name, vatNumber: '' })
+  const l = await upsertLearner({ name: p.data.name, email: p.data.email, phone: '', org: o.name, vatNumber: '' })
   await db.insert(s.orgMembers).values({ orgId, learnerId: l.id, role: p.data.role }).onConflictDoUpdate({ target: [s.orgMembers.orgId, s.orgMembers.learnerId], set: { role: p.data.role } })
   await audit(st.name, 'member', 'organization', orgId, `${p.data.email} · ${p.data.role}`)
   refresh()

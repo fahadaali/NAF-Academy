@@ -1,9 +1,10 @@
-import { desc, eq, inArray } from 'drizzle-orm'
+import { desc, eq } from 'drizzle-orm'
 import { db, schema as s } from '@/server/db'
 import { currentLearner } from '@/server/learner-auth'
 import { formatAmount } from '@/lib/pricing'
 import { plain } from '@/motion/kashida'
 import st from '@/site/learn/learn.module.css'
+import { inList } from '@/server/db/limits'
 
 const STATUS: Record<string, string> = { paid: 'مدفوع', pending: 'بانتظار الدفع', failed: 'فشل', canceled: 'ملغى', expired: 'منتهي', refunded: 'مسترد', partially_refunded: 'مسترد جزئياً' }
 
@@ -13,8 +14,8 @@ export default async function MyOrders() {
   if (!orders.length) return <div className={st.empty}><strong>لا طلبات بعد.</strong></div>
   const ids = orders.map((o) => o.id)
   const [items, invs] = await Promise.all([
-    db.select().from(s.orderItems).where(inArray(s.orderItems.orderId, ids)),
-    db.select().from(s.invoices).where(inArray(s.invoices.orderId, ids)),
+    db.select().from(s.orderItems).where(inList(s.orderItems.orderId, ids)),
+    db.select().from(s.invoices).where(inList(s.invoices.orderId, ids)),
   ])
   const now = new Date().toISOString()
   return (

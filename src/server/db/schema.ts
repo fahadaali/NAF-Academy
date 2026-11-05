@@ -295,6 +295,8 @@ export const orders = sqliteTable(
     vatRate: real('vat_rate').notNull().default(15),
     /** اكتمال تنفيذ الطلب بعد الدفع (التسجيل والفاتورة) — يُعاد التنفيذ إن انقطع */
     fulfilledAt: text('fulfilled_at'),
+    /** مطالبة ذرّية بالإتمام: من يضعها وحده يُنفّذ (عودة المتصفح وWebhook قد يصلان معاً)، وتنتهي بعد دقائق إن انقطع */
+    fulfillingAt: text('fulfilling_at'),
     /** في الطلب الجماعي: هل يحضر المشتري بنفسه (يأخذ أول مقعد) */
     attendSelf: integer('attend_self', { mode: 'boolean' }).notNull().default(true),
     createdBy: text('created_by').notNull().default('web'),
@@ -352,7 +354,10 @@ export const invoices = sqliteTable('invoices', {
   vat: integer('vat').notNull(),
   qr: text('qr').notNull(),
   issuedAt: text('issued_at').notNull(),
-})
+}, (t) => [
+  /* فاتورة ضريبية واحدة لكل طلب (الإشعارات الدائنة متعددة) */
+  uniqueIndex('invoices_one_per_order').on(t.orderId).where(sql`kind = 'invoice'`),
+])
 
 export const ENROLL_SOURCE = ['purchase', 'free', 'grant', 'manual', 'seat'] as const
 export const enrollments = sqliteTable(
@@ -367,7 +372,11 @@ export const enrollments = sqliteTable(
     status: text('status', { enum: ['active', 'canceled'] }).notNull().default('active'),
     ...stamps,
   },
-  (t) => [index('enroll_course_idx').on(t.courseId), index('enroll_learner_idx').on(t.learnerId)],
+  (t) => [
+    index('enroll_course_idx').on(t.courseId), index('enroll_learner_idx').on(t.learnerId),
+    /* تسجيل نشط واحد للمتدرب في الدورة — مهما تسابقت الطلبات */
+    uniqueIndex('enroll_one_active').on(t.learnerId, t.courseId).where(sql`status = 'active'`),
+  ],
 )
 
 /** مقاعد طلب جماعي — يُخصَّص كل مقعد ببريد موظف فيصير تسجيلاً */

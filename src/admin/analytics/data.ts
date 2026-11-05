@@ -6,6 +6,7 @@ import { db, schema as s } from '@/server/db'
 import { requirePermission } from '@/server/auth'
 import { progressOf } from '@/server/notify/engine'
 import type { Quiz } from '@/lib/learning-types'
+import { inList } from '@/server/db/limits'
 
 const PAID = ['paid', 'partially_refunded', 'refunded'] as const
 const riyadhDay = (col: unknown) => sql<string>`substr(datetime(${col}, '+3 hours'), 1, 10)`
@@ -93,9 +94,9 @@ export async function dropOff(courseId: string) {
   const ids = enr.map((e) => e.learnerId)
   const [prog, att, attempts] = ids.length
     ? await Promise.all([
-      db.select().from(s.lessonProgress).where(and(eq(s.lessonProgress.courseId, courseId), inArray(s.lessonProgress.learnerId, ids))),
-      db.select().from(s.attendance).where(and(eq(s.attendance.courseId, courseId), inArray(s.attendance.learnerId, ids))),
-      db.select().from(s.quizAttempts).where(and(inArray(s.quizAttempts.lessonId, lessons.map((x) => x.l.id)), isNotNull(s.quizAttempts.submittedAt))),
+      db.select().from(s.lessonProgress).where(and(eq(s.lessonProgress.courseId, courseId), inList(s.lessonProgress.learnerId, ids))),
+      db.select().from(s.attendance).where(and(eq(s.attendance.courseId, courseId), inList(s.attendance.learnerId, ids))),
+      db.select().from(s.quizAttempts).where(and(inList(s.quizAttempts.lessonId, lessons.map((x) => x.l.id)), isNotNull(s.quizAttempts.submittedAt))),
     ])
     : [[], [], []]
   /* آخر درس لمسه كل متدرب لم يكمل */

@@ -1,7 +1,7 @@
 import 'server-only'
 /* منطق البيع على الخادم — التسعير الموثوق، والمقاعد، وإنشاء الطلب، والإتمام الذري، والاسترداد. */
 import { randomBytes, randomUUID } from 'node:crypto'
-import { and, asc, count, eq, gt, inArray, isNull, sql, sum } from 'drizzle-orm'
+import { and, asc, count, eq, gt, inArray, isNull, lt, or, sql, sum } from 'drizzle-orm'
 import { db, schema as s } from './db'
 import { audit } from './audit'
 import { paymentSettings } from './settings'
@@ -11,6 +11,7 @@ import { normalizeCode, quote, type Quote } from '@/lib/quote'
 import { normalizePhone } from '@/lib/phone'
 import { resolveStatus } from '@/lib/course-meta'
 import type { CourseRow, CouponRow, OrderRow, TierRow } from './db/schema'
+import { chunksOf } from './db/limits'
 
 const nowIso = () => new Date().toISOString()
 export const secretToken = () => randomBytes(18).toString('base64url')
@@ -87,12 +88,35 @@ export async function priceFor(slug: string, opts: { tierId?: string | null; qua
 }
 
 /* ───────── المتدرب ───────── */
-export async function upsertLearner(b: { name: string; email: string; phone: string; org: string; vatNumber: string }) {
+/** ينشئ المتدرب أو يكمل بياناته. `trusted`: صاحب الحساب نفسه بعد التحقق، أو موظف من اللوحة —
+    وحده يغيّر الاسم والجوال القائمين. غيره (مسؤول مؤسسة يخصّص مقعداً، أو شراء بلا تحقق) يملأ الفارغ فقط،
+    فلا يُكتب اسم خاطئ على شهادة أحد، ولا يُربط جوال غريب بحسابه (الدخول بالجوال). */
+export async function upsertLearner(b: { name: string; email: string; phone: string; org: string; vatNumber: string }, opts: { trusted?: boolean } = {}) {
   const email = b.email.trim().toLowerCase()
-  b = { ...b, phone: b.phone ? normalizePhone(b.phone) ?? b.phone.trim() : '' }
-  const [row] = await db.insert(s.learners).values({ id: randomUUID(), ...b, email })
-    .onConflictDoUpdate({ target: s.learners.email, set: { name: b.name, phone: b.phone || sql`${s.learners.phone}`, org: b.org || sql`${s.learners.org}`, vatNumber: b.vatNumber || sql`${s.learners.vatNumber}`, updatedAt: nowIso() } })
-    .returning()
+  const phone = b.phone ? normalizePhone(b.phone) ?? b.phone.trim() : ''
+  const name = b.name.trim()
+  const phoneFree = async (selfId?: string) => {
+    if (!phone) return false
+    const [other] = await db.select({ id: s.learners.id }).from(s.learners).where(eq(s.learners.phone, phone))
+    return !other || other.id === selfId
+  }
+  const [old] = await db.select().from(s.learners).where(eq(s.learners.email, email))
+  if (!old) {
+    const [row] = await db.insert(s.learners).values({ id: randomUUID(), name: name || email.split('@')[0], email, phone: (await phoneFree()) ? phone : '', org: b.org, vatNumber: b.vatNumber })
+      .onConflictDoNothing({ target: s.learners.email }).returning()
+    if (row) return row
+    const [again] = await db.select().from(s.learners).where(eq(s.learners.email, email))
+    return again
+  }
+  /* الاسم الافتراضي (ما قبل @) يُعامل كفارغ */
+  const blankName = !old.name || old.name === email.split('@')[0]
+  const patch: Partial<typeof s.learners.$inferInsert> = {}
+  if (name && name !== old.name && (opts.trusted || blankName)) patch.name = name
+  if (phone && phone !== old.phone && (opts.trusted || !old.phone) && (await phoneFree(old.id))) patch.phone = phone
+  if (b.org && b.org !== old.org && (opts.trusted || !old.org)) patch.org = b.org
+  if (b.vatNumber && b.vatNumber !== old.vatNumber && (opts.trusted || !old.vatNumber)) patch.vatNumber = b.vatNumber
+  if (!Object.keys(patch).length) return old
+  const [row] = await db.update(s.learners).set({ ...patch, updatedAt: nowIso() }).where(eq(s.learners.id, old.id)).returning()
   return row
 }
 
@@ -107,7 +131,7 @@ async function cancelOwn(id: string, why: string) {
   await db.update(s.orders).set({ status: 'canceled', note: why, updatedAt: nowIso() }).where(and(eq(s.orders.id, id), eq(s.orders.status, 'pending')))
 }
 
-export async function placeOrder(p: { slug: string; tierId?: string | null; quantity: number; code?: string; buyer: Buyer; attendSelf: boolean; method?: OrderRow['method']; by?: string; note?: string; skipPaymentsCheck?: boolean }): Promise<PlaceResult> {
+export async function placeOrder(p: { slug: string; tierId?: string | null; quantity: number; code?: string; buyer: Buyer; attendSelf: boolean; method?: OrderRow['method']; by?: string; note?: string; skipPaymentsCheck?: boolean; trusted?: boolean }): Promise<PlaceResult> {
   const priced = await priceFor(p.slug, { tierId: p.tierId, quantity: p.quantity, code: p.code, email: p.buyer.email })
   if (!priced) return { ok: false, error: 'الدورة غير موجودة' }
   const { course, tier, coupon, q } = priced
@@ -122,30 +146,40 @@ export async function placeOrder(p: { slug: string; tierId?: string | null; quan
     if (!settings.enabled || !g) return { ok: false, error: 'الدفع الإلكتروني غير مفعّل بعد' }
   }
 
+  const email = p.buyer.email.trim().toLowerCase()
+  const [known] = await db.select().from(s.learners).where(eq(s.learners.email, email))
+  /* مسجّل في الدورة؟ لا يُشترى المقعد مرتين (إلا طلب مقاعد لفريق لا يحضر صاحبه) */
+  if (known && (q.quantity === 1 || p.attendSelf)) {
+    const [mine] = await db.select({ id: s.enrollments.id }).from(s.enrollments)
+      .where(and(eq(s.enrollments.learnerId, known.id), eq(s.enrollments.courseId, course.id), eq(s.enrollments.status, 'active')))
+    if (mine) return { ok: false, error: p.by ? 'هذا المتدرب مسجّل في الدورة من قبل' : 'أنت مسجّل في هذه الدورة بالفعل — تجدها في «دوراتي»' }
+  }
+  /* طلب معلّق سابق للمشتري نفسه في الدورة نفسها يُلغى قبل حساب المقاعد — حجز واحد لكل مشترٍ، ولا يحجب حجزُه طلبَه الجديد */
+  if (known && !p.by) {
+    await db.update(s.orders).set({ status: 'canceled', note: 'استُبدل بطلب أحدث', updatedAt: nowIso() })
+      .where(and(eq(s.orders.learnerId, known.id), eq(s.orders.status, 'pending'),
+        inArray(s.orders.id, db.select({ id: s.orderItems.orderId }).from(s.orderItems).where(eq(s.orderItems.courseId, course.id)))))
+  }
+
   const full = 'لم تعد المقاعد المتبقية تكفي هذا العدد'
   if (course.seatsTotal !== null && (await seatsUsed(course)) + q.quantity > course.seatsTotal) return { ok: false, error: full }
   if (tier?.capacity != null && (await seatsUsed(course, tier.id)) + q.quantity > tier.capacity) return { ok: false, error: `اكتملت مقاعد باقة «${tier.name}»` }
 
-  const learner = await upsertLearner(p.buyer)
-  /* طلب معلّق سابق للمشتري نفسه في الدورة نفسها يُلغى — حجز واحد لكل مشترٍ */
-  if (!p.by) {
-    await db.update(s.orders).set({ status: 'canceled', note: 'استُبدل بطلب أحدث', updatedAt: nowIso() })
-      .where(and(eq(s.orders.learnerId, learner.id), eq(s.orders.status, 'pending'),
-        inArray(s.orders.id, db.select({ id: s.orderItems.orderId }).from(s.orderItems).where(eq(s.orderItems.courseId, course.id)))))
-  }
+  const learner = await upsertLearner(p.buyer, { trusted: p.trusted || !!p.by })
+  const grant = p.method === 'grant'
   const id = randomUUID()
   const order = {
     id, number: await nextNumber('order', settings.orderPrefix), token: secretToken(), learnerId: learner.id,
     status: 'pending' as const, method, buyer: { ...p.buyer, email: learner.email },
-    subtotal: q.subtotal, groupDiscount: q.groupDiscount, couponDiscount: q.couponDiscount, total: q.total, vat: q.vat, vatRate: settings.vatRate,
-    couponId: q.couponApplied ? coupon!.id : null, couponCode: q.couponApplied ? coupon!.code : '',
+    subtotal: grant ? 0 : q.subtotal, groupDiscount: grant ? 0 : q.groupDiscount, couponDiscount: grant ? 0 : q.couponDiscount, total: grant ? 0 : q.total, vat: grant ? 0 : q.vat, vatRate: settings.vatRate,
+    couponId: q.couponApplied && !grant ? coupon!.id : null, couponCode: q.couponApplied && !grant ? coupon!.code : '',
     expiresAt: new Date(Date.now() + settings.holdMinutes * 60e3).toISOString(),
     attendSelf: q.quantity === 1 ? true : p.attendSelf, createdBy: p.by ?? 'web', note: p.note ?? '',
   }
   await db.insert(s.orders).values(order)
   await db.insert(s.orderItems).values({
     id: randomUUID(), orderId: id, courseId: course.id, tierId: tier?.id ?? null, title: course.title, tierName: tier?.name ?? '',
-    unitPrice: q.unit, listPrice: q.unitList, quantity: q.quantity, lineTotal: q.subtotal,
+    unitPrice: grant ? 0 : q.unit, listPrice: q.unitList, quantity: q.quantity, lineTotal: grant ? 0 : q.subtotal,
   })
 
   /* تحقق بعد الإدراج: إن تسابق طلبان على آخر مقعد أو آخر استخدام للكوبون، يتراجع المتأخر */
@@ -181,8 +215,13 @@ export async function finalizeOrder(orderId: string, info: { method: OrderRow['m
   if (claimed.length) {
     await audit(info.by ?? 'system', 'paid', 'order', orderId, `${claimed[0].number} · ${(claimed[0].total / 100).toFixed(2)} ر.س · ${info.method}`)
   }
-  const [order] = await db.select().from(s.orders).where(eq(s.orders.id, orderId))
-  if (order && !order.fulfilledAt && ['paid', 'partially_refunded'].includes(order.status)) await fulfill(order)
+  /* من يضع fulfillingAt وحده يُنفّذ — عودة المتصفح وWebhook قد يصلان معاً. والمطالبة تنتهي بعد خمس دقائق إن انقطع التنفيذ */
+  const stale = new Date(Date.now() - 5 * 60e3).toISOString()
+  const [mine] = await db.update(s.orders).set({ fulfillingAt: nowIso() })
+    .where(and(eq(s.orders.id, orderId), isNull(s.orders.fulfilledAt), inArray(s.orders.status, ['paid', 'partially_refunded']),
+      or(isNull(s.orders.fulfillingAt), lt(s.orders.fulfillingAt, stale))))
+    .returning()
+  if (mine) await fulfill(mine)
   return claimed.length ? 'done' : 'already'
 }
 
@@ -196,8 +235,10 @@ async function fulfill(order: OrderRow) {
     for (const it of items) {
       if (it.quantity === 1) {
         const eid = randomUUID()
-        await db.insert(s.enrollments).values({ id: eid, learnerId: order.learnerId, courseId: it.courseId, tierId: it.tierId, orderId: order.id, source })
-        created.push(eid)
+        const ins = await db.insert(s.enrollments).values({ id: eid, learnerId: order.learnerId, courseId: it.courseId, tierId: it.tierId, orderId: order.id, source })
+          .onConflictDoNothing().returning({ id: s.enrollments.id })
+        if (ins.length) created.push(eid)
+        else await audit('system', 'needs_attention', 'order', order.id, `${order.number}: المشتري مسجّل في الدورة من قبل — راجع الاسترداد`)
         continue
       }
       const grants = Array.from({ length: it.quantity }, () => ({ id: randomUUID(), orderId: order.id, courseId: it.courseId, email: null as string | null, enrollmentId: null as string | null }))
@@ -207,10 +248,10 @@ async function fulfill(order: OrderRow) {
         grants[0].enrollmentId = eid
         await db.batch([
           db.insert(s.enrollments).values({ id: eid, learnerId: order.learnerId, courseId: it.courseId, tierId: it.tierId, orderId: order.id, source: 'seat' }),
-          db.insert(s.seatGrants).values(grants),
+          ...chunksOf(s.seatGrants, grants).map((part) => db.insert(s.seatGrants).values(part)),
         ])
         created.push(eid)
-      } else await db.insert(s.seatGrants).values(grants)
+      } else for (const part of chunksOf(s.seatGrants, grants)) await db.insert(s.seatGrants).values(part)
     }
   }
   if (order.couponId) {
@@ -221,7 +262,7 @@ async function fulfill(order: OrderRow) {
     const [inv] = await db.select({ id: s.invoices.id }).from(s.invoices).where(and(eq(s.invoices.orderId, order.id), eq(s.invoices.kind, 'invoice')))
     if (!inv) await issueInvoice(order, items, 'invoice')
   }
-  await db.update(s.orders).set({ fulfilledAt: nowIso() }).where(eq(s.orders.id, order.id))
+  await db.update(s.orders).set({ fulfilledAt: nowIso(), fulfillingAt: null }).where(eq(s.orders.id, order.id))
   /* رسالة الترحيب لكل تسجيل جديد — فشلها لا يوقف الإتمام */
   if (created.length) {
     const { onEnrolled } = await import('./notify/engine')
@@ -298,13 +339,23 @@ export async function confirmPayment(paymentId: string, expectOrderId?: string):
   /* بعد انتهاء المهلة: لا يُقبل إلا إن بقيت المقاعد */
   if (order.expiresAt && order.expiresAt < nowIso()) {
     const items = await db.select().from(s.orderItems).where(eq(s.orderItems.orderId, order.id))
+    let why = ''
     for (const it of items) {
       const [c] = await db.select().from(s.courses).where(eq(s.courses.id, it.courseId))
-      if (c?.seatsTotal != null && (await seatsUsed(c)) + it.quantity > c.seatsTotal) {
-        await db.update(s.orders).set({ status: 'canceled', note: 'اكتمل العدد بعد انتهاء مهلة الحجز', updatedAt: nowIso() }).where(eq(s.orders.id, order.id))
-        await refundOrphan(p.id, p.amount, order.id, 'اكتمل العدد بعد انتهاء مهلة الحجز')
-        return { order, outcome: 'mismatch' }
-      }
+      const [t] = it.tierId ? await db.select().from(s.priceTiers).where(eq(s.priceTiers.id, it.tierId)) : []
+      if (c?.seatsTotal != null && (await seatsUsed(c)) + it.quantity > c.seatsTotal) why = 'اكتمل العدد بعد انتهاء مهلة الحجز'
+      else if (c && t?.capacity != null && (await seatsUsed(c, t.id)) + it.quantity > t.capacity) why = 'اكتملت الباقة بعد انتهاء مهلة الحجز'
+    }
+    if (!why && order.couponId) {
+      const [cp] = await db.select().from(s.coupons).where(eq(s.coupons.id, order.couponId))
+      const u = cp ? await couponUses(cp.id, order.buyer.email) : null
+      if (cp && u && ((cp.maxUses !== null && u.total >= cp.maxUses) || (cp.maxPerLearner !== null && u.byLearner >= cp.maxPerLearner))) why = 'استُنفد الكوبون بعد انتهاء مهلة الحجز'
+    }
+    if (why) {
+      const [gone] = await db.update(s.orders).set({ status: 'canceled', note: why, updatedAt: nowIso() })
+        .where(and(eq(s.orders.id, order.id), inArray(s.orders.status, ['pending', 'expired', 'failed']))).returning({ id: s.orders.id })
+      if (gone) await refundOrphan(p.id, p.amount, order.id, why)
+      return { order, outcome: 'mismatch' }
     }
   }
   await finalizeOrder(order.id, { method: 'gateway', paymentId: p.id })

@@ -157,3 +157,41 @@ test('استردادان متزامنان لا يتجاوزان الإجمالي
   const [o] = await db.select().from(s.orders).where(eq(s.orders.id, r.order.id))
   assert.equal(o.refunded, 30000)
 })
+
+test('عودة المتصفح وWebhook معاً: إتمام واحد فقط (تسجيل واحد وفاتورة واحدة)', async () => {
+  await db.insert(s.courses).values({ id: 'c9', slug: 'c9', title: 'دورة التوازي', status: 'open', price: 50000, previewToken: 'y' })
+  const r = await m.placeOrder({ slug: 'c9', quantity: 1, buyer: { ...buyer, email: 'race@x.sa' }, attendSelf: true })
+  assert.ok(r.ok)
+  if (!r.ok) return
+  const pid = `mock_${r.order.id}_${r.order.total}_paid`
+  const out = await Promise.all([m.confirmPayment(pid, r.order.id), m.confirmPayment(pid, r.order.id), m.finalizeOrder(r.order.id, { method: 'gateway', paymentId: pid })])
+  assert.ok(out.slice(0, 2).every((x) => x.outcome === 'paid'))
+  const { eq } = await import('drizzle-orm')
+  assert.equal((await db.select().from(s.enrollments).where(eq(s.enrollments.orderId, r.order.id))).length, 1)
+  assert.equal((await db.select().from(s.invoices).where(eq(s.invoices.orderId, r.order.id))).length, 1)
+  /* ولا شراء ثانٍ لمن هو مسجّل */
+  const again = await m.placeOrder({ slug: 'c9', quantity: 1, buyer: { ...buyer, email: 'race@x.sa' }, attendSelf: true })
+  assert.equal(again.ok, false)
+})
+
+test('المنحة من اللوحة بلا مبلغ ولا ضريبة ولا فاتورة', async () => {
+  const r = await m.placeOrder({ slug: 'c9', quantity: 1, buyer: { ...buyer, email: 'gift@x.sa' }, attendSelf: true, method: 'grant', by: 'مدير' })
+  assert.ok(r.ok, !r.ok ? r.error : '')
+  if (!r.ok) return
+  assert.equal(r.order.total, 0)
+  assert.equal(r.order.vat, 0)
+  assert.equal(r.order.status, 'paid')
+  const { eq } = await import('drizzle-orm')
+  assert.equal((await db.select().from(s.invoices).where(eq(s.invoices.orderId, r.order.id))).length, 0)
+})
+
+test('بيانات المتدرب: غير الموثوق يملأ الفارغ فقط ولا يأخذ جوال غيره', async () => {
+  const a = await m.upsertLearner({ name: 'هدى السالم', email: 'huda@x.sa', phone: '0551234567', org: '', vatNumber: '' }, { trusted: true })
+  const b = await m.upsertLearner({ name: 'اسم آخر', email: 'huda@x.sa', phone: '0559999999', org: 'جهة', vatNumber: '' })
+  assert.equal(b.name, 'هدى السالم')
+  assert.equal(b.phone, a.phone)
+  assert.equal(b.org, 'جهة')
+  const c = await m.upsertLearner({ name: '', email: 'other@x.sa', phone: '0551234567', org: '', vatNumber: '' })
+  assert.equal(c.phone, '', 'الجوال مستعمل لحساب آخر')
+  assert.equal(c.name, 'other')
+})

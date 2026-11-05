@@ -8,6 +8,7 @@ import { corporate as seedCorporate, hero as seedHero, ladder as seedLadder, sta
 import { isPublic, liveStatus, publicOrder } from '@/lib/course-meta'
 import { priceView } from '@/lib/pricing'
 import type { CourseRow, InstructorRow, LessonRow, Media, ModuleRow, TierRow, TrackRow } from './db/schema'
+import { inList } from '@/server/db/limits'
 
 export const mediaUrl = (m: Pick<Media, 'key'>) => `/media/${m.key}`
 
@@ -19,7 +20,7 @@ function mediaView(m: Media | undefined | null): MediaView | undefined {
 async function mediaMap(ids: (string | null | undefined)[]) {
   const list = ids.filter((x): x is string => !!x)
   if (!list.length) return new Map<string, Media>()
-  const rows = await db.select().from(s.media).where(inArray(s.media.id, list))
+  const rows = await db.select().from(s.media).where(inList(s.media.id, list))
   return new Map(rows.map((r) => [r.id, r]))
 }
 
@@ -120,7 +121,7 @@ export async function courseDetail(slug: string, preview?: string, now = new Dat
   if (!visible) return null
   const mods = await db.select().from(s.modules).where(eq(s.modules.courseId, hit.row.id)).orderBy(asc(s.modules.sortOrder))
   const les = mods.length
-    ? await db.select().from(s.lessons).where(inArray(s.lessons.moduleId, mods.map((x) => x.id))).orderBy(asc(s.lessons.sortOrder))
+    ? await db.select().from(s.lessons).where(inList(s.lessons.moduleId, mods.map((x) => x.id))).orderBy(asc(s.lessons.sortOrder))
     : []
   const tiers = await db.select().from(s.priceTiers).where(eq(s.priceTiers.courseId, hit.row.id)).orderBy(asc(s.priceTiers.sortOrder))
   const rules = await db.select().from(s.groupRules).where(eq(s.groupRules.courseId, hit.row.id))

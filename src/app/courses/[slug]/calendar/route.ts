@@ -5,6 +5,7 @@ import { db, schema as s } from '@/server/db'
 import { currentLearner } from '@/server/learner-auth'
 import { isPublic, liveStatus } from '@/lib/course-meta'
 import { plain } from '@/motion/kashida'
+import { inList } from '@/server/db/limits'
 
 const fmt = (d: Date) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d+Z$/, 'Z')
 const esc = (t: string) => t.replace(/[\\,;]/g, (m) => '\\' + m).replace(/\n/g, '\\n')
@@ -20,7 +21,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ slug: string }>
   }
   const mods = await db.select({ id: s.modules.id }).from(s.modules).where(eq(s.modules.courseId, c.id))
   const sessions = mods.length
-    ? await db.select().from(s.lessons).where(and(inArray(s.lessons.moduleId, mods.map((m) => m.id)), inArray(s.lessons.type, ['live', 'onsite']), isNotNull(s.lessons.startsAt))).orderBy(asc(s.lessons.startsAt))
+    ? await db.select().from(s.lessons).where(and(inList(s.lessons.moduleId, mods.map((m) => m.id)), inArray(s.lessons.type, ['live', 'onsite']), isNotNull(s.lessons.startsAt))).orderBy(asc(s.lessons.startsAt))
     : []
   const title = plain(c.title)
   const page = new URL(`/courses/${c.slug}`, req.url).toString()

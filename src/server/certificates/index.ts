@@ -12,6 +12,7 @@ import { formatHijri } from '@/lib/dates'
 import { certificatePdf, type CertBrand } from './pdf'
 import { brandView, logoBytes } from '../brand'
 import { pick } from '@/lib/brand'
+import { inList } from '@/server/db/limits'
 
 const nowIso = () => new Date().toISOString()
 
@@ -31,8 +32,8 @@ export async function evaluate(learnerId: string, courseId: string) {
   const ids = lessons.map((l) => l.id)
   const [prog, att] = ids.length
     ? await Promise.all([
-      db.select({ lessonId: s.lessonProgress.lessonId }).from(s.lessonProgress).where(and(eq(s.lessonProgress.learnerId, learnerId), inArray(s.lessonProgress.lessonId, ids), isNotNull(s.lessonProgress.completedAt))),
-      db.select({ lessonId: s.attendance.lessonId }).from(s.attendance).where(and(eq(s.attendance.learnerId, learnerId), inArray(s.attendance.lessonId, ids))),
+      db.select({ lessonId: s.lessonProgress.lessonId }).from(s.lessonProgress).where(and(eq(s.lessonProgress.learnerId, learnerId), inList(s.lessonProgress.lessonId, ids), isNotNull(s.lessonProgress.completedAt))),
+      db.select({ lessonId: s.attendance.lessonId }).from(s.attendance).where(and(eq(s.attendance.learnerId, learnerId), inList(s.attendance.lessonId, ids))),
     ])
     : [[], []]
   const done = new Set(prog.map((p) => p.lessonId))

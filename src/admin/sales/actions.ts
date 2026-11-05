@@ -14,6 +14,7 @@ import { placeOrder, refundOrder } from '@/server/sales'
 import { normalizeCode } from '@/lib/quote'
 import { COUPON_KIND, COUPON_SCOPE } from '@/server/db/schema'
 import { errorsOf, type Result } from '@/admin/schemas'
+import { chunksOf } from '@/server/db/limits'
 
 const iso = z.string().datetime({ offset: true }).nullable()
 
@@ -108,8 +109,8 @@ export async function generateBatch(raw: CouponInput & { count: number; prefix: 
     codes.add(`${prefix}-${Array.from(b, (x) => alphabet[x % alphabet.length]).join('')}`)
   }
   const list = [...codes]
-  for (let i = 0; i < list.length; i += 50)
-    await db.insert(s.coupons).values(list.slice(i, i + 50).map((code) => ({ ...p.data, id: randomUUID(), code, batch, label: p.data.label || `دفعة ${batch}` })))
+  for (const part of chunksOf(s.coupons, list))
+    await db.insert(s.coupons).values(part.map((code) => ({ ...p.data, id: randomUUID(), code, batch, label: p.data.label || `دفعة ${batch}` })))
   await audit(admin.name, 'batch', 'coupon', batch, `${n} كوداً ${prefix}`)
   return { ok: true, codes: list }
 }

@@ -2,7 +2,7 @@
 /* إجراءات اللوحة — كل إجراء: جلسة ← تحقق ← كتابة ← سجل ← إعادة توليد الصفحات العامة. */
 import { randomUUID } from 'node:crypto'
 import { revalidatePath } from 'next/cache'
-import { and, count, eq, inArray, isNotNull, isNull } from 'drizzle-orm'
+import { and, count, eq, isNotNull, isNull } from 'drizzle-orm'
 import { imageSize } from 'image-size'
 import { db, schema as s } from '@/server/db'
 import { requirePermission } from '@/server/auth'
@@ -10,6 +10,7 @@ import { audit } from '@/server/audit'
 import { deleteObject, putObject } from '@/server/storage'
 import type { HomeContent } from '@/content/home-defaults'
 import type { CourseStatus } from '@/content/types'
+import { chunksOf, inList } from '@/server/db/limits'
 import {
   courseInput, errorsOf, homeInput, instructorInput, trackInput,
   type CourseInput, type InstructorInput, type Result, type TrackInput,
@@ -42,11 +43,11 @@ export async function saveCourse(id: string | null, raw: CourseInput): Promise<R
   /* المدربون يُستبدلون بالترتيب الجديد. والمنهج يُحدَّث بالمعرّفات — لا يُحذف ويُعاد إنشاؤه —
      كي يبقى تقدّم المتدربين وملاحظاتهم واختباراتهم مرتبطة بدروسها. يُحذف فقط ما أُزيل فعلاً. */
   await db.delete(s.courseInstructors).where(eq(s.courseInstructors.courseId, cid))
-  if (instructorIds.length)
-    await db.insert(s.courseInstructors).values(instructorIds.map((iid, i) => ({ courseId: cid, instructorId: iid, sortOrder: i })))
+  for (const part of chunksOf(s.courseInstructors, instructorIds.map((iid, i) => ({ courseId: cid, instructorId: iid, sortOrder: i }))))
+    await db.insert(s.courseInstructors).values(part)
   const oldMods = await db.select({ id: s.modules.id }).from(s.modules).where(eq(s.modules.courseId, cid))
   const oldModIds = new Set(oldMods.map((m) => m.id))
-  const oldLessons = oldMods.length ? await db.select({ id: s.lessons.id }).from(s.lessons).where(inArray(s.lessons.moduleId, [...oldModIds])) : []
+  const oldLessons = oldMods.length ? await db.select({ id: s.lessons.id }).from(s.lessons).where(inList(s.lessons.moduleId, [...oldModIds])) : []
   const oldLessonIds = new Set(oldLessons.map((l) => l.id))
   const keepMods = new Set<string>()
   const keepLessons = new Set<string>()
@@ -63,9 +64,9 @@ export async function saveCourse(id: string | null, raw: CourseInput): Promise<R
     }
   }
   const dropLessons = [...oldLessonIds].filter((x) => !keepLessons.has(x))
-  if (dropLessons.length) await db.delete(s.lessons).where(inArray(s.lessons.id, dropLessons))
+  if (dropLessons.length) await db.delete(s.lessons).where(inList(s.lessons.id, dropLessons))
   const dropMods = [...oldModIds].filter((x) => !keepMods.has(x))
-  if (dropMods.length) await db.delete(s.modules).where(inArray(s.modules.id, dropMods))
+  if (dropMods.length) await db.delete(s.modules).where(inList(s.modules.id, dropMods))
   /* الباقات تُحدَّث بمعرّفاتها حتى لا تنقطع صلتها بالطلبات السابقة */
   const oldTiers = await db.select({ id: s.priceTiers.id }).from(s.priceTiers).where(eq(s.priceTiers.courseId, cid))
   const keep = new Set<string>()
@@ -76,9 +77,9 @@ export async function saveCourse(id: string | null, raw: CourseInput): Promise<R
     else { const tid = randomUUID(); await db.insert(s.priceTiers).values({ ...row, id: tid, courseId: cid }); keep.add(tid) }
   }
   const drop = oldTiers.filter((o) => !keep.has(o.id)).map((o) => o.id)
-  if (drop.length) await db.delete(s.priceTiers).where(inArray(s.priceTiers.id, drop))
+  if (drop.length) await db.delete(s.priceTiers).where(inList(s.priceTiers.id, drop))
   await db.delete(s.groupRules).where(eq(s.groupRules.courseId, cid))
-  if (groupRules.length) await db.insert(s.groupRules).values(groupRules.map((g) => ({ id: randomUUID(), courseId: cid, ...g })))
+  for (const part of chunksOf(s.groupRules, groupRules.map((g) => ({ id: randomUUID(), courseId: cid, ...g })))) await db.insert(s.groupRules).values(part)
   await audit(admin.name, id ? 'update' : 'create', 'course', cid, v.title, p.data)
   refresh()
   return { ok: true, id: cid }
@@ -103,18 +104,18 @@ export async function duplicateCourse(id: string): Promise<Result> {
     startsAt: null, endsAt: null, publishAt: null, seatsTaken: 0, previewToken: token(), createdAt: now(), updatedAt: now(), deletedAt: null,
   })
   const links = await db.select().from(s.courseInstructors).where(eq(s.courseInstructors.courseId, id))
-  if (links.length) await db.insert(s.courseInstructors).values(links.map((l) => ({ ...l, courseId: nid })))
+  for (const part of chunksOf(s.courseInstructors, links.map((l) => ({ ...l, courseId: nid })))) await db.insert(s.courseInstructors).values(part)
   const mods = await db.select().from(s.modules).where(eq(s.modules.courseId, id))
   for (const m of mods) {
     const mid = randomUUID()
     await db.insert(s.modules).values({ ...m, id: mid, courseId: nid })
     const ls = await db.select().from(s.lessons).where(eq(s.lessons.moduleId, m.id))
-    if (ls.length) await db.insert(s.lessons).values(ls.map((l) => ({ ...l, id: randomUUID(), moduleId: mid })))
+    for (const part of chunksOf(s.lessons, ls.map((l) => ({ ...l, id: randomUUID(), moduleId: mid })))) await db.insert(s.lessons).values(part)
   }
   const tiers = await db.select().from(s.priceTiers).where(eq(s.priceTiers.courseId, id))
-  if (tiers.length) await db.insert(s.priceTiers).values(tiers.map((t) => ({ ...t, id: randomUUID(), courseId: nid })))
+  for (const part of chunksOf(s.priceTiers, tiers.map((t) => ({ ...t, id: randomUUID(), courseId: nid })))) await db.insert(s.priceTiers).values(part)
   const rules = await db.select().from(s.groupRules).where(eq(s.groupRules.courseId, id))
-  if (rules.length) await db.insert(s.groupRules).values(rules.map((r) => ({ ...r, id: randomUUID(), courseId: nid })))
+  for (const part of chunksOf(s.groupRules, rules.map((r) => ({ ...r, id: randomUUID(), courseId: nid })))) await db.insert(s.groupRules).values(part)
   /* «أبلغني بالدفعة القادمة»: النسخة هي الدفعة القادمة — يُنقل إليها من لم يُبلَّغ بعد، فيصله «فُتح التسجيل» عند فتحها */
   const moved = await db.update(s.interest).set({ courseId: nid, updatedAt: now() })
     .where(and(eq(s.interest.courseId, id), eq(s.interest.kind, 'next_cohort'), isNull(s.interest.notifiedAt))).returning({ id: s.interest.id })
@@ -198,7 +199,7 @@ export async function purge(entity: Entity, id: string, confirm: string): Promis
     const [enr] = await db.select({ n: count() }).from(s.enrollments).where(eq(s.enrollments.courseId, id))
     if (sold.n || enr.n) return { ok: false, error: 'للدورة طلبات أو تسجيلات — استرجعها وأرشفها بدلاً من حذفها نهائياً' }
     const mods = await db.select({ id: s.modules.id }).from(s.modules).where(eq(s.modules.courseId, id))
-    if (mods.length) await db.delete(s.lessons).where(inArray(s.lessons.moduleId, mods.map((m) => m.id)))
+    if (mods.length) await db.delete(s.lessons).where(inList(s.lessons.moduleId, mods.map((m) => m.id)))
     await db.delete(s.modules).where(eq(s.modules.courseId, id))
     await db.delete(s.priceTiers).where(eq(s.priceTiers.courseId, id))
     await db.delete(s.groupRules).where(eq(s.groupRules.courseId, id))

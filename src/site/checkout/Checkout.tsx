@@ -62,7 +62,9 @@ export function Checkout({ slug, title, tiers, groupRules, maxQty, initial, init
   const [applied, setApplied] = useState(initialCode)
   const [q, setQ] = useState<QuoteView>(initial)
   const [me, setMe] = useState<Verified | null>(learner)
-  const [b, setB] = useState(learner ? { ...learner } : { name: '', email: '', phone: '', org: '', vatNumber: '' })
+  /* اسم الحساب الافتراضي (ما قبل @) ليس اسماً — يُطلب الاسم الحقيقي لأنه يُطبع على الشهادة والفاتورة */
+  const realName = (l: Verified) => (!l.name || l.name.includes('@') || l.name === l.email.split('@')[0] ? '' : l.name)
+  const [b, setB] = useState(learner ? { ...learner, name: realName(learner) } : { name: '', email: '', phone: '', org: '', vatNumber: '' })
   const [business, setBusiness] = useState(!!learner?.vatNumber)
   const mustVerify = channels.length > 0 && !me
   const [attendSelf, setAttendSelf] = useState(true)
@@ -154,7 +156,7 @@ export function Checkout({ slug, title, tiers, groupRules, maxQty, initial, init
           {mustVerify ? (
             <>
               <p className={s.hint}>تحقّق من بريدك برمز يصلك فوراً — يصير هو حسابك، وتجد فيه دوراتك وفواتيرك.</p>
-              <CodeLogin compact channels={channels} onDone={(l) => { setMe(l); setB({ ...l, name: l.name.includes('@') ? '' : l.name }); setBusiness(!!l.vatNumber) }} />
+              <CodeLogin compact channels={channels} onDone={(l) => { setMe(l); setB({ ...l, name: realName(l) }); setBusiness(!!l.vatNumber) }} />
             </>
           ) : (
           <>

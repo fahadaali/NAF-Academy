@@ -3,6 +3,7 @@ import 'server-only'
 import { and, asc, count, desc, eq, inArray, isNull, sql } from 'drizzle-orm'
 import { db, schema as s } from '@/server/db'
 import { requirePermission } from '@/server/auth'
+import { inList } from '@/server/db/limits'
 
 export async function submissionsQueue(status: 'submitted' | 'accepted' | 'revise' | 'all') {
   await requirePermission('learning.review')
@@ -46,8 +47,8 @@ export async function sessionsList() {
   if (!rows.length) return []
   const courseIds = [...new Set(rows.map((r) => r.courseId))]
   const [enr, att] = await Promise.all([
-    db.select({ courseId: s.enrollments.courseId, n: count() }).from(s.enrollments).where(and(inArray(s.enrollments.courseId, courseIds), eq(s.enrollments.status, 'active'))).groupBy(s.enrollments.courseId),
-    db.select({ lessonId: s.attendance.lessonId, n: count() }).from(s.attendance).where(inArray(s.attendance.lessonId, rows.map((r) => r.l.id))).groupBy(s.attendance.lessonId),
+    db.select({ courseId: s.enrollments.courseId, n: count() }).from(s.enrollments).where(and(inList(s.enrollments.courseId, courseIds), eq(s.enrollments.status, 'active'))).groupBy(s.enrollments.courseId),
+    db.select({ lessonId: s.attendance.lessonId, n: count() }).from(s.attendance).where(inList(s.attendance.lessonId, rows.map((r) => r.l.id))).groupBy(s.attendance.lessonId),
   ])
   const e = new Map(enr.map((x) => [x.courseId, x.n]))
   const a = new Map(att.map((x) => [x.lessonId, x.n]))
