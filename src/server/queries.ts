@@ -4,6 +4,7 @@ import { and, asc, count, desc, eq, inArray, isNull } from 'drizzle-orm'
 import { db, schema as s } from './db'
 import type { Course, Instructor, MediaView, Pricing, Track } from '@/content/types'
 import { DEFAULT_HOME, DEFAULT_MENU, type HomeContent } from '@/content/home-defaults'
+import { mergePages, type PagesContent } from '@/content/pages-defaults'
 import { corporate as seedCorporate, hero as seedHero, ladder as seedLadder, stats as seedStats } from '@/content/seed'
 import { isPublic, liveStatus, publicOrder } from '@/lib/course-meta'
 import { priceView } from '@/lib/pricing'
@@ -94,6 +95,12 @@ export async function homeContent(): Promise<HomeContent> {
     heads: { ...DEFAULT_HOME.heads, ...(v.heads ?? {}) },
     sections: (v.sections ?? DEFAULT_HOME.sections).map((x) => ({ ...x, menu: x.menu ?? DEFAULT_MENU[x.key] })),
   } as HomeContent
+}
+
+/** محتوى الصفحات العامة (الدورات، المسارات، الدخول، السياسات، وصف الموقع) — من اللوحة */
+export async function pagesContent(): Promise<PagesContent> {
+  const [row] = await db.select().from(s.settings).where(eq(s.settings.key, 'pages'))
+  return mergePages(row?.value as Partial<PagesContent> | undefined)
 }
 
 export type PublicTier = { id: string; name: string; description: string; price: number; compareAt: number | null; features: string[]; highlight: boolean }

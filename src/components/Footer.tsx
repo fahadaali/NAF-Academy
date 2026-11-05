@@ -15,7 +15,6 @@ export function Footer({ title, cta, brand }: { title: string; cta: string; bran
         <nav aria-label="روابط" className={styles.links}>
           <a href="/courses">الدورات</a>
           <a href="/tracks">المسارات</a>
-          <a href="/events">الفعاليات</a>
           <a href="/certificates/verify">تحقق من شهادة</a>
           <a href="/policies">السياسات</a>
         </nav>

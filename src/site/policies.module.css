@@ -1,0 +1,11 @@
+.page { display: grid; gap: 26px; padding-block: 48px 120px; max-inline-size: 860px; }
+.toc { display: flex; flex-wrap: wrap; gap: 8px; }
+.toc a { padding: 8px 16px; border-radius: 999px; border: 1px solid var(--line-strong); font-size: 14px; font-weight: 600; }
+.toc a:hover { border-color: var(--gold-3); color: var(--accent); }
+.parts { display: grid; gap: 22px; }
+.part { padding: 26px 28px; border-radius: var(--radius-l); background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow-1); scroll-margin-block-start: calc(var(--header-h) + 20px); }
+.part h2 { font-family: var(--font-display); font-size: var(--fs-title); margin-block-end: 10px; }
+.part :global(p), .part :global(li) { font-family: var(--font-text); line-height: var(--lh-body); color: var(--text-soft); }
+.part :global(p + p) { margin-block-start: 10px; }
+.part :global(h3) { font-size: 17px; margin-block: 14px 6px; }
+.part :global(ul) { padding-inline-start: 20px; list-style: disc; }

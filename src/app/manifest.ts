@@ -1,15 +1,16 @@
 import type { MetadataRoute } from 'next'
 import { brandView } from '@/server/brand'
+import { pagesContent } from '@/server/queries'
 
 /* تثبيت الأكاديمية تطبيقاً على الجوال والحاسب. الألوان قيم مباشرة لأن البيان لا يقرأ متغيرات CSS (مرآة لرموز الهوية) */
 export default async function manifest(): Promise<MetadataRoute.Manifest> {
-  const b = await brandView()
+  const [b, pages] = await Promise.all([brandView(), pagesContent()])
   /* الأيقونة المرفوعة من اللوحة، وإلا الافتراضية */
   const own = b.icon ? [{ src: b.icon.url, sizes: `${b.icon.w}x${b.icon.h}`, type: 'image/png', purpose: 'any' as const }, { src: b.icon.url, sizes: `${b.icon.w}x${b.icon.h}`, type: 'image/png', purpose: 'maskable' as const }] : null
   return {
     name: `${b.name} ${b.tagline}`.trim(),
     short_name: b.name,
-    description: 'دورات قانونية تطبيقية — مسجّلة ومباشرة وحضورية.',
+    description: pages.site.description,
     lang: 'ar',
     dir: 'rtl',
     start_url: '/learn?source=app',

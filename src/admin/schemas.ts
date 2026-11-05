@@ -206,3 +206,14 @@ export const homeInput = z.object({
   heads: z.record(z.string(), z.object({ eyebrow: t(60), title: t(160) })),
   footer: z.object({ title: t(120), cta: t(40) }),
 })
+
+/* محتوى الصفحات العامة */
+const head = z.object({ eyebrow: t(60), title: t(160).min(1, 'العنوان مطلوب'), body: t(400) })
+export const pagesInput = z.object({
+  site: z.object({ title: t(120).min(3, 'عنوان الموقع مطلوب'), description: t(300).min(10, 'وصف قصير للموقع مطلوب') }),
+  home: z.object({ seoDescription: t(300) }),
+  courses: head.extend({ seoDescription: t(300) }),
+  tracks: head.extend({ seoDescription: t(300) }),
+  login: head,
+  policies: head.extend({ terms: t(20000), privacy: t(20000) }),
+})

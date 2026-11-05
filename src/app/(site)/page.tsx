@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import { Curtain } from '@/components/Curtain'
 import { brandView } from '@/server/brand'
 import { ldJson, organization, website } from '@/lib/seo'
@@ -12,9 +13,16 @@ import { Impact } from '@/scenes/impact/Impact'
 import { Corporate } from '@/scenes/corporate/Corporate'
 import type { SceneKey } from '@/content/home-defaults'
 import { catalog, homeContent } from '@/server/queries'
+import { pagesContent } from '@/server/queries'
 
 /* تُعاد عند كل حفظ في اللوحة، وكل خمس دقائق لما يتغيّر بالوقت (نشر مجدول، انتهاء عرض) */
 export const revalidate = 300
+
+/** وصف الرئيسية في نتائج البحث — من «الصفحات العامة»، وإلا وصف الموقع العام */
+export async function generateMetadata(): Promise<Metadata> {
+  const p = await pagesContent()
+  return p.home.seoDescription ? { description: p.home.seoDescription } : {}
+}
 
 export default async function Home() {
   const [home, { tracks, courses, instructors }, brand] = await Promise.all([homeContent(), catalog(), brandView()])

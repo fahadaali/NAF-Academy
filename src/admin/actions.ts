@@ -12,11 +12,12 @@ import { TRASH_OWNER } from './trash-perms'
 import { audit } from '@/server/audit'
 import { deleteObject, putObject } from '@/server/storage'
 import type { HomeContent } from '@/content/home-defaults'
+import type { PagesContent } from '@/content/pages-defaults'
 import type { CourseStatus } from '@/content/types'
 import { COURSE_STATUS } from '@/lib/enums'
 import { chunksOf, inList } from '@/server/db/limits'
 import {
-  courseInput, errorsOf, homeInput, instructorInput, trackInput,
+  courseInput, errorsOf, homeInput, instructorInput, pagesInput, trackInput,
   type CourseInput, type InstructorInput, type Result, type TrackInput,
 } from './schemas'
 
@@ -314,6 +315,17 @@ export async function saveHome(value: HomeContent): Promise<{ ok: boolean; messa
   const clean = p.data as HomeContent
   await db.insert(s.settings).values({ key: 'home', value: clean }).onConflictDoUpdate({ target: s.settings.key, set: { value: clean, updatedAt: now() } })
   await audit(admin.name, 'update', 'home', 'home', 'الصفحة الرئيسية', clean)
+  refresh()
+  return { ok: true }
+}
+
+export async function savePages(value: PagesContent): Promise<{ ok: boolean; message?: string }> {
+  const admin = await requirePermission('site.write')
+  const p = pagesInput.safeParse(value)
+  if (!p.success) return { ok: false, message: Object.values(errorsOf(p.error))[0] ?? 'محتوى غير صالح' }
+  const clean = p.data as PagesContent
+  await db.insert(s.settings).values({ key: 'pages', value: clean }).onConflictDoUpdate({ target: s.settings.key, set: { value: clean, updatedAt: now() } })
+  await audit(admin.name, 'update', 'pages', 'pages', 'الصفحات العامة', clean)
   refresh()
   return { ok: true }
 }

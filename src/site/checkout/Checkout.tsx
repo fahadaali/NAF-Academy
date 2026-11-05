@@ -193,7 +193,7 @@ export function Checkout({ slug, title, tiers, groupRules, maxQty, initial, init
 
           <label className={s.check} data-err={fields.agree ? '1' : '0'}>
             <input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} />
-            <span>{terms} <details className={s.policy}><summary>سياسة الاسترداد</summary>{refundPolicy}</details></span>
+            <span>{terms} <details className={s.policy}><summary>سياسة الاسترداد</summary>{refundPolicy} <a href="/policies" target="_blank" rel="noreferrer">السياسات كاملة ↗</a></details></span>
           </label>
 
           {error && <p className={s.err} role="alert">{error}</p>}
