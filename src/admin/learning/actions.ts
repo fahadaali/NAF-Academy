@@ -12,6 +12,7 @@ import { putObject } from '@/server/storage'
 import { directUpload, streamState } from '@/server/stream'
 import { readTicket } from '@/server/tickets'
 import { EXT_MIME } from '@/lib/files'
+import { onProgress } from '@/server/notify/engine'
 import { formatDay, formatTime } from '@/lib/dates'
 
 const MAX = 25 * 1024 * 1024
@@ -62,6 +63,8 @@ export async function reviewSubmission(raw: unknown): Promise<{ ok: boolean; err
   if (p.data.status === 'accepted') {
     await db.insert(s.lessonProgress).values({ learnerId: sub.learnerId, lessonId: sub.lessonId, courseId: sub.courseId, completedAt: now })
       .onConflictDoUpdate({ target: [s.lessonProgress.learnerId, s.lessonProgress.lessonId], set: { completedAt: now, updatedAt: now } })
+
+    await onProgress(sub.learnerId, sub.courseId)
   }
   await audit(st.name, p.data.status === 'accepted' ? 'accept' : 'revise', 'submission', sub.id, p.data.feedback.slice(0, 120))
   revalidatePath('/admin/learning', 'layout')
@@ -101,7 +104,10 @@ export async function checkIn(token: string): Promise<CheckIn> {
   if (!learner || !en) return { ok: false, error: 'صاحب التذكرة غير مسجّل في الدورة' }
   const ins = await db.insert(s.attendance).values({ learnerId: learner.id, lessonId: row.l.id, courseId: row.courseId, method: 'qr', by: st.name })
     .onConflictDoNothing().returning({ at: s.attendance.at })
-  if (ins.length) await audit(st.name, 'checkin', 'lesson', row.l.id, learner.email || learner.phone)
+  if (ins.length) {
+    await audit(st.name, 'checkin', 'lesson', row.l.id, learner.email || learner.phone)
+    await onProgress(learner.id, row.courseId)
+  }
   revalidatePath('/admin/learning', 'layout')
   return {
     ok: true, already: !ins.length, name: learner.name, email: learner.email || learner.phone, lesson: row.l.title, course: row.course,
@@ -116,7 +122,10 @@ export async function setAttendance(learnerId: string, lessonId: string, present
   if (!row || (row.type !== 'live' && row.type !== 'onsite')) return { ok: false, error: 'ليست جلسة' }
   const [en] = await db.select().from(s.enrollments).where(and(eq(s.enrollments.learnerId, learnerId), eq(s.enrollments.courseId, row.courseId), eq(s.enrollments.status, 'active')))
   if (!en) return { ok: false, error: 'غير مسجّل' }
-  if (present) await db.insert(s.attendance).values({ learnerId, lessonId, courseId: row.courseId, method: 'manual', by: st.name }).onConflictDoNothing()
+  if (present) {
+    await db.insert(s.attendance).values({ learnerId, lessonId, courseId: row.courseId, method: 'manual', by: st.name }).onConflictDoNothing()
+    await onProgress(learnerId, row.courseId)
+  }
   else await db.delete(s.attendance).where(and(eq(s.attendance.learnerId, learnerId), eq(s.attendance.lessonId, lessonId)))
   await audit(st.name, present ? 'attend' : 'unattend', 'lesson', lessonId, learnerId)
   revalidatePath('/admin/learning', 'layout')

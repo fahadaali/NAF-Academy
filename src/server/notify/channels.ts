@@ -34,20 +34,20 @@ export async function channelOpen(c: Channel) {
   return st.configured && (c === 'email' ? set.emailEnabled : set.smsEnabled)
 }
 
-type Message = { channel: Channel; to: string; subject?: string; text: string; html?: string; kind: string; secret?: string }
+type Message = { channel: Channel; to: string; subject?: string; text: string; html?: string; kind: string; secret?: string; headers?: Record<string, string> }
 
 /** يرسل ويسجّل. السرّ (مثل رمز التحقق) يُخفى من السجل في الإنتاج. */
-export async function send(m: Message): Promise<{ ok: boolean; error?: string }> {
+export async function send(m: Message): Promise<{ ok: boolean; error?: string; id: string }> {
   const st = channelState(m.channel)
   const logBody = m.secret && !dev() ? m.text.replaceAll(m.secret, '••••••') : m.text
   const row = { id: randomUUID(), channel: m.channel, to: m.to, subject: m.subject ?? '', body: logBody, kind: m.kind, provider: st.provider ?? 'none' }
   if (!st.configured) {
     await db.insert(s.messageLog).values({ ...row, status: 'failed', error: st.problem })
-    return { ok: false, error: 'القناة غير مربوطة' }
+    return { ok: false, error: 'القناة غير مربوطة', id: row.id }
   }
   if (st.provider === 'outbox') {
     await db.insert(s.messageLog).values({ ...row, status: 'outbox' })
-    return { ok: true }
+    return { ok: true, id: row.id }
   }
   try {
     let providerId = ''
@@ -55,7 +55,7 @@ export async function send(m: Message): Promise<{ ok: boolean; error?: string }>
       const r = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: { authorization: `Bearer ${envVar('RESEND_API_KEY')}`, 'content-type': 'application/json' },
-        body: JSON.stringify({ from: envVar('MAIL_FROM'), to: [m.to], subject: m.subject, text: m.text, html: m.html }),
+        body: JSON.stringify({ from: envVar('MAIL_FROM'), to: [m.to], subject: m.subject, text: m.text, html: m.html, headers: m.headers }),
       })
       if (!r.ok) throw new Error(`resend ${r.status}: ${(await r.text()).slice(0, 200)}`)
       providerId = ((await r.json()) as { id?: string }).id ?? ''
@@ -69,9 +69,9 @@ export async function send(m: Message): Promise<{ ok: boolean; error?: string }>
       providerId = String(((await r.json()) as { messageId?: string | number }).messageId ?? '')
     }
     await db.insert(s.messageLog).values({ ...row, status: 'sent', providerId })
-    return { ok: true }
+    return { ok: true, id: row.id }
   } catch (e) {
     await db.insert(s.messageLog).values({ ...row, status: 'failed', error: String((e as Error).message).slice(0, 300) })
-    return { ok: false, error: 'تعذّر الإرسال — حاول بعد قليل' }
+    return { ok: false, error: 'تعذّر الإرسال — حاول بعد قليل', id: row.id }
   }
 }

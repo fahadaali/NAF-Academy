@@ -11,6 +11,7 @@ import { gradeQuiz, publicQuiz } from '@/lib/learning'
 import { putObject } from '@/server/storage'
 import { limited } from '@/server/ratelimit'
 import { EXT_MIME } from '@/lib/files'
+import { onProgress } from '@/server/notify/engine'
 
 /** يتحقق أن الدرس مفتوح لهذا المتدرب المسجّل */
 async function gate(slug: string, lessonId: string) {
@@ -28,6 +29,7 @@ async function complete(learnerId: string, lessonId: string, courseId: string) {
   const now = new Date().toISOString()
   await db.insert(s.lessonProgress).values({ learnerId, lessonId, courseId, completedAt: now })
     .onConflictDoUpdate({ target: [s.lessonProgress.learnerId, s.lessonProgress.lessonId], set: { completedAt: sql`coalesce(${s.lessonProgress.completedAt}, ${now})`, updatedAt: now } })
+  await onProgress(learnerId, courseId)
 }
 
 /** نبضة المشاهدة: الموضع، وثوانٍ مُشاهَدة من المحتوى.

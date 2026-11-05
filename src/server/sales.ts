@@ -191,10 +191,13 @@ async function fulfill(order: OrderRow) {
   const source = order.method === 'gateway' ? 'purchase' : order.method === 'grant' ? 'grant' : order.method === 'free' ? 'free' : 'manual'
   const [hasEnroll] = await db.select({ n: count() }).from(s.enrollments).where(eq(s.enrollments.orderId, order.id))
   const [hasGrant] = await db.select({ n: count() }).from(s.seatGrants).where(eq(s.seatGrants.orderId, order.id))
+  const created: string[] = []
   if (!hasEnroll.n && !hasGrant.n) {
     for (const it of items) {
       if (it.quantity === 1) {
-        await db.insert(s.enrollments).values({ id: randomUUID(), learnerId: order.learnerId, courseId: it.courseId, tierId: it.tierId, orderId: order.id, source })
+        const eid = randomUUID()
+        await db.insert(s.enrollments).values({ id: eid, learnerId: order.learnerId, courseId: it.courseId, tierId: it.tierId, orderId: order.id, source })
+        created.push(eid)
         continue
       }
       const grants = Array.from({ length: it.quantity }, () => ({ id: randomUUID(), orderId: order.id, courseId: it.courseId, email: null as string | null, enrollmentId: null as string | null }))
@@ -206,6 +209,7 @@ async function fulfill(order: OrderRow) {
           db.insert(s.enrollments).values({ id: eid, learnerId: order.learnerId, courseId: it.courseId, tierId: it.tierId, orderId: order.id, source: 'seat' }),
           db.insert(s.seatGrants).values(grants),
         ])
+        created.push(eid)
       } else await db.insert(s.seatGrants).values(grants)
     }
   }
@@ -218,6 +222,11 @@ async function fulfill(order: OrderRow) {
     if (!inv) await issueInvoice(order, items, 'invoice')
   }
   await db.update(s.orders).set({ fulfilledAt: nowIso() }).where(eq(s.orders.id, order.id))
+  /* رسالة الترحيب لكل تسجيل جديد — فشلها لا يوقف الإتمام */
+  if (created.length) {
+    const { onEnrolled } = await import('./notify/engine')
+    for (const id of created) await onEnrolled(id)
+  }
 }
 
 /* ───────── الفواتير ───────── */

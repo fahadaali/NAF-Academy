@@ -1,7 +1,7 @@
 /* يولّد src/design/fonts.generated.css من ملفات خط ثمانية إن وُجدت في src/fonts/thmanyah/.
    الملفات لا تُرفع للمستودع (الترخيص)، وتُدمج في البناء بأسماء مجزّأة كجزء من المنتج.
    إن غابت: ملف فارغ، فيعمل البناء بالخط الاحتياطي. الملفات تُستخدم كما هي بلا أي تعديل. */
-import { existsSync, readdirSync, writeFileSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs'
 
 const dir = 'src/fonts/thmanyah'
 const out = 'src/design/fonts.generated.css'
@@ -28,3 +28,10 @@ writeFileSync(
     : '/* مولّد — ملفات خط ثمانية غير موجودة في src/fonts/thmanyah/؛ يُستخدم الخط الاحتياطي */\n',
 )
 console.log(faces.length ? `fonts: ${faces.length} faces` : 'fonts: Thmanyah missing — fallback in use')
+
+/* نسخة ثابتة الاسم من الخط للبريد — عملاء البريد يحتاجون رابطاً لا يتغيّر (public/email-fonts، لا تُرفع) */
+const mail = { 'thmanyahsans-Regular.woff2': 'sans-regular.woff2', 'thmanyahsans-Bold.woff2': 'sans-bold.woff2' }
+if (files.length) {
+  mkdirSync('public/email-fonts', { recursive: true })
+  for (const [from, to] of Object.entries(mail)) if (existsSync(`${dir}/${from}`)) copyFileSync(`${dir}/${from}`, `public/email-fonts/${to}`)
+}

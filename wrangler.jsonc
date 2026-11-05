@@ -3,7 +3,7 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "naf-academy",
-  "main": ".open-next/worker.js",
+  "main": ".cf/worker.mjs",
   "compatibility_date": "2026-10-01",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
   "assets": { "directory": ".open-next/assets", "binding": "ASSETS" },
@@ -11,17 +11,20 @@
     { "binding": "DB", "database_name": "naf_academy", "database_id": "REPLACE_WITH_D1_ID", "migrations_dir": "migrations" }
   ],
   "r2_buckets": [{ "binding": "MEDIA", "bucket_name": "naf-academy-media" }],
+  // الرسائل الآلية: جدولة وإرسال كل 5 دقائق (scripts/cf-config.mjs يولّد معالج scheduled)
+  "triggers": { "crons": ["*/5 * * * *"] },
   "kv_namespaces": [{ "binding": "AUTH_KV", "id": "REPLACE_WITH_KV_ID" }],
   "vars": {
     "STAFF_AUTH": "naf-auth",
     "AUTH_ISSUER": "REPLACE_WITH_NAF_ID_ISSUER_URL",
     "PLATFORM_ID": "naf-academy",
+    "SITE_URL": "REPLACE_WITH_SITE_URL",
     "AUTH_DB_BINDING": "DB",
     "AUTH_KV_BINDING": "AUTH_KV",
     "MEMBERS_TIME_FORMAT": "epoch",
     "DEFAULT_ROLE": "support"
   }
   // الأسرار (wrangler secret put): MOYASAR_SECRET_KEY · MOYASAR_PUBLISHABLE_KEY · MOYASAR_WEBHOOK_SECRET
-  // · RESEND_API_KEY · MAIL_FROM · TAQNYAT_API_KEY · SMS_SENDER · LEARNER_SECRET · ADMIN_SECRET
+  // · RESEND_API_KEY · MAIL_FROM · TAQNYAT_API_KEY · SMS_SENDER · LEARNER_SECRET · ADMIN_SECRET · CRON_SECRET (24 حرفاً على الأقل)
   // وسرّ المنصة الذي تطلبه naf-auth من المركز (انظر README الحزمة)
 }

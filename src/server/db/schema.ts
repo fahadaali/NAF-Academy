@@ -561,4 +561,33 @@ export const attendance = sqliteTable('attendance', {
   at: stamps.createdAt,
 }, (t) => [primaryKey({ columns: [t.learnerId, t.lessonId] })])
 
+/* ───────── التذكيرات والبريد ───────── */
+
+export const NOTIFY_STATUS = ['pending', 'sending', 'sent', 'failed', 'skipped', 'cancelled'] as const
+
+/** طابور الرسائل الآلية — المفتاح فريد فلا تتكرر رسالة، وموعد الجلسة جزء منه فتغييره يولّد تذكيرات جديدة */
+export const notifications = sqliteTable('notifications', {
+  id: id(),
+  key: text('key').notNull().unique(),
+  event: text('event').notNull(),
+  channel: text('channel', { enum: ['email', 'sms'] }).notNull(),
+  to: text('to').notNull(),
+  learnerId: text('learner_id'),
+  courseId: text('course_id'),
+  ref: text('ref', { mode: 'json' }).$type<Record<string, string | number | null>>().notNull().default(sql`'{}'`),
+  sendAt: text('send_at').notNull(),
+  status: text('status', { enum: NOTIFY_STATUS }).notNull().default('pending'),
+  attempts: integer('attempts').notNull().default(0),
+  error: text('error').notNull().default(''),
+  messageId: text('message_id'),
+  sentAt: text('sent_at'),
+  ...stamps,
+}, (t) => [index('notify_due_idx').on(t.status, t.sendAt), index('notify_learner_idx').on(t.learnerId)])
+
+/** إلغاء الاشتراك في الرسائل الاختيارية (التحفيز والعروض) — بالبريد، فيشمل غير المسجّلين */
+export const notifyOptouts = sqliteTable('notify_optouts', {
+  email: text('email').primaryKey(),
+  createdAt: stamps.createdAt,
+})
+
 export type LessonFull = typeof lessons.$inferSelect

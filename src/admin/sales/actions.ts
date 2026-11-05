@@ -1,4 +1,5 @@
 'use server'
+import { onEnrolled } from '@/server/notify/engine'
 /* إجراءات المبيعات في اللوحة — الإعدادات، والكوبونات، والاسترداد، والطلب اليدوي، وتخصيص المقاعد. */
 import { randomBytes, randomUUID } from 'node:crypto'
 import { revalidatePath } from 'next/cache'
@@ -186,6 +187,7 @@ export async function assignSeat(grantId: string, email: string, name: string): 
   await db.update(s.seatGrants).set({ email: learner.email, enrollmentId: eid }).where(eq(s.seatGrants.id, grantId))
   await audit(admin.name, 'assign', 'order', g.orderId, `مقعد ← ${learner.email}`)
   revalidatePath(`/admin/orders/${g.orderId}`)
+  await onEnrolled(eid)
   return { ok: true }
 }
 

@@ -25,6 +25,8 @@ const groups: { title: string; items: { href: string; label: string; icon: strin
   { title: 'الموقع', items: [
     { href: '/admin/home', label: 'الصفحة الرئيسية', icon: '⌂', perm: 'site.write' },
     { href: '/admin/settings/channels', label: 'قنوات الرسائل', icon: '✉', perm: 'channels.manage' },
+    { href: '/admin/notifications', label: 'الرسائل الآلية', icon: '◷', perm: 'notify.manage' },
+    { href: '/admin/notifications/queue', label: 'طابور الرسائل', icon: '⋯', perm: 'notify.manage' },
     { href: '/admin/messages', label: 'سجل الرسائل', icon: '⇄', perm: 'messages.read' },
     { href: '/admin/team', label: 'الفريق والصلاحيات', icon: '◎', perm: 'team.manage' },
   ] },

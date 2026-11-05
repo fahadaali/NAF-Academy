@@ -10,3 +10,5 @@ next-env.d.ts
 .DS_Store
 .data
 .dev.vars
+public/email-fonts
+.cf

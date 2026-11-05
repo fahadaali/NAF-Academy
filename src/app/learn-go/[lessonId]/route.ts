@@ -1,6 +1,7 @@
 /* الانضمام للجلسة المباشرة — الرابط الحقيقي لا يظهر في الصفحة؛ يُكشف هنا فقط للمسجّل داخل النافذة،
    ويُسجَّل حضوره. */
 import { NextResponse } from 'next/server'
+import { onProgress } from '@/server/notify/engine'
 import { and, eq } from 'drizzle-orm'
 import { db, schema as s } from '@/server/db'
 import { currentLearner } from '@/server/learner-auth'
@@ -19,6 +20,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ lessonId: strin
   const back = new URL(`/learn/${row.slug}/${lessonId}`, req.url)
   if (!en) return NextResponse.redirect(back, 303)
   if (joinWindow(row.l.startsAt, row.l.endsAt).state !== 'open') return NextResponse.redirect(back, 303)
-  await db.insert(s.attendance).values({ learnerId: me.id, lessonId, courseId: row.courseId, method: 'join', by: 'self' }).onConflictDoNothing()
+  const first = await db.insert(s.attendance).values({ learnerId: me.id, lessonId, courseId: row.courseId, method: 'join', by: 'self' }).onConflictDoNothing().returning({ at: s.attendance.at })
+  if (first.length) await onProgress(me.id, row.courseId)
   return NextResponse.redirect(row.l.joinUrl, 303)
 }
