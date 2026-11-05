@@ -1,9 +1,10 @@
 'use server'
 import { redirect } from 'next/navigation'
-import { adminPassword, createSession, destroySession, safeEqual } from '@/server/auth'
+import { adminPassword, createSession, destroySession, safeEqual, staffMode } from '@/server/auth'
 import { limited } from '@/server/ratelimit'
 
 export async function login(_: unknown, form: FormData): Promise<{ error?: string }> {
+  if (staffMode() === 'naf-auth') return { error: 'الدخول عبر هوية ناف الموحّدة — افتح /admin' }
   const expected = adminPassword()
   const given = String(form.get('password') ?? '')
   if (!expected) return { error: 'لم تُضبط كلمة مرور اللوحة في البيئة.' }

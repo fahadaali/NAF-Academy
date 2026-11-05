@@ -7,6 +7,7 @@ import { placeOrderAction, quoteAction, type QuoteView } from '@/site/actions'
 import { formatAmount } from '@/lib/pricing'
 import { ease, prefersCalm, timing } from '@/motion/tokens'
 import { Riyal } from '@/components/Riyal'
+import { CodeLogin, type Verified } from '@/site/auth/CodeLogin'
 import s from './checkout.module.css'
 
 function useTween(target: number) {
@@ -46,17 +47,21 @@ type Props = {
   salesOpen: boolean
   terms: string
   refundPolicy: string
+  learner: Verified | null
+  channels: ('email' | 'sms')[]
 }
 
-export function Checkout({ slug, title, tiers, groupRules, maxQty, initial, initialCode, salesOpen, terms, refundPolicy }: Props) {
+export function Checkout({ slug, title, tiers, groupRules, maxQty, initial, initialCode, salesOpen, terms, refundPolicy, learner, channels }: Props) {
   const router = useRouter()
   const [tierId, setTierId] = useState<string | null>(initial.tierId)
   const [qty, setQty] = useState(1)
   const [code, setCode] = useState(initialCode)
   const [applied, setApplied] = useState(initialCode)
   const [q, setQ] = useState<QuoteView>(initial)
-  const [b, setB] = useState({ name: '', email: '', phone: '', org: '', vatNumber: '' })
-  const [business, setBusiness] = useState(false)
+  const [me, setMe] = useState<Verified | null>(learner)
+  const [b, setB] = useState(learner ? { ...learner } : { name: '', email: '', phone: '', org: '', vatNumber: '' })
+  const [business, setBusiness] = useState(!!learner?.vatNumber)
+  const mustVerify = channels.length > 0 && !me
   const [attendSelf, setAttendSelf] = useState(true)
   const [agree, setAgree] = useState(false)
   const [fields, setFields] = useState<Record<string, string>>({})
@@ -143,15 +148,25 @@ export function Checkout({ slug, title, tiers, groupRules, maxQty, initial, init
 
         <section className={s.step}>
           <h2><span className="num">{tiers.length ? 4 : 3}</span> بياناتك</h2>
+          {mustVerify ? (
+            <>
+              <p className={s.hint}>تحقّق من بريدك برمز يصلك فوراً — يصير هو حسابك، وتجد فيه دوراتك وفواتيرك.</p>
+              <CodeLogin compact channels={channels} onDone={(l) => { setMe(l); setB({ ...l, name: l.name.includes('@') ? '' : l.name }); setBusiness(!!l.vatNumber) }} />
+            </>
+          ) : (
+          <>
+          {me && <p className={s.ok}>✓ تم التحقق: <span dir="ltr">{me.email}</span></p>}
           <div className={s.fields}>
             <Field label="الاسم الكامل" err={fields['buyer.name']}><input className={s.input} autoComplete="name" value={b.name} onChange={(e) => set('name', e.target.value)} /></Field>
-            <Field label="البريد الإلكتروني" err={fields['buyer.email']} hint="تصلك عليه الفاتورة وتفاصيل الدخول"><input className={s.input} dir="ltr" type="email" autoComplete="email" value={b.email} onChange={(e) => set('email', e.target.value)} /></Field>
+            <Field label="البريد الإلكتروني" err={fields['buyer.email']} hint="تصلك عليه الفاتورة وتفاصيل الدخول"><input className={s.input} dir="ltr" type="email" autoComplete="email" value={b.email} disabled={!!me} onChange={(e) => set('email', e.target.value)} /></Field>
             <Field label="الجوال" err={fields['buyer.phone']}><input className={s.input} dir="ltr" type="tel" autoComplete="tel" placeholder="05xxxxxxxx" value={b.phone} onChange={(e) => set('phone', e.target.value)} /></Field>
             <Field label="الجهة (اختياري)"><input className={s.input} autoComplete="organization" value={b.org} onChange={(e) => set('org', e.target.value)} /></Field>
           </div>
           <label className={s.check}><input type="checkbox" checked={business} onChange={(e) => setBusiness(e.target.checked)} /> أريد فاتورة ضريبية باسم منشأة</label>
           {business && (
             <Field label="الرقم الضريبي للمنشأة" err={fields['buyer.vatNumber']}><input className={s.input} dir="ltr" inputMode="numeric" maxLength={15} value={b.vatNumber} onChange={(e) => set('vatNumber', e.target.value.replace(/\D/g, ''))} /></Field>
+          )}
+          </>
           )}
         </section>
       </div>
@@ -178,7 +193,7 @@ export function Checkout({ slug, title, tiers, groupRules, maxQty, initial, init
 
           {error && <p className={s.err} role="alert">{error}</p>}
           {canPay ? (
-            <button type="button" className={`btn ${s.pay}`} disabled={busy} onClick={submit}>
+            <button type="button" className={`btn ${s.pay}`} disabled={busy || mustVerify} onClick={submit}>
               {busy ? 'لحظة…' : free ? 'أكّد التسجيل' : 'تابع للدفع الآمن'}
             </button>
           ) : (

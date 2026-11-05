@@ -15,6 +15,12 @@ export function Header({ nav }: { nav: Item[] }) {
   const [active, setActive] = useState<string>('')
   const [theme, setTheme] = useState<Theme>('light')
   const [open, setOpen] = useState(false)
+  /* اسم العرض فقط من كوكي غير حسّاس — فتبقى الصفحات العامة ثابتة سريعة */
+  const [account, setAccount] = useState<string | null>(null)
+  useEffect(() => {
+    const m = document.cookie.match(/(?:^|; )naf_hi=([^;]*)/)
+    if (m) setAccount(decodeURIComponent(m[1]))
+  }, [])
 
   useEffect(() => {
     setTheme(currentTheme())
@@ -95,7 +101,7 @@ export function Header({ nav }: { nav: Item[] }) {
               <circle className={styles.bite} cx="16.5" cy="8" r="4.6" />
             </svg>
           </button>
-          <a href="/login" className={styles.login}>دخول</a>
+          <a href={account ? '/learn' : '/login'} className={styles.login}>{account ? 'حسابي' : 'دخول'}</a>
           <a href="/courses" className={`btn ${styles.cta}`}>سجّل الآن</a>
           <button className={styles.burger} aria-label="القائمة" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
             <span /><span />

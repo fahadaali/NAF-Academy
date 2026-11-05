@@ -8,6 +8,7 @@ import { paymentSettings } from './settings'
 import { zatcaTlv } from './payments/zatca'
 import { gateway } from './payments/gateway'
 import { normalizeCode, quote, type Quote } from '@/lib/quote'
+import { normalizePhone } from '@/lib/phone'
 import { resolveStatus } from '@/lib/course-meta'
 import type { CourseRow, CouponRow, OrderRow, TierRow } from './db/schema'
 
@@ -88,6 +89,7 @@ export async function priceFor(slug: string, opts: { tierId?: string | null; qua
 /* ───────── المتدرب ───────── */
 export async function upsertLearner(b: { name: string; email: string; phone: string; org: string; vatNumber: string }) {
   const email = b.email.trim().toLowerCase()
+  b = { ...b, phone: b.phone ? normalizePhone(b.phone) ?? b.phone.trim() : '' }
   const [row] = await db.insert(s.learners).values({ id: randomUUID(), ...b, email })
     .onConflictDoUpdate({ target: s.learners.email, set: { name: b.name, phone: b.phone || sql`${s.learners.phone}`, org: b.org || sql`${s.learners.org}`, vatNumber: b.vatNumber || sql`${s.learners.vatNumber}`, updatedAt: nowIso() } })
     .returning()

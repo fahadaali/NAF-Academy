@@ -2,12 +2,12 @@ import 'server-only'
 /* قراءات المبيعات للوحة — تُستدعى بعد requireAdmin. */
 import { and, asc, count, desc, eq, gte, inArray, isNull, sql, sum } from 'drizzle-orm'
 import { db, schema as s } from '@/server/db'
-import { requireAdmin } from '@/server/auth'
+import { requirePermission } from '@/server/auth'
 
 const PAID = ['paid', 'partially_refunded', 'refunded'] as const
 
 export async function salesOverview() {
-  await requireAdmin()
+  await requirePermission('sales.read')
   const since30 = new Date(Date.now() - 30 * 864e5).toISOString()
   const [all] = await db.select({ gross: sum(s.orders.total), refunded: sum(s.orders.refunded), n: count() }).from(s.orders).where(inArray(s.orders.status, [...PAID]))
   const [d30] = await db.select({ gross: sum(s.orders.total), refunded: sum(s.orders.refunded), n: count() }).from(s.orders).where(and(inArray(s.orders.status, [...PAID]), gte(s.orders.paidAt, since30)))
@@ -32,7 +32,7 @@ export async function salesOverview() {
 }
 
 export async function ordersList() {
-  await requireAdmin()
+  await requirePermission('sales.read')
   const rows = await db.select().from(s.orders).orderBy(desc(s.orders.createdAt)).limit(1000)
   const items = rows.length ? await db.select().from(s.orderItems).where(inArray(s.orderItems.orderId, rows.map((r) => r.id))) : []
   const now = new Date().toISOString()
@@ -44,7 +44,7 @@ export async function ordersList() {
 }
 
 export async function orderDetail(id: string) {
-  await requireAdmin()
+  await requirePermission('sales.read')
   const [order] = await db.select().from(s.orders).where(eq(s.orders.id, id))
   if (!order) return null
   const [items, pays, refunds, invoices, grants, enrolls, log] = await Promise.all([
@@ -60,7 +60,7 @@ export async function orderDetail(id: string) {
 }
 
 export async function couponsList() {
-  await requireAdmin()
+  await requirePermission('sales.coupons')
   const rows = await db.select().from(s.coupons).where(isNull(s.coupons.deletedAt)).orderBy(desc(s.coupons.createdAt))
   const usage = await db.select({ couponId: s.couponRedemptions.couponId, uses: count(), discount: sum(s.couponRedemptions.amount) })
     .from(s.couponRedemptions).groupBy(s.couponRedemptions.couponId)
@@ -72,7 +72,7 @@ export async function couponsList() {
 }
 
 export async function couponRedemptionsOf(id: string) {
-  await requireAdmin()
+  await requirePermission('sales.coupons')
   return db.select({ at: s.couponRedemptions.createdAt, amount: s.couponRedemptions.amount, number: s.orders.number, orderId: s.orders.id, email: s.learners.email })
     .from(s.couponRedemptions)
     .innerJoin(s.orders, eq(s.orders.id, s.couponRedemptions.orderId))
@@ -81,7 +81,7 @@ export async function couponRedemptionsOf(id: string) {
 }
 
 export async function courseLearners(courseId: string) {
-  await requireAdmin()
+  await requirePermission('learners.read')
   const [enrolls, interest] = await Promise.all([
     db.select({ e: s.enrollments, l: s.learners, number: s.orders.number, tier: s.priceTiers.name })
       .from(s.enrollments).innerJoin(s.learners, eq(s.learners.id, s.enrollments.learnerId))

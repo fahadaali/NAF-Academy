@@ -5,7 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { and, eq, isNull } from 'drizzle-orm'
 import { z } from 'zod'
 import { db, schema as s } from '@/server/db'
-import { requireAdmin } from '@/server/auth'
+import { requirePermission } from '@/server/auth'
 import { audit } from '@/server/audit'
 import { gatewayStatus } from '@/server/payments/gateway'
 import { paymentSettings, setSetting, type PaymentSettings } from '@/server/settings'
@@ -36,7 +36,7 @@ const settingsInput = z.object({
 })
 
 export async function savePaymentSettings(raw: PaymentSettings): Promise<Result> {
-  const admin = await requireAdmin()
+  const admin = await requirePermission('payments.manage')
   const p = settingsInput.safeParse(raw)
   if (!p.success) return { ok: false, errors: errorsOf(p.error), message: 'راجع الحقول' }
   const st = gatewayStatus()
@@ -77,7 +77,7 @@ const couponInput = z.object({
 export type CouponInput = z.input<typeof couponInput>
 
 export async function saveCoupon(id: string | null, raw: CouponInput): Promise<Result> {
-  const admin = await requireAdmin()
+  const admin = await requirePermission('sales.coupons')
   const p = couponInput.safeParse(raw)
   if (!p.success) return { ok: false, errors: errorsOf(p.error), message: 'راجع الحقول' }
   const cid = id ?? randomUUID()
@@ -94,7 +94,7 @@ export async function saveCoupon(id: string | null, raw: CouponInput): Promise<R
 
 /** دفعة أكواد فريدة لاستخدام واحد لكل منها — للمؤسسات والمنح */
 export async function generateBatch(raw: CouponInput & { count: number; prefix: string }): Promise<{ ok: boolean; codes?: string[]; error?: string }> {
-  const admin = await requireAdmin()
+  const admin = await requirePermission('sales.coupons')
   const n = Math.max(1, Math.min(500, Math.floor(raw.count)))
   const prefix = normalizeCode(raw.prefix).slice(0, 12) || 'NAF'
   const batch = `${prefix}-${Date.now().toString(36).toUpperCase()}`
@@ -114,13 +114,13 @@ export async function generateBatch(raw: CouponInput & { count: number; prefix: 
 }
 
 export async function setCouponActive(id: string, active: boolean) {
-  const admin = await requireAdmin()
+  const admin = await requirePermission('sales.coupons')
   await db.update(s.coupons).set({ active }).where(eq(s.coupons.id, id))
   await audit(admin.name, active ? 'enable' : 'disable', 'coupon', id, active ? 'تفعيل' : 'إيقاف')
 }
 
 export async function trashCoupon(id: string) {
-  const admin = await requireAdmin()
+  const admin = await requirePermission('sales.coupons')
   await db.update(s.coupons).set({ deletedAt: new Date().toISOString(), active: false }).where(eq(s.coupons.id, id))
   await audit(admin.name, 'trash', 'coupon', id, 'نُقل إلى المحذوفات')
 }
@@ -128,7 +128,7 @@ export async function trashCoupon(id: string) {
 /* ───────── الطلبات ───────── */
 
 export async function refundAction(orderId: string, amountSar: number, reason: string, cancel: boolean) {
-  const admin = await requireAdmin()
+  const admin = await requirePermission('sales.refund')
   if (!reason.trim()) return { ok: false, error: 'اذكر سبب الاسترداد' }
   const r = await refundOrder(orderId, Math.round(amountSar * 100), reason.trim().slice(0, 300), cancel, admin.name)
   revalidatePath(`/admin/orders/${orderId}`)
@@ -136,7 +136,7 @@ export async function refundAction(orderId: string, amountSar: number, reason: s
 }
 
 export async function cancelPending(orderId: string) {
-  const admin = await requireAdmin()
+  const admin = await requirePermission('sales.orders')
   await db.update(s.orders).set({ status: 'canceled', updatedAt: new Date().toISOString() }).where(and(eq(s.orders.id, orderId), eq(s.orders.status, 'pending')))
   await audit(admin.name, 'cancel', 'order', orderId, 'إلغاء طلب معلّق')
   revalidatePath(`/admin/orders/${orderId}`)
@@ -159,7 +159,7 @@ export type ManualInput = z.input<typeof manualInput>
 
 /** طلب يدوي (تحويل بنكي / نقد / منحة) — يعمل والدفع الإلكتروني مطفأ */
 export async function manualOrder(raw: ManualInput): Promise<{ ok: boolean; id?: string; error?: string; fields?: Record<string, string> }> {
-  const admin = await requireAdmin()
+  const admin = await requirePermission('sales.orders')
   const p = manualInput.safeParse(raw)
   if (!p.success) return { ok: false, error: 'راجع الحقول', fields: errorsOf(p.error) }
   const r = await placeOrder({ slug: p.data.courseSlug, tierId: p.data.tierId, quantity: p.data.quantity, code: p.data.code || undefined, buyer: p.data.buyer, attendSelf: p.data.attendSelf, method: p.data.method, by: admin.name, note: p.data.note })
@@ -170,7 +170,7 @@ export async function manualOrder(raw: ManualInput): Promise<{ ok: boolean; id?:
 
 /** تخصيص مقعد من طلب جماعي لبريد مشارك */
 export async function assignSeat(grantId: string, email: string, name: string): Promise<{ ok: boolean; error?: string }> {
-  const admin = await requireAdmin()
+  const admin = await requirePermission('sales.orders')
   const e = z.string().trim().email().safeParse(email)
   if (!e.success) return { ok: false, error: 'بريد غير صالح' }
   const [g] = await db.select().from(s.seatGrants).where(and(eq(s.seatGrants.id, grantId), isNull(s.seatGrants.enrollmentId)))
@@ -191,7 +191,7 @@ export async function assignSeat(grantId: string, email: string, name: string): 
 
 /** إلغاء تسجيل أو إضافته يدوياً من صفحة المسجّلين */
 export async function setEnrollment(enrollmentId: string, status: 'active' | 'canceled') {
-  const admin = await requireAdmin()
+  const admin = await requirePermission('sales.orders')
   await db.update(s.enrollments).set({ status, updatedAt: new Date().toISOString() }).where(eq(s.enrollments.id, enrollmentId))
   await audit(admin.name, status === 'active' ? 'restore' : 'cancel', 'enrollment', enrollmentId, status === 'active' ? 'تفعيل تسجيل' : 'إلغاء تسجيل')
   revalidatePath('/', 'layout')

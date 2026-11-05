@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { requireAdmin } from '@/server/auth'
+import { can, PERMS, ROLE_LABEL } from '@/lib/permissions'
 import { Sidebar } from '@/admin/ui/Sidebar'
 import styles from '@/admin/ui/panel.module.css'
 
@@ -10,7 +11,7 @@ export default async function PanelLayout({ children }: { children: React.ReactN
   const admin = await requireAdmin()
   return (
     <div className={styles.shell}>
-      <Sidebar name={admin.name} />
+      <Sidebar name={admin.name} role={ROLE_LABEL[admin.role]} mode={admin.mode} perms={PERMS.filter((x) => can(admin.role, x, admin.perms))} />
       <main id="main" className={styles.main}>{children}</main>
     </div>
   )

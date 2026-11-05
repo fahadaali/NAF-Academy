@@ -7,6 +7,8 @@ import { placeOrder, priceFor } from '@/server/sales'
 import { limited } from '@/server/ratelimit'
 import { INTEREST_KIND } from '@/server/db/schema'
 import type { Quote } from '@/lib/quote'
+import { currentLearner } from '@/server/learner-auth'
+import { channelOpen } from '@/server/notify/channels'
 
 export type QuoteView = Quote & { couponCode?: string; couponLabel?: string; tierId: string | null }
 
@@ -47,7 +49,12 @@ export async function placeOrderAction(slug: string, raw: unknown): Promise<Plac
     for (const i of p.error.issues) fields[i.path.join('.')] ??= i.message
     return { ok: false, error: 'راجع البيانات المعلّمة', fields }
   }
-  const r = await placeOrder({ slug, tierId: p.data.tierId, quantity: p.data.quantity, code: p.data.code || undefined, buyer: p.data.buyer, attendSelf: p.data.attendSelf })
+  /* متى فُتح الدخول صار التحقق من البريد شرطاً — والبريد بريد الحساب لا ما يكتبه المتصفح */
+  const me = await currentLearner()
+  const verify = (await channelOpen('email')) || (await channelOpen('sms'))
+  if (verify && !me) return { ok: false, error: 'تحقّق من بريدك أولاً' }
+  const buyer = me ? { ...p.data.buyer, email: me.email } : p.data.buyer
+  const r = await placeOrder({ slug, tierId: p.data.tierId, quantity: p.data.quantity, code: p.data.code || undefined, buyer, attendSelf: p.data.attendSelf })
   if (!r.ok) return { ok: false, error: r.error }
   const q = `t=${r.order.token}`
   return { ok: true, url: r.free ? `/orders/${r.order.number}?${q}` : `/orders/${r.order.number}/pay?${q}` }

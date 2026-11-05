@@ -33,3 +33,22 @@ npm run db:reset # إعادة القاعدة المحلية إلى المحتو�
 
 ملفات خط ثمانية الأصلية في `src/fonts/thmanyah/`، و`npm run dev` / `npm run build` يولّدان تعريفاتها تلقائياً
 (`src/design/fonts.generated.css`). لإضافة وزن أو عائلة: ضع ملف woff2 بالاسم الأصلي وأعد التشغيل.
+
+## النشر على Cloudflare
+
+```
+npx wrangler d1 create naf_academy          # ضع database_id في wrangler.jsonc
+npx wrangler kv namespace create AUTH_KV     # ضع id في wrangler.jsonc
+npx wrangler r2 bucket create naf-academy-media
+npm run db:migrate:remote                    # الترحيلات
+npm run db:seed:remote                       # المحتوى المبدئي (مرة واحدة)
+npx wrangler secret put LEARNER_SECRET       # وبقية الأسرار في .env.example
+npm run cf:deploy
+```
+
+اضبط في `wrangler.jsonc`: `AUTH_ISSUER` (عنوان مركز naf-id) و`PLATFORM_ID`، وأضف المنصة في المركز.
+ثم من اللوحة: **إعدادات الدفع** و**قنوات الرسائل** و**الفريق**.
+
+## الاختبار
+
+`npm test` — وحدات وتكامل على قاعدة مؤقتة (التسعير، والكوبونات، والدفع، والإتمام، والاسترداد، والصلاحيات).

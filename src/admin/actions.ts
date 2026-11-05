@@ -5,7 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { and, count, eq, inArray, isNotNull, isNull } from 'drizzle-orm'
 import { imageSize } from 'image-size'
 import { db, schema as s } from '@/server/db'
-import { requireAdmin } from '@/server/auth'
+import { requirePermission } from '@/server/auth'
 import { audit } from '@/server/audit'
 import { deleteObject, putObject } from '@/server/storage'
 import type { HomeContent } from '@/content/home-defaults'
@@ -27,7 +27,7 @@ function uniqueError(e: unknown): Result | null {
 /* ───────── الدورات ───────── */
 
 export async function saveCourse(id: string | null, raw: CourseInput): Promise<Result> {
-  const admin = await requireAdmin()
+  const admin = await requirePermission('content.write')
   const p = courseInput.safeParse(raw)
   if (!p.success) return { ok: false, errors: errorsOf(p.error), message: 'راجع الحقول المعلّمة' }
   const { instructorIds, curriculum, tiers, groupRules, ...v } = p.data
@@ -76,7 +76,7 @@ export async function saveCourse(id: string | null, raw: CourseInput): Promise<R
 }
 
 export async function setCourseStatus(id: string, status: CourseStatus) {
-  const admin = await requireAdmin()
+  const admin = await requirePermission('content.write')
   await db.update(s.courses).set({ status, updatedAt: now() }).where(eq(s.courses.id, id))
   await audit(admin.name, 'status', 'course', id, status)
   refresh()
@@ -84,7 +84,7 @@ export async function setCourseStatus(id: string, status: CourseStatus) {
 
 /** نسخة لدفعة جديدة: مسودة، بلا مقاعد محجوزة ولا مواعيد، بالمنهج والمدربين */
 export async function duplicateCourse(id: string): Promise<Result> {
-  const admin = await requireAdmin()
+  const admin = await requirePermission('content.write')
   const [c] = await db.select().from(s.courses).where(eq(s.courses.id, id))
   if (!c) return { ok: false, errors: {}, message: 'غير موجودة' }
   const nid = randomUUID()
@@ -111,7 +111,7 @@ export async function duplicateCourse(id: string): Promise<Result> {
 }
 
 export async function reorder(entity: 'course' | 'track' | 'instructor', ids: string[]) {
-  const admin = await requireAdmin()
+  const admin = await requirePermission('content.write')
   const table = entity === 'course' ? s.courses : entity === 'track' ? s.tracks : s.instructors
   for (const [i, id] of ids.entries()) await db.update(table).set({ sortOrder: i }).where(eq(table.id, id))
   await audit(admin.name, 'reorder', entity, '-', `${ids.length} عناصر`)
@@ -121,7 +121,7 @@ export async function reorder(entity: 'course' | 'track' | 'instructor', ids: st
 /* ───────── المسارات والمدربون ───────── */
 
 export async function saveTrack(id: string | null, raw: TrackInput): Promise<Result> {
-  const admin = await requireAdmin()
+  const admin = await requirePermission('content.write')
   const p = trackInput.safeParse(raw)
   if (!p.success) return { ok: false, errors: errorsOf(p.error), message: 'راجع الحقول المعلّمة' }
   const tid = id ?? randomUUID()
@@ -137,7 +137,7 @@ export async function saveTrack(id: string | null, raw: TrackInput): Promise<Res
 }
 
 export async function saveInstructor(id: string | null, raw: InstructorInput): Promise<Result> {
-  const admin = await requireAdmin()
+  const admin = await requirePermission('content.write')
   const p = instructorInput.safeParse(raw)
   if (!p.success) return { ok: false, errors: errorsOf(p.error), message: 'راجع الحقول المعلّمة' }
   const iid = id ?? randomUUID()
@@ -158,7 +158,7 @@ const tables = { course: s.courses, track: s.tracks, instructor: s.instructors, 
 export type Entity = keyof typeof tables
 
 export async function trash(entity: Entity, id: string) {
-  const admin = await requireAdmin()
+  const admin = await requirePermission('content.write')
   const t = tables[entity]
   await db.update(t).set({ deletedAt: now() }).where(eq(t.id, id))
   await audit(admin.name, 'trash', entity, id, 'نُقل إلى المحذوفات')
@@ -166,7 +166,7 @@ export async function trash(entity: Entity, id: string) {
 }
 
 export async function restore(entity: Entity, id: string) {
-  const admin = await requireAdmin()
+  const admin = await requirePermission('content.write')
   const t = tables[entity]
   await db.update(t).set({ deletedAt: null }).where(eq(t.id, id))
   await audit(admin.name, 'restore', entity, id, 'استُرجع من المحذوفات')
@@ -176,7 +176,7 @@ export async function restore(entity: Entity, id: string) {
 /** حذف نهائي — من صفحة المحذوفات فقط وبعد تأكيد صريح. يفكّ الارتباطات أولاً،
     ويرفض حذف دورة لها طلبات أو تسجيلات (تُؤرشف بدلاً من ذلك) حفاظاً على السجل المالي. */
 export async function purge(entity: Entity, id: string, confirm: string): Promise<{ ok: boolean; error?: string }> {
-  const admin = await requireAdmin()
+  const admin = await requirePermission('trash.purge')
   if (confirm !== 'حذف') return { ok: false, error: 'لم يُؤكَّد الحذف' }
   const t = tables[entity]
   const [row] = await db.select().from(t).where(and(eq(t.id, id), isNotNull(t.deletedAt)))
@@ -217,7 +217,7 @@ const MIME: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 
 const MAX = 8 * 1024 * 1024
 
 export async function uploadMedia(form: FormData): Promise<{ ok: boolean; id?: string; error?: string }> {
-  const admin = await requireAdmin()
+  const admin = await requirePermission('content.write')
   const file = form.get('file')
   if (!(file instanceof File)) return { ok: false, error: 'لم يُرفق ملف' }
   const ext = MIME[file.type]
@@ -234,7 +234,7 @@ export async function uploadMedia(form: FormData): Promise<{ ok: boolean; id?: s
   }
   const id = randomUUID()
   const key = `${id.slice(0, 8)}${Date.now().toString(36)}.${ext}`
-  await putObject(key, bytes)
+  await putObject(key, bytes, file.type)
   const alt = String(form.get('alt') ?? '').slice(0, 200) || file.name.replace(/\.[^.]+$/, '').slice(0, 200)
   await db.insert(s.media).values({ id, key, mime: file.type, width, height, size: file.size, alt })
   await audit(admin.name, 'upload', 'media', id, alt)
@@ -242,7 +242,7 @@ export async function uploadMedia(form: FormData): Promise<{ ok: boolean; id?: s
 }
 
 export async function updateMedia(id: string, v: { alt: string; focalX: number; focalY: number }) {
-  const admin = await requireAdmin()
+  const admin = await requirePermission('content.write')
   const clamp = (n: number) => Math.max(0, Math.min(100, Number.isFinite(n) ? n : 50))
   await db.update(s.media).set({ alt: v.alt.slice(0, 200), focalX: clamp(v.focalX), focalY: clamp(v.focalY), updatedAt: now() }).where(eq(s.media.id, id))
   await audit(admin.name, 'update', 'media', id, v.alt)
@@ -250,14 +250,14 @@ export async function updateMedia(id: string, v: { alt: string; focalX: number; 
 }
 
 export async function listMedia() {
-  await requireAdmin()
+  await requirePermission('content.read')
   return db.select().from(s.media).where(isNull(s.media.deletedAt))
 }
 
 /* ───────── الرئيسية ───────── */
 
 export async function saveHome(value: HomeContent): Promise<{ ok: boolean; message?: string }> {
-  const admin = await requireAdmin()
+  const admin = await requirePermission('site.write')
   const p = homeInput.safeParse(value)
   if (!p.success) return { ok: false, message: Object.values(errorsOf(p.error))[0] ?? 'محتوى غير صالح' }
   const clean = p.data as HomeContent

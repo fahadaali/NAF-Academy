@@ -2,10 +2,10 @@ import 'server-only'
 /* قراءات اللوحة — تشمل المسودات، ولا تُستدعى إلا بعد requireAdmin. */
 import { asc, desc, eq, isNotNull, isNull } from 'drizzle-orm'
 import { db, schema as s } from '@/server/db'
-import { requireAdmin } from '@/server/auth'
+import { requirePermission } from '@/server/auth'
 
 export async function adminLists() {
-  await requireAdmin()
+  await requirePermission('content.read')
   const [courses, tracks, instructors, media, links] = await Promise.all([
     db.select().from(s.courses).where(isNull(s.courses.deletedAt)).orderBy(asc(s.courses.sortOrder)),
     db.select().from(s.tracks).where(isNull(s.tracks.deletedAt)).orderBy(asc(s.tracks.sortOrder)),
@@ -17,7 +17,7 @@ export async function adminLists() {
 }
 
 export async function courseForEdit(id: string) {
-  await requireAdmin()
+  await requirePermission('content.read')
   const [course] = await db.select().from(s.courses).where(eq(s.courses.id, id))
   if (!course) return null
   const mods = await db.select().from(s.modules).where(eq(s.modules.courseId, id)).orderBy(asc(s.modules.sortOrder))
@@ -35,7 +35,7 @@ export async function courseForEdit(id: string) {
 }
 
 export async function trashed() {
-  await requireAdmin()
+  await requirePermission('content.read')
   const [courses, tracks, instructors, media, coupons] = await Promise.all([
     db.select({ id: s.courses.id, name: s.courses.title, at: s.courses.deletedAt }).from(s.courses).where(isNotNull(s.courses.deletedAt)),
     db.select({ id: s.tracks.id, name: s.tracks.title, at: s.tracks.deletedAt }).from(s.tracks).where(isNotNull(s.tracks.deletedAt)),
@@ -53,7 +53,7 @@ export async function trashed() {
 }
 
 export async function auditEntries(limit = 200) {
-  await requireAdmin()
+  await requirePermission('audit.read')
   return db.select({ id: s.auditLog.id, actor: s.auditLog.actor, action: s.auditLog.action, entity: s.auditLog.entity, summary: s.auditLog.summary, at: s.auditLog.at })
     .from(s.auditLog).orderBy(desc(s.auditLog.id)).limit(limit)
 }

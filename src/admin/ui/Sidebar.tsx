@@ -3,32 +3,36 @@ import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { Emblem } from '@/components/Emblem'
 import { logout } from '@/app/admin/login/actions'
+import type { Perm } from '@/lib/permissions'
 import styles from './panel.module.css'
 
-const groups = [
+const groups: { title: string; items: { href: string; label: string; icon: string; perm: Perm }[] }[] = [
   { title: 'المحتوى', items: [
-    { href: '/admin', label: 'نظرة عامة', icon: '◈' },
-    { href: '/admin/courses', label: 'الدورات', icon: '▤' },
-    { href: '/admin/tracks', label: 'المسارات', icon: '☰' },
-    { href: '/admin/instructors', label: 'المدربون', icon: '◉' },
-    { href: '/admin/media', label: 'مكتبة الصور', icon: '▣' },
+    { href: '/admin', label: 'نظرة عامة', icon: '◈', perm: 'content.read' },
+    { href: '/admin/courses', label: 'الدورات', icon: '▤', perm: 'content.read' },
+    { href: '/admin/tracks', label: 'المسارات', icon: '☰', perm: 'content.read' },
+    { href: '/admin/instructors', label: 'المدربون', icon: '◉', perm: 'content.read' },
+    { href: '/admin/media', label: 'مكتبة الصور', icon: '▣', perm: 'content.write' },
   ] },
   { title: 'المبيعات', items: [
-    { href: '/admin/sales', label: 'لوحة المبيعات', icon: '◔' },
-    { href: '/admin/orders', label: 'الطلبات', icon: '▥' },
-    { href: '/admin/coupons', label: 'الكوبونات', icon: '✦' },
-    { href: '/admin/settings/payments', label: 'إعدادات الدفع', icon: '⚙' },
+    { href: '/admin/sales', label: 'لوحة المبيعات', icon: '◔', perm: 'sales.read' },
+    { href: '/admin/orders', label: 'الطلبات', icon: '▥', perm: 'sales.read' },
+    { href: '/admin/coupons', label: 'الكوبونات', icon: '✦', perm: 'sales.coupons' },
+    { href: '/admin/settings/payments', label: 'إعدادات الدفع', icon: '⚙', perm: 'payments.manage' },
   ] },
   { title: 'الموقع', items: [
-    { href: '/admin/home', label: 'الصفحة الرئيسية', icon: '⌂' },
+    { href: '/admin/home', label: 'الصفحة الرئيسية', icon: '⌂', perm: 'site.write' },
+    { href: '/admin/settings/channels', label: 'قنوات الرسائل', icon: '✉', perm: 'channels.manage' },
+    { href: '/admin/messages', label: 'سجل الرسائل', icon: '⇄', perm: 'messages.read' },
+    { href: '/admin/team', label: 'الفريق والصلاحيات', icon: '◎', perm: 'team.manage' },
   ] },
   { title: 'السجلات', items: [
-    { href: '/admin/trash', label: 'المحذوفات', icon: '⌫' },
-    { href: '/admin/audit', label: 'سجل التعديلات', icon: '≡' },
+    { href: '/admin/trash', label: 'المحذوفات', icon: '⌫', perm: 'content.write' },
+    { href: '/admin/audit', label: 'سجل التعديلات', icon: '≡', perm: 'audit.read' },
   ] },
 ]
 
-export function Sidebar({ name }: { name: string }) {
+export function Sidebar({ name, role, mode, perms }: { name: string; role: string; mode: 'naf-auth' | 'password'; perms: Perm[] }) {
   const path = usePathname()
   const on = (href: string) => (href === '/admin' ? path === '/admin' : path.startsWith(href))
   return (
@@ -38,7 +42,7 @@ export function Sidebar({ name }: { name: string }) {
         <span><strong>أكاديمية ناف</strong><small>لوحة الإدارة</small></span>
       </Link>
       <nav className={styles.nav} aria-label="اللوحة">
-        {groups.map((g) => (
+        {groups.map((g) => ({ ...g, items: g.items.filter((i) => perms.includes(i.perm)) })).filter((g) => g.items.length).map((g) => (
           <div key={g.title} className={styles.group}>
             <span className={styles.groupTitle}>{g.title}</span>
             {g.items.map((it) => (
@@ -51,7 +55,10 @@ export function Sidebar({ name }: { name: string }) {
       </nav>
       <div className={styles.foot}>
         <a href="/" target="_blank" rel="noreferrer" className={styles.view}>عرض الموقع ↗</a>
-        <form action={logout}><button className={styles.out}>خروج · {name}</button></form>
+        <span className={styles.who}>{name} · {role}</span>
+        {mode === 'naf-auth'
+          ? <form action="/auth/logout" method="post"><button className={styles.out}>خروج</button></form>
+          : <form action={logout}><button className={styles.out}>خروج</button></form>}
       </div>
     </aside>
   )

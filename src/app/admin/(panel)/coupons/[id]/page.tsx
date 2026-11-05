@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { asc, eq, isNull } from 'drizzle-orm'
 import { db, schema as s } from '@/server/db'
-import { requireAdmin } from '@/server/auth'
+import { requirePermission } from '@/server/auth'
 import { couponRedemptionsOf } from '@/admin/sales/data'
 import { CouponEditor } from '@/admin/sales/CouponEditor'
 import { sar, when } from '@/admin/sales/labels'
@@ -10,7 +10,7 @@ import p from '@/admin/ui/panel.module.css'
 
 export default async function CouponPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  await requireAdmin()
+  await requirePermission('sales.coupons')
   const [courses, tracks] = await Promise.all([
     db.select({ id: s.courses.id, title: s.courses.title }).from(s.courses).where(isNull(s.courses.deletedAt)).orderBy(asc(s.courses.sortOrder)),
     db.select({ id: s.tracks.id, title: s.tracks.title }).from(s.tracks).where(isNull(s.tracks.deletedAt)).orderBy(asc(s.tracks.sortOrder)),

@@ -386,3 +386,74 @@ export type GroupRuleRow = typeof groupRules.$inferSelect
 export type OrderRow = typeof orders.$inferSelect
 export type OrderItemRow = typeof orderItems.$inferSelect
 export type LearnerRow = typeof learners.$inferSelect
+
+/* ═══════════════════ الدخول ═══════════════════ */
+
+/** فريق ناف — بمخطط naf-auth حرفياً (migrations/members.sql) كي تقرأه الحزمة كما هو.
+    الدور: owner | content | finance | instructor | support */
+export const members = sqliteTable(
+  'members',
+  {
+    userId: text('user_id').primaryKey(),
+    displayName: text('display_name'),
+    email: text('email'),
+    role: text('role').notNull().default('support'),
+    perms: text('perms'),
+    isActive: integer('is_active').notNull().default(1),
+    lastSeenAt: integer('last_seen_at'),
+    createdAt: integer('created_at').notNull(),
+  },
+  (t) => [index('idx_members_email').on(t.email)],
+)
+
+/** رموز التحقق لمرة واحدة — يُخزَّن تجزيء الرمز لا الرمز */
+export const otpCodes = sqliteTable(
+  'otp_codes',
+  {
+    id: id(),
+    channel: text('channel', { enum: ['email', 'sms'] }).notNull(),
+    target: text('target').notNull(),
+    codeHash: text('code_hash').notNull(),
+    attempts: integer('attempts').notNull().default(0),
+    expiresAt: text('expires_at').notNull(),
+    consumedAt: text('consumed_at'),
+    ip: text('ip').notNull().default(''),
+    ...stamps,
+  },
+  (t) => [index('otp_target_idx').on(t.target)],
+)
+
+/** جلسات المتدربين — يُخزَّن تجزيء الرمز، والكوكي يحمل الرمز */
+export const learnerSessions = sqliteTable(
+  'learner_sessions',
+  {
+    id: text('id').primaryKey(),
+    learnerId: text('learner_id').notNull().references(() => learners.id, { onDelete: 'cascade' }),
+    expiresAt: text('expires_at').notNull(),
+    lastSeenAt: text('last_seen_at').notNull(),
+    userAgent: text('user_agent').notNull().default(''),
+    ...stamps,
+  },
+  (t) => [index('lsess_learner_idx').on(t.learnerId)],
+)
+
+/** سجل كل رسالة خرجت (بريد/جوال) — في التطوير هو صندوق البريد التجريبي */
+export const messageLog = sqliteTable(
+  'message_log',
+  {
+    id: id(),
+    channel: text('channel', { enum: ['email', 'sms'] }).notNull(),
+    to: text('to').notNull(),
+    subject: text('subject').notNull().default(''),
+    body: text('body').notNull(),
+    kind: text('kind').notNull(),
+    provider: text('provider').notNull(),
+    status: text('status').notNull(),
+    providerId: text('provider_id'),
+    error: text('error'),
+    ...stamps,
+  },
+  (t) => [index('msg_to_idx').on(t.to)],
+)
+
+export type MemberRow = typeof members.$inferSelect

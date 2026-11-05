@@ -1,20 +1,42 @@
 import 'server-only'
-/* اتصال قاعدة البيانات — libsql بملف محلي في التطوير (.data/academy.db).
-   في النشر على Cloudflare يُستبدل المشغّل بـ drizzle-orm/d1 والمخطط نفسه. */
+/* اتصال القاعدة: D1 داخل Cloudflare (ارتباط DB)، وlibsql بملف محلي في التطوير (.data/academy.db).
+   المخطط والاستعلامات نفسها في الحالتين — `db` وكيل يختار المشغّل لكل نداء. */
 import { createClient } from '@libsql/client'
-import { drizzle } from 'drizzle-orm/libsql'
+import { drizzle as libsql, type LibSQLDatabase } from 'drizzle-orm/libsql'
+import { drizzle as d1 } from 'drizzle-orm/d1'
 import * as schema from './schema'
+import { cfEnv } from '../runtime'
 
-export type DB = ReturnType<typeof make>
+export type DB = LibSQLDatabase<typeof schema>
 
-function make() {
-  const url = process.env.DATABASE_URL ?? 'file:.data/academy.db'
-  const client = createClient({ url })
+const g = globalThis as unknown as { __academyLocal?: DB; __academyD1?: WeakMap<object, DB> }
+
+function local(): DB {
+  if (g.__academyLocal) return g.__academyLocal
+  const client = createClient({ url: process.env.DATABASE_URL ?? 'file:.data/academy.db' })
   /* D1 يفرض المفاتيح الأجنبية — نفرضها محلياً أيضاً كي لا يختلف السلوك */
   void client.execute('PRAGMA foreign_keys = ON')
-  return drizzle(client, { schema })
+  return (g.__academyLocal = libsql(client, { schema }))
 }
 
-const g = globalThis as unknown as { __academyDb?: DB }
-export const db: DB = g.__academyDb ?? (g.__academyDb = make())
+function current(): DB {
+  const binding = cfEnv()?.DB as object | undefined
+  if (!binding) return local()
+  const cache = (g.__academyD1 ??= new WeakMap())
+  let inst = cache.get(binding)
+  if (!inst) {
+    inst = d1(binding as Parameters<typeof d1>[0], { schema }) as unknown as DB
+    cache.set(binding, inst)
+  }
+  return inst
+}
+
+export const db: DB = new Proxy({} as DB, {
+  get(_, key) {
+    const inst = current() as unknown as Record<PropertyKey, unknown>
+    const v = inst[key]
+    return typeof v === 'function' ? (v as (...a: unknown[]) => unknown).bind(inst) : v
+  },
+})
+
 export { schema }

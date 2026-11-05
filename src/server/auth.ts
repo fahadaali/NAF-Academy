@@ -1,7 +1,11 @@
 import 'server-only'
 /* دخول اللوحة المؤقت — كلمة مرور من البيئة وجلسة موقّعة HMAC في كوكي httpOnly.
    يُستبدل بـ naf-auth (الهوية المركزية) في مرحلة الدخول؛ الواجهة requireAdmin() تبقى كما هي. */
-import { cookies } from 'next/headers'
+import { cookies, headers } from 'next/headers'
+import { eq } from 'drizzle-orm'
+import { db, schema as s } from './db'
+import { envVar } from './runtime'
+import { can, isRole, type Perm, type Role } from '@/lib/permissions'
 import { redirect } from 'next/navigation'
 
 const COOKIE = 'naf_academy_admin'
@@ -39,6 +43,20 @@ export function safeEqual(a: string, b: string) {
 
 export type Admin = { name: string; exp: number }
 
+/** عضو الفريق في هذا الطلب */
+export type Staff = { id: string; name: string; email: string; role: Role; perms: Record<string, unknown> | null; mode: StaffMode }
+export type StaffMode = 'naf-auth' | 'password'
+
+/** naf-auth متى ضُبط في البيئة؛ وإلا دخول كلمة المرور (التطوير، أو مخرج طوارئ صريح) */
+export function staffMode(): StaffMode {
+  return envVar('STAFF_AUTH') === 'naf-auth' ? 'naf-auth' : 'password'
+}
+
+/* ترويسات الهوية يحقنها الوسيط بعد التحقق، ويمسح ما انتحله المتصفح منها */
+export const H_SUB = 'x-naf-sub'
+export const H_ROLE = 'x-naf-role'
+export const H_PERMS = 'x-naf-perms'
+
 export async function createSession(name: string) {
   const payload = b64(enc.encode(JSON.stringify({ name, exp: Math.floor(Date.now() / 1000) + TTL } satisfies Admin)))
   const value = `${payload}.${await sign(payload)}`
@@ -51,7 +69,7 @@ export async function destroySession() {
   ;(await cookies()).delete(COOKIE)
 }
 
-export async function currentAdmin(): Promise<Admin | null> {
+async function passwordSession(): Promise<Admin | null> {
   const raw = (await cookies()).get(COOKIE)?.value
   if (!raw) return null
   const [payload, mac] = raw.split('.')
@@ -64,9 +82,37 @@ export async function currentAdmin(): Promise<Admin | null> {
   }
 }
 
-/** لكل صفحة وإجراء في اللوحة — يعيد التوجيه لصفحة الدخول إن لم تكن جلسة */
-export async function requireAdmin(): Promise<Admin> {
-  const a = await currentAdmin()
-  if (!a) redirect('/admin/login')
-  return a
+export async function currentStaff(): Promise<Staff | null> {
+  if (staffMode() === 'naf-auth') {
+    const h = await headers()
+    const sub = h.get(H_SUB)
+    const role = h.get(H_ROLE) ?? ''
+    if (!sub || !isRole(role)) return null
+    let perms: Record<string, unknown> | null = null
+    try { perms = JSON.parse(h.get(H_PERMS) ?? 'null') } catch {}
+    const [m] = await db.select().from(s.members).where(eq(s.members.userId, sub))
+    if (!m || !m.isActive) return null
+    return { id: sub, name: m.displayName || m.email || 'عضو', email: m.email ?? '', role, perms, mode: 'naf-auth' }
+  }
+  const a = await passwordSession()
+  return a ? { id: `local:${a.name}`, name: a.name, email: '', role: 'owner', perms: null, mode: 'password' } : null
+}
+
+/** للوحة: عضو فريق بأي دور — وإلا إلى الدخول */
+export async function requireAdmin(): Promise<Staff> {
+  const st = await currentStaff()
+  if (!st) redirect(staffMode() === 'naf-auth' ? '/admin' : '/admin/login')
+  return st
+}
+
+/** لكل صفحة وإجراء: صلاحية محددة. الإجراء الممنوع لا يُنفَّذ، والصفحة تعود للوحة برسالة. */
+export async function requirePermission(perm: Perm): Promise<Staff> {
+  const st = await requireAdmin()
+  if (!can(st.role, perm, st.perms)) redirect(`/admin?denied=${perm}`)
+  return st
+}
+
+export async function staffCan(perm: Perm): Promise<boolean> {
+  const st = await currentStaff()
+  return !!st && can(st.role, perm, st.perms)
 }

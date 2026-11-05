@@ -7,6 +7,8 @@ import { plain } from '@/motion/kashida'
 import { PageHero } from '@/site/PageHero'
 import { Checkout } from '@/site/checkout/Checkout'
 import { InterestForm } from '@/site/checkout/InterestForm'
+import { currentLearner } from '@/server/learner-auth'
+import { channelOpen } from '@/server/notify/channels'
 
 export const dynamic = 'force-dynamic'
 export const metadata: Metadata = { title: 'التسجيل', robots: { index: false } }
@@ -29,7 +31,9 @@ export default async function Enroll({ params, searchParams }: { params: Promise
     )
   }
 
-  const [priced, open, settings] = await Promise.all([priceFor(slug, { tierId: sp.tier, quantity: 1, code: sp.coupon }), salesOpen(), paymentSettings()])
+  const [priced, open, settings, me, emailOpen, smsOpen] = await Promise.all([priceFor(slug, { tierId: sp.tier, quantity: 1, code: sp.coupon }), salesOpen(), paymentSettings(), currentLearner(), channelOpen('email'), channelOpen('sms')])
+  const channels = [...(emailOpen ? ['email' as const] : []), ...(smsOpen ? ['sms' as const] : [])]
+  const learner = me ? { name: me.name, email: me.email, phone: me.phone, org: me.org, vatNumber: me.vatNumber } : null
   if (!priced) notFound()
   const left = d.row.seatsTotal !== null ? Math.max(0, d.row.seatsTotal - (await seatsUsed(d.row))) : 50
   const initial = { ...priced.q, couponCode: priced.q.couponApplied ? priced.coupon!.code : undefined, couponLabel: priced.coupon?.label, tierId: priced.tier?.id ?? null }
@@ -46,6 +50,7 @@ export default async function Enroll({ params, searchParams }: { params: Promise
             <Checkout
               slug={slug} title={title} tiers={d.tiers} groupRules={d.groupRules} maxQty={Math.min(50, left)}
               initial={initial} initialCode={sp.coupon ?? ''} salesOpen={open} terms={settings.terms} refundPolicy={settings.refundPolicy}
+              learner={learner} channels={channels}
             />
             {paidAndLocked && <div style={{ paddingBlockEnd: 100, marginBlockStart: -60 }}><InterestForm slug={slug} kind="register" /></div>}
           </>

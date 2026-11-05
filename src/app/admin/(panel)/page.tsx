@@ -1,13 +1,15 @@
 import Link from 'next/link'
 import { adminLists, auditEntries } from '@/admin/data'
+import { staffCan } from '@/server/auth'
 import { PageHead, Badge } from '@/admin/ui/kit'
 import { STATUS_LABEL } from '@/admin/courses/labels'
 import { resolveStatus } from '@/lib/course-meta'
 import { formatDay } from '@/lib/dates'
 import p from '@/admin/ui/panel.module.css'
 
-export default async function Dashboard() {
-  const [{ courses, tracks, instructors, media }, log] = await Promise.all([adminLists(), auditEntries(8)])
+export default async function Dashboard({ searchParams }: { searchParams: Promise<{ denied?: string }> }) {
+  const { denied } = await searchParams
+  const [{ courses, tracks, instructors, media }, log] = await Promise.all([adminLists(), (await staffCan('audit.read')) ? auditEntries(8) : Promise.resolve([])])
   const now = new Date()
   const live = courses.filter((c) => ['open', 'soon', 'full'].includes(resolveStatus(c.status, c.publishAt, now)))
   const drafts = courses.filter((c) => c.status === 'draft')
@@ -16,6 +18,7 @@ export default async function Dashboard() {
   return (
     <>
       <PageHead title="نظرة عامة" sub="حال المحتوى المنشور الآن" actions={<Link className="btn" href="/admin/courses/new">+ دورة جديدة</Link>} />
+      {denied && <p role="alert" style={{ padding: '12px 16px', borderRadius: 12, background: 'color-mix(in srgb, var(--danger) 12%, transparent)', color: 'var(--danger)', fontWeight: 600, marginBlockEnd: 16 }}>لا تملك صلاحية هذه الصفحة أو العملية. اطلبها من مالك الحساب.</p>}
       <div className={p.stats}>
         <Link href="/admin/courses" className={p.stat}><strong>{live.length}</strong><span>دورة ظاهرة للتسجيل</span></Link>
         <Link href="/admin/courses" className={p.stat}><strong>{drafts.length}</strong><span>مسودة</span></Link>

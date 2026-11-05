@@ -1,10 +1,10 @@
 import { asc, isNull } from 'drizzle-orm'
 import { db, schema as s } from '@/server/db'
-import { requireAdmin } from '@/server/auth'
+import { requirePermission } from '@/server/auth'
 import { ManualOrderForm } from '@/admin/sales/ManualOrderForm'
 
 export default async function NewOrder() {
-  await requireAdmin()
+  await requirePermission('sales.orders')
   const [courses, tiers] = await Promise.all([
     db.select().from(s.courses).where(isNull(s.courses.deletedAt)).orderBy(asc(s.courses.sortOrder)),
     db.select().from(s.priceTiers).orderBy(asc(s.priceTiers.sortOrder)),

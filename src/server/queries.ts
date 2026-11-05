@@ -4,6 +4,7 @@ import { and, asc, count, eq, inArray, isNull } from 'drizzle-orm'
 import { db, schema as s } from './db'
 import type { Course, Instructor, MediaView, Track } from '@/content/types'
 import { DEFAULT_HOME, type HomeContent } from '@/content/home-defaults'
+import { corporate as seedCorporate, hero as seedHero, ladder as seedLadder, stats as seedStats } from '@/content/seed'
 import { isPublic, publicOrder, resolveStatus } from '@/lib/course-meta'
 import type { CourseRow, InstructorRow, LessonRow, Media, ModuleRow, TrackRow } from './db/schema'
 
@@ -74,7 +75,11 @@ export async function catalog(now = new Date()) {
 export async function homeContent(): Promise<HomeContent> {
   const [row] = await db.select().from(s.settings).where(eq(s.settings.key, 'home'))
   const v = (row?.value ?? {}) as Partial<HomeContent>
-  return { ...DEFAULT_HOME, ...v, heads: { ...DEFAULT_HOME.heads, ...(v.heads ?? {}) } } as HomeContent
+  /* قاعدة فارغة (أول نشر) تُعرض بالمحتوى المبدئي بدل أن تنكسر */
+  return {
+    hero: seedHero, ladder: seedLadder, stats: seedStats, corporate: seedCorporate, ...DEFAULT_HOME, ...v,
+    heads: { ...DEFAULT_HOME.heads, ...(v.heads ?? {}) },
+  } as HomeContent
 }
 
 export type PublicTier = { id: string; name: string; description: string; price: number; compareAt: number | null; features: string[]; highlight: boolean }
