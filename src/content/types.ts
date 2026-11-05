@@ -69,6 +69,8 @@ export type Course = {
   instructor: string
   /** دفعات الدورة الظاهرة — فارغ للدورة بلا دفعات */
   cohorts?: CohortView[]
+  /** مدة الوصول بالأيام بعد التسجيل (أو بعد نهاية الدفعة) — غائبة = دائم */
+  accessDays?: number
 }
 
 export type CohortView = {
@@ -79,6 +81,7 @@ export type CohortView = {
   endsAt?: string
   seats?: { total: number; taken: number }
   city?: string
+  venue?: string
 }
 
 export type Instructor = {

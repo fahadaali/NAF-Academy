@@ -17,7 +17,7 @@ import { inList } from '@/server/db/limits'
 const nowIso = () => new Date().toISOString()
 
 /** القالب المعتمد لدورة: قالبها إن وُجد، وإلا الافتراضي */
-export async function designFor(templateId: string | null): Promise<{ id: string | null; design: CertDesign }> {
+async function designFor(templateId: string | null): Promise<{ id: string | null; design: CertDesign }> {
   const rows = await db.select().from(s.certificateTemplates).where(isNull(s.certificateTemplates.deletedAt)).orderBy(desc(s.certificateTemplates.isDefault), asc(s.certificateTemplates.createdAt))
   const t = rows.find((r) => r.id === templateId) ?? rows[0]
   return t ? { id: t.id, design: mergeDesign(t.design) } : { id: null, design: DEFAULT_DESIGN }
@@ -131,7 +131,7 @@ export async function certBrand(tone: CertDesign['tone']): Promise<CertBrand> {
   return { name: b.name, tagline: b.tagline, companyName: b.companyName, showName: b.showName, logo, full }
 }
 
-export async function renderPdf(c: typeof s.certificates.$inferSelect, design?: CertDesign) {
+async function renderPdf(c: typeof s.certificates.$inferSelect, design?: CertDesign) {
   const d = design ?? c.design ?? DEFAULT_DESIGN
   return certificatePdf(d, {
     name: c.name, course: c.courseTitle, hours: c.hours, date: dateAr(c.issuedAt ?? nowIso()), hijri: hijriAr(c.issuedAt ?? nowIso()),

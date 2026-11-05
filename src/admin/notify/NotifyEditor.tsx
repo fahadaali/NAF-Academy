@@ -1,6 +1,7 @@
 'use client'
 /* محرّر الرسائل الآلية — قائمة الأحداث، وتحرير القالب بمتغيراته، ومعاينة حيّة (حاسب/جوال، فاتح/داكن)،
    وإرسال تجريبي، وتوقيتات التذكير. */
+import { duration } from '@/motion/tokens'
 import { History } from '@/admin/ui/History'
 import { useEffect, useRef, useState } from 'react'
 import { EVENTS, EVENT_META, VAR_LABEL, leftLabel, type Category, type EventKey, type NotifySettings, type Template } from '@/lib/notify'
@@ -75,7 +76,8 @@ function TemplateEditor({ event, t, set, errors, staffEmail }: { event: EventKey
 
   /* معاينة بعد توقف الكتابة */
   useEffect(() => {
-    const id = setTimeout(() => { previewNotify(event, t, dark).then(setPv).catch(() => {}) }, 300)
+    /* المعاينة بعد توقّف الكتابة */
+    const id = setTimeout(() => { previewNotify(event, t, dark).then(setPv).catch((e) => console.error('notify preview', e)) }, duration.gentle)
     return () => clearTimeout(id)
   }, [event, t, dark])
 

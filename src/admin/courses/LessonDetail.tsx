@@ -91,7 +91,7 @@ export function VideoField({ label, hint, value, onChange, error }: { label: str
   useEffect(() => {
     if (value.provider !== 'stream' || stream) return
     let live = true
-    streamStatus().then((s) => live && setStream(s)).catch(() => {})
+    streamStatus().then((s) => live && setStream(s)).catch((e) => console.error('stream status', e))
     return () => { live = false }
   }, [value.provider, stream])
   const file = useRef<HTMLInputElement>(null)

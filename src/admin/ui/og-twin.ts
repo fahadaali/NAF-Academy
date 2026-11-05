@@ -2,7 +2,7 @@
    تحويل صيغة فقط، بعرض أقصى 1600. */
 const MAX_W = 1600
 
-export async function jpegTwin(f: File): Promise<File | null> {
+async function jpegTwin(f: File): Promise<File | null> {
   if (f.type !== 'image/webp' && f.type !== 'image/avif') return null
   try {
     const bmp = await createImageBitmap(f)

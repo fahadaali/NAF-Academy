@@ -1,7 +1,6 @@
 /* كتل المحتوى الغني — نموذج واحد للمحرّر والعرض والتحقق. لا HTML خام أبداً:
    التنسيق داخل السطر بصيغة مقيّدة (**عريض**، *مائل*، [نص](https://…))، والعرض يبنيه عناصر React. */
 
-export type InlineVideo = { provider: 'url'; url: string } | { provider: 'none' }
 
 export type Block =
   | { t: 'p'; text: string }

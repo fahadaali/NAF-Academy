@@ -7,6 +7,7 @@ import { savePaymentSettings } from './actions'
 import { Field, Grid, Input, PageHead, SaveBar, Section, Switch, Textarea } from '@/admin/ui/kit'
 import s from './sales.module.css'
 import { PAY_METHOD_LABEL } from '@/lib/enums'
+import { History } from '@/admin/ui/History'
 
 const METHOD: Record<PaymentSettings['methods'][number], string> = PAY_METHOD_LABEL
 
@@ -86,7 +87,7 @@ export function PaymentSettingsForm({ initial, status }: { initial: PaymentSetti
         setSaving(false)
         if (!r.ok) { setErrors(r.errors); setMsg({ ok: false, text: r.message ?? 'تعذّر الحفظ' }); if (r.errors.enabled) setV((o) => ({ ...o, enabled: false })); return }
         setErrors({}); setSaved(JSON.stringify(v)); setMsg({ ok: true, text: v.enabled ? 'حُفظت — الدفع مفعّل' : 'حُفظت' }); router.refresh()
-      }} />
+      }} extra={<History entity="payments" id="settings" current={v} onRestore={(x) => { setV(x as typeof v); setMsg({ ok: true, text: 'حُمّلت النسخة — راجعها ثم احفظ' }) }} />} />
     </>
   )
 }

@@ -30,7 +30,6 @@ const hashCode = (target: string, code: string) => createHmac('sha256', secret()
 const sha = (t: string) => createHash('sha256').update(t).digest('hex')
 const now = () => new Date().toISOString()
 
-export type Target = { channel: Channel; value: string }
 
 export function normalizeTarget(channel: Channel, raw: string): string | null {
   if (channel === 'email') {

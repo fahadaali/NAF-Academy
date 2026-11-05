@@ -3,7 +3,8 @@
 import { writeFileSync } from 'node:fs'
 import { createClient } from '@libsql/client'
 
-const TABLES = ['media', 'tracks', 'instructors', 'courses', 'course_instructors', 'modules', 'lessons', 'price_tiers', 'group_rules', 'settings', 'certificate_templates']
+/* بترتيب المراجع: الدفعات بعد الدورات، وجلساتها بعد الدروس والدفعات؛ والعروض العامة محتوى تسعير لا مبيعات */
+const TABLES = ['media', 'tracks', 'instructors', 'courses', 'course_instructors', 'modules', 'lessons', 'cohorts', 'cohort_sessions', 'price_tiers', 'group_rules', 'promotions', 'settings', 'certificate_templates']
 const db = createClient({ url: process.env.DATABASE_URL ?? 'file:.data/academy.db' })
 const q = (v: unknown) => (v === null || v === undefined ? 'NULL' : typeof v === 'number' || typeof v === 'bigint' ? String(v) : `'${String(v).replace(/'/g, "''")}'`)
 const out: string[] = ['-- بذرة محتوى أكاديمية ناف (مولّدة)']

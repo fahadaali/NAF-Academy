@@ -18,10 +18,10 @@ import { accessUntilFor, cohortState, hasAccess } from '@/lib/cohorts'
 import type { CohortRow } from './db/schema'
 
 const nowIso = () => new Date().toISOString()
-export const secretToken = () => randomBytes(18).toString('base64url')
+const secretToken = () => randomBytes(18).toString('base64url')
 
 /* ───────── الترقيم الذرّي ───────── */
-export async function nextNumber(key: string, prefix: string) {
+async function nextNumber(key: string, prefix: string) {
   const [r] = await db.insert(s.counters).values({ key, value: 1 })
     .onConflictDoUpdate({ target: s.counters.key, set: { value: sql`${s.counters.value} + 1` } })
     .returning({ value: s.counters.value })
@@ -60,7 +60,7 @@ export async function overCapacity(course: Pick<CourseRow, 'id' | 'seatsTaken' |
 }
 
 /* ───────── الكوبون ───────── */
-export async function findCoupon(code: string) {
+async function findCoupon(code: string) {
   const c = normalizeCode(code)
   if (!c) return null
   const [row] = await db.select().from(s.coupons).where(and(eq(s.coupons.code, c), isNull(s.coupons.deletedAt)))
@@ -68,7 +68,7 @@ export async function findCoupon(code: string) {
 }
 
 /** الاستخدامات = المسترد فعلاً + الطلبات المعلّقة السارية التي تحمل الكوبون (حتى لا يُتجاوز الحد بالتوازي) */
-export async function couponUses(couponId: string, email?: string) {
+async function couponUses(couponId: string, email?: string) {
   const now = nowIso()
   const [t] = await db.select({ n: count() }).from(s.couponRedemptions).where(eq(s.couponRedemptions.couponId, couponId))
   const [h] = await db.select({ n: count() }).from(s.orders).where(and(eq(s.orders.couponId, couponId), eq(s.orders.status, 'pending'), gt(s.orders.expiresAt, now)))
@@ -90,7 +90,7 @@ export async function couponUses(couponId: string, email?: string) {
 export type PricedCourse = { course: CourseRow; tier: TierRow | null; tiers: TierRow[]; coupon: CouponRow | null; q: Quote }
 
 /** دفعات الدورة غير المحذوفة — الدورة ذات الدفعات تشترط اختيار إحداها */
-export async function courseCohortRows(courseId: string) {
+async function courseCohortRows(courseId: string) {
   return db.select().from(s.cohorts).where(and(eq(s.cohorts.courseId, courseId), isNull(s.cohorts.deletedAt))).orderBy(asc(s.cohorts.sortOrder))
 }
 

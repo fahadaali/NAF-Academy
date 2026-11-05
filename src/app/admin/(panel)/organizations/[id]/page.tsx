@@ -10,6 +10,7 @@ import { MemberForm, OrgForm, RemoveMember } from '@/admin/corporate/Corporate'
 import { PageHead, Section } from '@/admin/ui/kit'
 import p from '@/admin/ui/panel.module.css'
 import c from '@/admin/corporate/corporate.module.css'
+import { cohortState } from '@/lib/cohorts'
 
 export default async function Organization({ params }: { params: Promise<{ id: string }> }) {
   await requirePermission('corporate.manage')
@@ -26,10 +27,12 @@ export default async function Organization({ params }: { params: Promise<{ id: s
     .where(and(inList(s.enrollments.contractId, cs.map((x) => x.row.id)), eq(s.enrollments.status, 'active'))) : []
   const items: ContractItem[] = cs.map((x) => ({ ...x, file: x.row.fileId ? `/admin/files/${x.row.fileId}` : null, seats: seatRows.filter((r) => r.contractId === x.row.id).map((r) => ({ id: r.id, email: r.email, name: r.name, course: r.course.replace(/~\d/g, '') })) }))
   const [courseRows, cohortRows] = await Promise.all([
-    db.select({ id: s.courses.id, title: s.courses.title }).from(s.courses).where(and(isNull(s.courses.deletedAt), ne(s.courses.status, 'archived'))).orderBy(asc(s.courses.sortOrder)),
-    db.select({ id: s.cohorts.id, title: s.cohorts.title, courseId: s.cohorts.courseId }).from(s.cohorts).where(and(isNull(s.cohorts.deletedAt), ne(s.cohorts.status, 'closed'))),
+    /* ما يقبله التخصيص فعلاً: لا مسودات ولا مؤرشفة، ودفعات لم تنتهِ ولم تُغلق (assignContractSeat يرفض غيرها) */
+    db.select({ id: s.courses.id, title: s.courses.title }).from(s.courses).where(and(isNull(s.courses.deletedAt), ne(s.courses.status, 'archived'), ne(s.courses.status, 'draft'))).orderBy(asc(s.courses.sortOrder)),
+    db.select().from(s.cohorts).where(and(isNull(s.cohorts.deletedAt), ne(s.cohorts.status, 'closed'))),
   ])
-  const courses = courseRows.map((x) => ({ ...x, cohorts: cohortRows.filter((k) => k.courseId === x.id) }))
+  const liveCohorts = cohortRows.filter((k) => cohortState({ ...k, taken: 0 }) !== 'closed').map((k) => ({ id: k.id, title: k.title, courseId: k.courseId }))
+  const courses = courseRows.map((x) => ({ ...x, cohorts: liveCohorts.filter((k) => k.courseId === x.id) }))
   return (
     <>
       <PageHead title={o.name} sub={`${v.totals.members} عضو ظاهر · ${v.totals.enrolled} تسجيل برعاية المؤسسة · ${free} مقعد غير مخصّص`} actions={<a className="btn ghost" href="/admin/organizations">المؤسسات</a>} />

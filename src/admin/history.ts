@@ -11,7 +11,8 @@ import type { Perm } from '@/lib/permissions'
 const PERM: Record<string, Perm> = {
   course: 'content.write', track: 'content.write', instructor: 'content.write', cohort: 'content.write',
   home: 'site.write', pages: 'site.write', settings: 'site.write',
-  coupon: 'sales.coupons', promotion: 'sales.coupons', certificate_template: 'certificates.manage',
+  coupon: 'sales.coupons', promotion: 'sales.coupons', certificate_template: 'certificates.templates',
+  contract: 'corporate.manage', payments: 'payments.manage',
 }
 /* الإعدادات تشترك في كيان «settings» — ولكل مفتاح صلاحية قسمه */
 const SETTINGS_PERM: Record<string, Perm> = { brand: 'site.write', notify: 'notify.manage' }

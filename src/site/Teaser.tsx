@@ -3,10 +3,11 @@
 import { useRef, useState } from 'react'
 import s from './course.module.css'
 
-export function Teaser({ slug, kind, label }: { slug: string; kind: 'stream' | 'url'; label: string }) {
+/** token: رمز المعاينة لدورة غير منشورة — فيعمل الزر في المعاينة أيضاً */
+export function Teaser({ slug, kind, label, token }: { slug: string; kind: 'stream' | 'url'; label: string; token?: string }) {
   const dlg = useRef<HTMLDialogElement>(null)
   const [on, setOn] = useState(false)
-  const src = `/courses/${slug}/teaser`
+  const src = `/courses/${slug}/teaser${token ? `?t=${encodeURIComponent(token)}` : ''}`
   const close = () => { dlg.current?.close(); setOn(false) }
   return (
     <>

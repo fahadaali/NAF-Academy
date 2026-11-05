@@ -15,7 +15,7 @@ import type { CourseRow, InstructorRow, LessonRow, Media, ModuleRow, TierRow, Tr
 import { inList } from '@/server/db/limits'
 import { blocksFrom, type Block } from '@/lib/blocks'
 
-export const mediaUrl = (m: Pick<Media, 'key'>) => `/media/${m.key}`
+const mediaUrl = (m: Pick<Media, 'key'>) => `/media/${m.key}`
 
 function mediaView(m: Media | undefined | null): MediaView | undefined {
   if (!m || m.deletedAt) return undefined
@@ -41,9 +41,11 @@ const toInstructor = (p: InstructorRow, m: Map<string, Media>): Instructor => ({
 
 const seatsOf = (total: number | null, taken: number) => (total ? { total, taken: Math.min(taken, total) } : undefined)
 
-const cohortView = (k: CohortLite, now: Date): CohortView => ({
+const cohortView = (k: CohortLite & { row?: { venue: string } }, now: Date): CohortView => ({
   id: k.id, title: k.title, state: cohortState(k, now), startsAt: k.startsAt ?? undefined, endsAt: k.endsAt ?? undefined,
   seats: seatsOf(k.seatsTotal, k.taken), city: k.city || undefined,
+  /* أول سطر من مقرّ الدفعة — التفاصيل لمسجّليها في صفحة الدرس والتذكير */
+  venue: k.row?.venue.split('\n')[0] || undefined,
 })
 
 function toCourse(c: CourseRow, trackSlug: string, inst: string[], m: Map<string, Media>, now: Date, booked = 0, tiers: TierRow[] = [], promos: Promo[] = [], cohorts: CohortLite[] = []): Course {
@@ -58,15 +60,16 @@ function toCourse(c: CourseRow, trackSlug: string, inst: string[], m: Map<string
     pricing: tiers.length ? cheapestTier(tiers, c, now, promos) : coursePricing(c, promos),
     instructor: inst[0] ?? '', instructors: inst, cover: mediaView(m.get(c.coverId ?? '')),
     cohorts: cohorts.length ? cohorts.map((k) => cohortView(k, now)).filter((k) => k.state !== 'closed' || !k.endsAt || Date.parse(k.endsAt) > now.getTime() - 30 * 864e5) : undefined,
+    accessDays: c.accessDays ?? undefined,
   }
 }
 
 /** سعر الدورة كما يُدفع الآن: عرضها في نافذته والعروض العامة المنطبقة */
-export const coursePricing = (c: Pick<CourseRow, 'price' | 'compareAt' | 'saleStartsAt' | 'saleEndsAt' | 'free'>, promos: Promo[] = []): Pricing =>
+const coursePricing = (c: Pick<CourseRow, 'price' | 'compareAt' | 'saleStartsAt' | 'saleEndsAt' | 'free'>, promos: Promo[] = []): Pricing =>
   ({ amount: c.price, compareAt: c.compareAt ?? undefined, saleStartsAt: c.saleStartsAt ?? undefined, saleEndsAt: c.saleEndsAt ?? undefined, free: c.free, promos })
 
 /** سعر الباقة كما يُدفع الآن — بنافذة عرض الدورة نفسها والعروض العامة (كما يحسبه الخادم عند الدفع) */
-export const tierPricing = (t: Pick<TierRow, 'price' | 'compareAt'>, c: Pick<CourseRow, 'saleStartsAt' | 'saleEndsAt'>, promos: Promo[] = []): Pricing =>
+const tierPricing = (t: Pick<TierRow, 'price' | 'compareAt'>, c: Pick<CourseRow, 'saleStartsAt' | 'saleEndsAt'>, promos: Promo[] = []): Pricing =>
   ({ amount: t.price, compareAt: t.compareAt ?? undefined, saleStartsAt: c.saleStartsAt ?? undefined, saleEndsAt: c.saleEndsAt ?? undefined, promos })
 
 /** بطاقة دورة لها باقات: أرخص باقة الآن «من …» */

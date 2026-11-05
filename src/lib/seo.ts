@@ -1,6 +1,6 @@
 /* بيانات schema.org المنظّمة — دوال نقية مختبرة تبني JSON-LD للصفحات العامة. */
 
-export const ORG_NAME = 'أكاديمية ناف'
+const ORG_NAME = 'أكاديمية ناف'
 
 export function organization(site: string, b: { name: string; companyName: string; logo?: string } = { name: ORG_NAME, companyName: 'شركة ناف القانونية' }) {
   return {

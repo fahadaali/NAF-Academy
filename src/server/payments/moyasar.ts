@@ -17,7 +17,7 @@ type MoyasarPayment = {
   source?: { type?: string; company?: string; message?: string } | null
 }
 
-export function toGatewayPayment(p: MoyasarPayment): GatewayPayment {
+function toGatewayPayment(p: MoyasarPayment): GatewayPayment {
   const method = p.source?.type === 'creditcard' ? (p.source.company ?? 'card') : (p.source?.type ?? '')
   return { id: p.id, status: p.status, amount: p.amount, currency: p.currency, orderId: p.metadata?.order_id ?? null, method, message: p.source?.message ?? '' }
 }

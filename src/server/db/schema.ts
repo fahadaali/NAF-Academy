@@ -503,7 +503,6 @@ export const counters = sqliteTable('counters', {
 
 export type CouponRow = typeof coupons.$inferSelect
 export type TierRow = typeof priceTiers.$inferSelect
-export type GroupRuleRow = typeof groupRules.$inferSelect
 export type OrderRow = typeof orders.$inferSelect
 export type OrderItemRow = typeof orderItems.$inferSelect
 export type LearnerRow = typeof learners.$inferSelect
@@ -739,7 +738,6 @@ export const certificates = sqliteTable('certificates', {
   ...stamps,
 }, (t) => [uniqueIndex('cert_learner_course').on(t.learnerId, t.courseId), index('cert_status_idx').on(t.status)])
 
-export type CertificateRow = typeof certificates.$inferSelect
 
 /* ───────── المؤسسات ───────── */
 

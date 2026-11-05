@@ -53,9 +53,9 @@ export function staffMode(): StaffMode {
 }
 
 /* ترويسات الهوية يحقنها الوسيط بعد التحقق، ويمسح ما انتحله المتصفح منها */
-export const H_SUB = 'x-naf-sub'
-export const H_ROLE = 'x-naf-role'
-export const H_PERMS = 'x-naf-perms'
+const H_SUB = 'x-naf-sub'
+const H_ROLE = 'x-naf-role'
+const H_PERMS = 'x-naf-perms'
 
 export async function createSession(name: string) {
   const payload = b64(enc.encode(JSON.stringify({ name, exp: Math.floor(Date.now() / 1000) + TTL } satisfies Admin)))

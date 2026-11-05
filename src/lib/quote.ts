@@ -50,7 +50,7 @@ export type Quote = {
   free: boolean
 }
 
-export const MAX_QTY = 50
+const MAX_QTY = 50
 
 export function couponError(c: QuoteCoupon, ctx: { now: Date; courseId: string; trackId?: string | null; email?: string; saleActive: boolean; amount: number; uses?: { total: number; byLearner: number } }): string | undefined {
   if (!c.active || c.deletedAt) return 'هذا الكوبون غير متاح'

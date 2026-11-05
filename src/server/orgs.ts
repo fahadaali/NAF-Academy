@@ -13,7 +13,7 @@ export async function managedOrgs(learnerId: string) {
     .then((r) => r.map((x) => x.o))
 }
 
-export async function orgMembers(orgId: string) {
+async function orgMembers(orgId: string) {
   const [o] = await db.select().from(s.organizations).where(eq(s.organizations.id, orgId))
   if (!o) return []
   const explicit = await db.select({ l: s.learners, role: s.orgMembers.role }).from(s.orgMembers).innerJoin(s.learners, eq(s.learners.id, s.orgMembers.learnerId)).where(eq(s.orgMembers.orgId, orgId))

@@ -11,6 +11,7 @@ import type { CohortRow, CohortSessionRow } from '@/server/db/schema'
 import { formatDay } from '@/lib/dates'
 import p from '@/admin/ui/panel.module.css'
 import c from './cohorts.module.css'
+import { History } from '@/admin/ui/History'
 
 type Item = { row: CohortRow; used: number; sessions: CohortSessionRow[] }
 type SessionLesson = { id: string; title: string; type: 'live' | 'onsite' }
@@ -142,6 +143,7 @@ export function CohortsPanel({ courseId, items, lessons, canWrite }: { courseId:
           <div className={c.actions}>
             <button type="button" className="btn" disabled={busy} onClick={save}>{busy ? 'يُحفظ…' : 'حفظ الدفعة'}</button>
             <button type="button" className="btn ghost" onClick={() => { setEdit(null); setMsg('') }}>إلغاء</button>
+            {edit.id && <History entity="cohort" id={edit.id} current={edit.v} onRestore={(x) => set(x as CohortInput)} />}
           </div>
         </div>
       )}

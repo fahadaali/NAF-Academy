@@ -107,9 +107,9 @@ export function Money({ value, onChange, placeholder }: { value: number | null; 
 }
 
 /* توقيت الرياض ثابت +03:00 بلا توقيت صيفي */
-export const toLocal = (iso: string | null | undefined) =>
+const toLocal = (iso: string | null | undefined) =>
   iso ? new Date(new Date(iso).getTime() + 3 * 3600e3).toISOString().slice(0, 16) : ''
-export const fromLocal = (v: string) => (v ? new Date(`${v}:00+03:00`).toISOString() : null)
+const fromLocal = (v: string) => (v ? new Date(`${v}:00+03:00`).toISOString() : null)
 
 export function DateTime({ value, onChange }: { value: string | null; onChange: (v: string | null) => void }) {
   return <input type="datetime-local" className={styles.input} dir="ltr" value={toLocal(value)} onChange={(e) => onChange(fromLocal(e.target.value))} />

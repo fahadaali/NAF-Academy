@@ -57,13 +57,14 @@ export function CourseView({ data, preview, corporate = true, vat = 0 }: { data:
           </div>
           <Words as="h1" text={c.title} className={s.title} />
           {c.subtitle && <p className={`reveal ${s.subtitle}`} style={{ ['--d' as string]: 2 }}>{c.subtitle}</p>}
-          {row.teaser.provider !== 'none' && <Teaser slug={c.slug} kind={row.teaser.provider} label="شاهد التعريف بالدورة" />}
+          {row.teaser.provider !== 'none' && <Teaser slug={c.slug} kind={row.teaser.provider} label="شاهد التعريف بالدورة" token={preview ? row.previewToken : undefined} />}
           <dl className={`reveal num ${s.facts}`} style={{ ['--d' as string]: 3 }}>
             {c.startsAt ? (
               <div><dt>يبدأ</dt><dd>{formatWeekday(c.startsAt)} {formatDay(c.startsAt)}<small>{formatHijri(c.startsAt)} · {formatTime(c.startsAt)}</small></dd></div>
             ) : <div><dt>البدء</dt><dd>متى شئت<small>تعلّم ذاتي</small></dd></div>}
             <div><dt>المدة</dt><dd>{c.hours} ساعة<small>{lessons} درساً</small></dd></div>
             {c.city && <div><dt>المكان</dt><dd>{c.city}<small>حضوري</small></dd></div>}
+            <div><dt>الوصول</dt><dd>{c.accessDays ? `${c.accessDays} يوماً` : 'دائم'}<small>{c.accessDays ? (c.cohorts?.length ? 'بعد نهاية الدفعة' : 'من التسجيل') : 'للمحتوى والتسجيلات'}</small></dd></div>
             {left !== undefined && c.status !== 'closed' && <div><dt>المقاعد</dt><dd>{left > 0 ? `بقي ${left}` : 'مكتملة'}<small>من {c.seats!.total}</small></dd></div>}
           </dl>
         </div>
@@ -109,7 +110,7 @@ export function CourseView({ data, preview, corporate = true, vat = 0 }: { data:
                       <div>
                         <strong>{k.title}</strong>
                         <span className={`${s.muted} num`}>
-                          {k.startsAt ? `${formatWeekday(k.startsAt)} ${formatDay(k.startsAt)}` : 'الموعد يُعلن قريباً'}{k.endsAt ? ` ← ${formatDay(k.endsAt)}` : ''}{k.city ? ` · ${k.city}` : ''}
+                          {k.startsAt ? `${formatWeekday(k.startsAt)} ${formatDay(k.startsAt)}` : 'الموعد يُعلن قريباً'}{k.endsAt ? ` ← ${formatDay(k.endsAt)}` : ''}{k.city ? ` · ${k.city}` : ''}{k.venue ? ` — ${k.venue}` : ''}
                         </span>
                       </div>
                       <span className={`${s.cstate} num`} data-tone={k.state}>

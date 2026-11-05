@@ -5,7 +5,7 @@ export const duration = { fast: 140, base: 220, gentle: 320 } as const
 const d = duration
 
 type Curve = readonly [number, number, number, number]
-export const curve = {
+const curve = {
   in: [0.2, 0.85, 0.25, 1],
   move: [0.4, 0, 0.2, 1],
   out: [0.4, 0, 1, 1],
@@ -47,7 +47,7 @@ export const loop = {
 } as const
 
 /* ── bezier محسوب يدوياً للمشاهد المربوطة بالتمرير (نيوتن-رافسون) ── */
-export function bezier([x1, y1, x2, y2]: Curve): (t: number) => number {
+function bezier([x1, y1, x2, y2]: Curve): (t: number) => number {
   const sample = (a1: number, a2: number, t: number) =>
     ((1 - 3 * a2 + 3 * a1) * t + (3 * a2 - 6 * a1)) * t * t + 3 * a1 * t
   const slope = (a1: number, a2: number, t: number) =>

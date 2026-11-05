@@ -53,13 +53,15 @@ type Props = {
   salesOpen: boolean
   terms: string
   refundPolicy: string
+  /** مدة الوصول بالأيام — تُذكر قبل الدفع */
+  accessDays?: number
   learner: Verified | null
   channels: ('email' | 'sms')[]
   /** الوسائل المفعّلة في إعدادات الدفع */
   methods: PayMethod[]
 }
 
-export function Checkout({ slug, title, tiers, cohorts = [], initialCohort = null, groupRules, maxQty, initial, initialCode, salesOpen, terms, refundPolicy, learner, channels, methods }: Props) {
+export function Checkout({ slug, title, tiers, cohorts = [], initialCohort = null, groupRules, maxQty, initial, initialCode, salesOpen, terms, refundPolicy, learner, channels, methods, accessDays }: Props) {
   const router = useRouter()
   const [tierId, setTierId] = useState<string | null>(initial.tierId)
   const openCohorts = cohorts.filter((k) => k.state === 'open')
@@ -217,6 +219,7 @@ export function Checkout({ slug, title, tiers, cohorts = [], initialCohort = nul
             {free ? <strong>مجاناً</strong> : <Money v={q.total} className={s.totalNum} />}
           </div>
           {!free && <p className={`num ${s.vat}`}>شامل ضريبة القيمة المضافة ({formatAmount(q.vat)} ر.س)</p>}
+          {accessDays ? <p className={`num ${s.vat}`}>الوصول إلى المحتوى والتسجيلات {accessDays} يوماً {cohorts.length ? 'بعد نهاية الدفعة' : 'من التسجيل'} — ويُجدَّد بعدها</p> : null}
 
           <label className={s.check} data-err={fields.agree ? '1' : '0'}>
             <input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} />

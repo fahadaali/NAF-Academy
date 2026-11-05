@@ -13,7 +13,6 @@ export const ACHIEVEMENTS = {
 } as const
 export type AchievementKind = keyof typeof ACHIEVEMENTS
 /** إنجاز يتكرر لكل دورة أو مسار (ref) */
-export const PER_REF: ReadonlySet<AchievementKind> = new Set(['halfway', 'course_complete', 'track_complete'])
 
 export type LearnerStats = {
   lessonsDone: number

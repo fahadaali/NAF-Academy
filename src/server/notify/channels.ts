@@ -10,7 +10,7 @@ import { getSetting, setSetting } from '../settings'
 export type Channel = 'email' | 'sms' | 'push'
 export type ChannelState = { configured: boolean; provider: 'resend' | 'taqnyat' | 'webpush' | 'outbox' | null; problem?: string }
 export type ChannelSettings = { emailEnabled: boolean; smsEnabled: boolean; pushEnabled: boolean }
-export const DEFAULT_CHANNELS: ChannelSettings = { emailEnabled: false, smsEnabled: false, pushEnabled: false }
+const DEFAULT_CHANNELS: ChannelSettings = { emailEnabled: false, smsEnabled: false, pushEnabled: false }
 
 const dev = () => process.env.NODE_ENV !== 'production'
 

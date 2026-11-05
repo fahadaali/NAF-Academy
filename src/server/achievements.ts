@@ -1,7 +1,7 @@
 import 'server-only'
 /* منح الإنجازات وإشعارات المنصة — بعد كل تقدّم وعند صدور شهادة. الإنجاز الجديد يصير إشعاراً داخل المنصة. */
 import { randomUUID } from 'node:crypto'
-import { and, count, desc, eq, isNotNull, isNull } from 'drizzle-orm'
+import { and, count, desc, eq, inArray, isNotNull, isNull } from 'drizzle-orm'
 import { db, schema as s } from './db'
 import { ACHIEVEMENTS, earned, type AchievementKind } from '@/lib/achievements'
 
@@ -22,7 +22,8 @@ export async function evaluateAchievements(learnerId: string) {
     db.select({ n: count() }).from(s.attendance).where(eq(s.attendance.learnerId, learnerId)),
     db.select({ n: count() }).from(s.certificates).where(and(eq(s.certificates.learnerId, learnerId), eq(s.certificates.status, 'issued'))),
     db.select({ id: s.quizAttempts.id }).from(s.quizAttempts).where(and(eq(s.quizAttempts.learnerId, learnerId), eq(s.quizAttempts.scorePct, 100))).limit(1),
-    db.select({ id: s.courses.id, trackId: s.courses.trackId }).from(s.courses).where(and(isNull(s.courses.deletedAt), eq(s.courses.status, 'open'))),
+    /* دورات المسار المنشورة كلها (مفتوحة أو مجدولة أو مكتملة أو مغلقة) — لا المفتوحة وحدها، وإلا سهُل الإنجاز حين تُغلق دورة */
+    db.select({ id: s.courses.id, trackId: s.courses.trackId }).from(s.courses).where(and(isNull(s.courses.deletedAt), inArray(s.courses.status, ['open', 'scheduled', 'soon', 'full', 'closed']))),
   ])
   const trackCourses = new Map<string, string[]>()
   for (const c of tracks) if (c.trackId) trackCourses.set(c.trackId, [...(trackCourses.get(c.trackId) ?? []), c.id])

@@ -11,6 +11,8 @@ import { formatAmount } from '@/lib/pricing'
 import { when } from '@/admin/sales/labels'
 import p from '@/admin/ui/panel.module.css'
 import c from './corporate.module.css'
+import { History } from '@/admin/ui/History'
+import { trash } from '@/admin/actions'
 
 type Course = { id: string; title: string; cohorts: { id: string; title: string }[] }
 type Seat = { id: string; email: string; name: string; course: string }
@@ -68,6 +70,13 @@ export function ContractsPanel({ orgId, items, courses }: { orgId: string; items
               </div>
               <div className={c.tools}>
                 {it.file && <a className={p.iconBtn} href={it.file}>ملف العقد ↓</a>}
+                <button type="button" className={`${p.iconBtn} ${p.danger}`} onClick={async () => {
+                  if (it.used > 0) return alert('على العقد مقاعد مخصّصة — حرّرها أولاً أو ألغِ العقد')
+                  if (!confirm(`نقل العقد «${it.row.title}» إلى المحذوفات؟`)) return
+                  const r = await trash('contract', it.row.id)
+                  if (!r.ok) alert(r.error)
+                  router.refresh()
+                }}>حذف</button>
                 <button type="button" className={p.iconBtn} onClick={() => setEdit({ id: it.row.id, fileName: it.row.fileId ? 'مرفق' : '', v: { number: it.row.number, title: it.row.title, status: it.row.status, startsAt: it.row.startsAt, endsAt: it.row.endsAt, seats: it.row.seats, scope: it.row.scope, courseIds: it.row.courseIds, total: it.row.total, fileId: it.row.fileId, notes: it.row.notes } })}>تعديل</button>
               </div>
             </header>
@@ -122,6 +131,7 @@ export function ContractsPanel({ orgId, items, courses }: { orgId: string; items
           <div className={c.tools}>
             <button className="btn" onClick={save}>حفظ العقد</button>
             <button className="btn ghost" onClick={() => { setEdit(null); setErrors({}); setMsg('') }}>إلغاء</button>
+            {edit.id && <History entity="contract" id={edit.id} current={edit.v} onRestore={(x) => setEdit((e) => (e ? { ...e, v: x as ContractInput } : e))} />}
           </div>
         </div>
       )}
