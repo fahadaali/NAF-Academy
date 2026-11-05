@@ -88,6 +88,37 @@ export async function onProgress(learnerId: string, courseId: string) {
   }
 }
 
+/** بعد اكتمال دفع طلب — تأكيد للمشتري بالفاتورة (ولو اشترى مقاعد لفريقه ولم يحضر). `resend`: إعادة إرسال من اللوحة */
+export async function onOrderPaid(orderId: string, opts: { resend?: boolean } = {}) {
+  try {
+    const [o] = await db.select().from(s.orders).where(eq(s.orders.id, orderId))
+    if (!o || o.total <= 0 || !['paid', 'partially_refunded', 'refunded'].includes(o.status)) return { ok: false }
+    const [it] = await db.select({ courseId: s.orderItems.courseId }).from(s.orderItems).where(eq(s.orderItems.orderId, o.id))
+    if (!it) return { ok: false }
+    const key = `order:${o.id}:email${opts.resend ? `:r${Date.now()}` : ''}`
+    await enqueue([{ key, event: 'order_paid', channel: 'email', to: o.buyer.email, learnerId: o.learnerId, courseId: it.courseId, ref: { orderId: o.id }, sendAt: iso(new Date()) }])
+    const r = await dispatch(new Date(), { keys: [key] })
+    return { ok: r.sent > 0 || r.retry > 0 }
+  } catch (e) {
+    console.error('onOrderPaid', e)
+    return { ok: false }
+  }
+}
+
+/** بعد تنفيذ استرداد — إشعار المشتري بالمبلغ والإشعار الدائن */
+export async function onRefund(orderId: string, refundId: string) {
+  try {
+    const [o] = await db.select().from(s.orders).where(eq(s.orders.id, orderId))
+    const [it] = o ? await db.select({ courseId: s.orderItems.courseId }).from(s.orderItems).where(eq(s.orderItems.orderId, o.id)) : []
+    if (!o || !it) return
+    const key = `refund:${refundId}:email`
+    await enqueue([{ key, event: 'refund_issued', channel: 'email', to: o.buyer.email, learnerId: o.learnerId, courseId: it.courseId, ref: { orderId: o.id, refundId }, sendAt: iso(new Date()) }])
+    await dispatch(new Date(), { keys: [key] })
+  } catch (e) {
+    console.error('onRefund', e)
+  }
+}
+
 /** بعد إصدار شهادة — رسالة «صدرت شهادتك» بالبريد والجوال */
 export async function onCertificate(certificateId: string) {
   const [c] = await db.select({ c: s.certificates, l: s.learners }).from(s.certificates).innerJoin(s.learners, eq(s.learners.id, s.certificates.learnerId)).where(eq(s.certificates.id, certificateId))
@@ -351,6 +382,23 @@ async function contextFor(n: typeof s.notifications.$inferSelect, site: string, 
       const coupon = n.ref.last && cfg.cartCoupon ? cfg.cartCoupon : ''
       Object.assign(vars, { name: o.buyer.name.split(/\s+/)[0] ?? '', coupon, link: `${site}/courses/${course.slug}/enroll${coupon ? `?coupon=${encodeURIComponent(coupon)}` : ''}` })
       break
+    }
+    case 'order_paid':
+    case 'refund_issued': {
+      const [o] = await db.select().from(s.orders).where(eq(s.orders.id, String(n.ref.orderId)))
+      if (!o) return { ok: false, reason: 'الطلب غير موجود' }
+      const items = await db.select({ q: s.orderItems.quantity }).from(s.orderItems).where(eq(s.orderItems.orderId, o.id))
+      const seats = items.reduce((a, x) => a + x.q, 0)
+      Object.assign(vars, {
+        name: o.buyer.name.split(/\s+/)[0] ?? '', order: o.number, total: `${formatAmount(o.total)} ر.س`,
+        seats: seats > 1 ? `${seats} مقاعد` : '', link: `${site}/orders/${o.number}?t=${o.token}`,
+      })
+      if (ev === 'refund_issued') {
+        const [rf] = await db.select().from(s.refunds).where(eq(s.refunds.id, String(n.ref.refundId)))
+        if (!rf) return { ok: false, reason: 'الاسترداد غير موجود' }
+        vars.amount = `${formatAmount(rf.amount)} ر.س`
+      }
+      return { ok: true, vars, name: vars.name }
     }
     case 'certificate_issued': {
       const [c] = await db.select().from(s.certificates).where(eq(s.certificates.id, String(n.ref.certificateId)))

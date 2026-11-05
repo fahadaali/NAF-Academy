@@ -52,6 +52,7 @@ function sample(site: string): Record<string, string> {
     name: 'سارة', course: 'صياغة العقود التجارية', lesson: 'جلسة الحالات العملية', when: w, starts: w, left: 'غداً',
     location: 'القاعة الكبرى — الرياض', link: `${site}/learn`, calendar: `${site}/courses`, pct: '50%',
     price: '2,490 ر.س', ends: w, coupon: 'WELCOME10', order: 'NA-2026-000123', code: 'NAF-7K2Q-91',
+    total: '7,470 ر.س', amount: '2,490 ر.س', seats: '3 مقاعد',
   }
 }
 

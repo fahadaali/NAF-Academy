@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation'
 import { orderDetail } from '@/admin/sales/data'
 import { Badge, PageHead } from '@/admin/ui/kit'
 import { METHOD_LABEL, ORDER_LABEL, ORDER_TONE, sar, when } from '@/admin/sales/labels'
-import { CancelPending, RefundPanel, SeatRow } from '@/admin/sales/OrderTools'
+import { CancelPending, RefundPanel, ResendOrder, SeatRow } from '@/admin/sales/OrderTools'
 import s from '@/admin/sales/sales.module.css'
 import p from '@/admin/ui/panel.module.css'
 import { staffCan } from '@/server/auth'
@@ -20,7 +20,7 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
   return (
     <>
       <PageHead title={`الطلب ${o.number}`} sub={`${when(o.createdAt)} · ${METHOD_LABEL[o.method]}${o.createdBy !== 'web' ? ` · أنشأه ${o.createdBy}` : ''}`}
-        actions={<><Badge tone={ORDER_TONE[status]}>{ORDER_LABEL[status]}</Badge><a className="btn ghost" href={buyerUrl} target="_blank" rel="noreferrer">صفحة المشتري ↗</a>{o.status === 'pending' && canOrders && <CancelPending orderId={o.id} />}</>} />
+        actions={<><Badge tone={ORDER_TONE[status]}>{ORDER_LABEL[status]}</Badge><a className="btn ghost" href={buyerUrl} target="_blank" rel="noreferrer">صفحة المشتري ↗</a>{o.status === 'pending' && canOrders && <CancelPending orderId={o.id} />}{canOrders && o.total > 0 && ['paid', 'partially_refunded', 'refunded'].includes(o.status) && <ResendOrder orderId={o.id} />}</>} />
       <div className={s.two}>
         <section className={s.panel}>
           <h2>المشتري</h2>

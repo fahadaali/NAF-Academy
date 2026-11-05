@@ -28,7 +28,7 @@ export function ChannelsForm({ initial, email, sms, push }: { initial: ChannelSe
   )
   return (
     <>
-      <PageHead title="قنوات الرسائل" sub="رموز الدخول اليوم، والتذكيرات والفواتير لاحقاً — كل قناة مقفلة حتى تُربط" />
+      <PageHead title="قنوات الرسائل" sub="رموز الدخول، والتذكيرات، وتأكيد الطلبات والفواتير — كل قناة مقفلة حتى تُربط" />
       {card('البريد', email, v.emailEnabled, (b) => setV({ ...v, emailEnabled: b }), ['أنشئ حساباً في Resend ووثّق نطاق المرسل (مثل academy.naf.sa).', 'أضف في البيئة: RESEND_API_KEY و MAIL_FROM (مثل: أكاديمية ناف <no-reply@academy.naf.sa>).', 'أعد النشر ثم فعّل هنا.'])}
       {card('الجوال', sms, v.smsEnabled, (b) => setV({ ...v, smsEnabled: b }), ['من لوحة تقنيات: أنشئ مفتاح API واعتمد اسم المرسل.', 'أضف في البيئة: TAQNYAT_API_KEY و SMS_SENDER.', 'أعد النشر ثم فعّل هنا.'])}
       {card('إشعارات المتصفح', push, v.pushEnabled, (b) => setV({ ...v, pushEnabled: b }), ['ولّد زوج مفاتيح VAPID مرة واحدة: node scripts/vapid.mjs', 'أضف في البيئة: VAPID_PUBLIC_KEY و VAPID_PRIVATE_KEY (سرّ) و VAPID_SUBJECT (مثل mailto:academy@naf.sa).', 'أعد النشر ثم فعّل هنا — يظهر للمتدرب زر «فعّل التنبيهات» في ملفه.'])}

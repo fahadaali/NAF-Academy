@@ -211,3 +211,14 @@ export async function setEnrollment(enrollmentId: string, status: 'active' | 'ca
   revalidatePath('/', 'layout')
   return { ok: true }
 }
+
+/** إعادة إرسال تأكيد الطلب والفاتورة إلى المشتري */
+export async function resendOrderEmail(orderId: string): Promise<{ ok: boolean; error?: string }> {
+  const admin = await requirePermission('sales.orders')
+  if (typeof orderId !== 'string' || orderId.length > 64) return { ok: false, error: 'طلب غير صالح' }
+  const { onOrderPaid } = await import('@/server/notify/engine')
+  const r = await onOrderPaid(orderId, { resend: true })
+  await audit(admin.name, 'resend', 'order', orderId, 'إعادة إرسال تأكيد الطلب')
+  revalidatePath(`/admin/orders/${orderId}`)
+  return r.ok ? { ok: true } : { ok: false, error: 'تعذّر الإرسال — راجع قنوات الرسائل وطابور الرسائل' }
+}

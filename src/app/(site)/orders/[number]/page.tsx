@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { orderForBuyer } from '@/server/sales'
+import { channelOpen } from '@/server/notify/channels'
 import { formatAmount } from '@/lib/pricing'
 import { formatDay, formatHijri, formatTime } from '@/lib/dates'
 import { modeLabel } from '@/lib/course-meta'
@@ -20,7 +21,7 @@ const STATUS: Record<string, string> = {
 export default async function OrderPage({ params, searchParams }: { params: Promise<{ number: string }>; searchParams: Promise<{ t?: string; failed?: string }> }) {
   const { number } = await params
   const { t = '', failed } = await searchParams
-  const o = await orderForBuyer(number, t)
+  const [o, mailOpen] = await Promise.all([orderForBuyer(number, t), channelOpen('email')])
   if (!o) notFound()
   const { order, items, course, invoices } = o
   const paid = order.status === 'paid' || order.status === 'partially_refunded'
@@ -36,7 +37,7 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
           {paid ? <Words as="h1" text="تمّ تسجي~5لك." className={s.title} />
             : order.status === 'pending' ? <Words as="h1" text={failed ? 'لم تكتمل الدفعة.' : 'بانتظار الدفع.'} className={s.title} />
             : <Words as="h1" text={STATUS[order.status]} className={s.title} />}
-          {paid && <p className={`reveal ${s.lead}`}>{order.method === 'grant' ? 'سُجّلت بمنحة كاملة.' : 'وصلنا مبلغك، ومقعدك مؤكّد.'} أرسلنا التفاصيل إلى {order.buyer.email}.</p>}
+          {paid && <p className={`reveal ${s.lead}`}>{order.method === 'grant' ? 'سُجّلت بمنحة كاملة.' : 'وصلنا مبلغك، ومقعدك مؤكّد.'}{mailOpen ? ` أرسلنا التفاصيل إلى ${order.buyer.email}.` : ''}</p>}
           {failed && order.status === 'pending' && <p className={s.lead}>{failed === '1' ? 'رُفضت العملية.' : failed} يمكنك المحاولة مرة أخرى — مقعدك ما زال محجوزاً.</p>}
           {order.status === 'expired' && course && <p className={s.lead}>انتهت مهلة حجز المقعد. <a href={`/courses/${course.slug}/enroll`}>ابدأ التسجيل من جديد</a></p>}
           {order.status === 'pending' && <a className="btn" href={`/orders/${order.number}/pay${q}`}>{failed ? 'حاول مرة أخرى' : 'أكمل الدفع'}</a>}

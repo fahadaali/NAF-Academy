@@ -1,7 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { assignSeat, cancelPending, refundAction } from './actions'
+import { assignSeat, cancelPending, refundAction, resendOrderEmail } from './actions'
 import { Field, Input, Switch } from '@/admin/ui/kit'
 import s from './sales.module.css'
 
@@ -33,6 +33,18 @@ export function RefundPanel({ orderId, left }: { orderId: string; left: number }
 export function CancelPending({ orderId }: { orderId: string }) {
   const router = useRouter()
   return <button className="btn ghost" onClick={async () => { if (confirm('إلغاء الطلب المعلّق وتحرير المقعد؟')) { await cancelPending(orderId); router.refresh() } }}>إلغاء الطلب</button>
+}
+
+/** إعادة إرسال تأكيد الطلب والفاتورة إلى بريد المشتري */
+export function ResendOrder({ orderId }: { orderId: string }) {
+  const [state, setState] = useState('')
+  return (
+    <button className="btn ghost" disabled={state === '…'} onClick={async () => {
+      setState('…')
+      const r = await resendOrderEmail(orderId)
+      setState(r.ok ? 'أُرسل ✓' : r.error ?? 'تعذّر')
+    }}>{state && state !== '…' ? state : 'إعادة إرسال التأكيد'}</button>
+  )
 }
 
 export function SeatRow({ grantId }: { grantId: string }) {

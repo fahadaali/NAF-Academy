@@ -5,7 +5,7 @@ export const EVENTS = [
   'enrolled', 'session_reminder', 'session_followup', 'drip_unlocked',
   'inactive_nudge', 'halfway', 'completed',
   'registration_open', 'sale_ending', 'cart_abandoned',
-  'certificate_issued',
+  'certificate_issued', 'order_paid', 'refund_issued',
 ] as const
 export type EventKey = (typeof EVENTS)[number]
 
@@ -55,7 +55,7 @@ export const VAR_LABEL: Record<string, string> = {
   name: 'اسم المتدرب', course: 'اسم الدورة', lesson: 'الدرس أو الجلسة', when: 'الموعد', location: 'المكان',
   starts: 'بداية الدورة', link: 'رابط الدرس أو الدورة', calendar: 'رابط التقويم', pct: 'نسبة الإنجاز',
   price: 'السعر', ends: 'انتهاء العرض', coupon: 'الكوبون', order: 'رقم الطلب', left: 'المتبقي على الجلسة',
-  code: 'رقم الشهادة',
+  code: 'رقم الشهادة', total: 'المبلغ المدفوع', amount: 'المبلغ المسترد', seats: 'عدد المقاعد',
 }
 
 const COMMON = ['name', 'course', 'link']
@@ -102,8 +102,16 @@ export const EVENT_META: Record<EventKey, EventMeta> = {
     vars: [...COMMON, 'price', 'coupon'], facts: [['السعر', 'price'], ['كوبون', 'coupon']],
   },
   certificate_issued: {
-    label: 'صدور الشهادة', hint: 'بعد اعتماد الشهادة (المرحلة الثامنة)', category: 'transactional', sms: true,
+    label: 'صدور الشهادة', hint: 'بعد اعتماد الشهادة', category: 'transactional', sms: true,
     vars: [...COMMON, 'code'], facts: [['رقم الشهادة', 'code']],
+  },
+  order_paid: {
+    label: 'تأكيد الطلب والفاتورة', hint: 'فور اكتمال الدفع — للمشتري ولو اشترى مقاعد لفريقه دون أن يحضر، برابط الطلب والفاتورة الضريبية', category: 'transactional', sms: false,
+    vars: ['name', 'course', 'link', 'order', 'total', 'seats'], facts: [['رقم الطلب', 'order'], ['المبلغ', 'total'], ['المقاعد', 'seats']],
+  },
+  refund_issued: {
+    label: 'استرداد مبلغ', hint: 'بعد تنفيذ استرداد كامل أو جزئي من اللوحة — برابط الطلب والإشعار الدائن', category: 'transactional', sms: false,
+    vars: ['name', 'course', 'link', 'order', 'amount'], facts: [['رقم الطلب', 'order'], ['المبلغ المسترد', 'amount']],
   },
 }
 
@@ -122,6 +130,8 @@ export const DEFAULT_NOTIFY: NotifySettings = {
     sale_ending: t('العرض ينتهي قريباً: {{course}}', 'العرض على وشك الانتهاء', 'سعر «{{course}}» الحالي {{price}} ينتهي {{ends}}.', 'سجّل بالسعر الحالي'),
     cart_abandoned: t('أكمل تسجيلك في {{course}}', 'مقعدك بانتظارك', 'بدأت التسجيل في «{{course}}» ولم يكتمل. يمكنك المتابعة من حيث توقفت.', 'أكمل التسجيل'),
     certificate_issued: t('صدرت شهادتك: {{course}}', 'مبارك يا {{name}}', 'صدرت شهادة إتمام «{{course}}». يمكنك تنزيلها ومشاركتها، ويتحقق منها أي أحد برقمها.', 'عرض الشهادة', 'أكاديمية ناف: صدرت شهادتك في {{course}}. {{link}}'),
+    order_paid: t('طلبك {{order}}: {{course}}', 'اكتمل طلبك', 'استلمنا دفعتك لـ«{{course}}». تجد الفاتورة الضريبية وتفاصيل الطلب في صفحته، ومنها يُخصَّص كل مقعد لصاحبه إن اشتريت لفريقك.', 'الطلب والفاتورة'),
+    refund_issued: t('استرداد لطلبك {{order}}', 'نفّذنا الاسترداد', 'أُعيد {{amount}} من طلب «{{course}}» إلى وسيلة الدفع نفسها، ويصل خلال المدة المعتادة لدى البنك. الإشعار الدائن في صفحة الطلب.', 'صفحة الطلب'),
   },
   sessionOffsets: [
     { minutes: 7 * 1440, email: true, sms: false },

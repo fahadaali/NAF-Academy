@@ -264,11 +264,10 @@ async function fulfill(order: OrderRow) {
     if (!inv) await issueInvoice(order, items, 'invoice')
   }
   await db.update(s.orders).set({ fulfilledAt: nowIso(), fulfillingAt: null }).where(eq(s.orders.id, order.id))
-  /* رسالة الترحيب لكل تسجيل جديد — فشلها لا يوقف الإتمام */
-  if (created.length) {
-    const { onEnrolled } = await import('./notify/engine')
-    for (const id of created) await onEnrolled(id)
-  }
+  /* رسالة الترحيب لكل تسجيل جديد، وتأكيد الطلب بالفاتورة للمشتري (ولو لم يحضر) — فشلها لا يوقف الإتمام */
+  const { onEnrolled, onOrderPaid } = await import('./notify/engine')
+  for (const id of created) await onEnrolled(id)
+  if (order.total > 0) await onOrderPaid(order.id)
 }
 
 /* ───────── الفواتير ───────── */
@@ -390,7 +389,8 @@ export async function refundOrder(orderId: string, amount: number, reason: strin
     }
   }
   await db.update(s.orders).set({ status: sql`case when ${s.orders.refunded} >= ${s.orders.total} then 'refunded' else 'partially_refunded' end` }).where(eq(s.orders.id, orderId))
-  await db.insert(s.refunds).values({ id: randomUUID(), orderId, amount, reason, gatewayRefundId: gid, by })
+  const refundId = randomUUID()
+  await db.insert(s.refunds).values({ id: refundId, orderId, amount, reason, gatewayRefundId: gid, by })
   const [inv] = await db.select().from(s.invoices).where(and(eq(s.invoices.orderId, orderId), eq(s.invoices.kind, 'invoice')))
   await issueInvoice(held, [], 'credit_note', amount, inv?.number)
   if (cancelEnrollments) {
@@ -398,6 +398,9 @@ export async function refundOrder(orderId: string, amount: number, reason: strin
     await db.delete(s.seatGrants).where(and(eq(s.seatGrants.orderId, orderId), isNull(s.seatGrants.enrollmentId)))
   }
   await audit(by, 'refund', 'order', orderId, `${held.number} · ${(amount / 100).toFixed(2)} ر.س · ${reason}`)
+  /* إشعار المشتري بالمبلغ والإشعار الدائن — فشله لا يُبطل الاسترداد */
+  const { onRefund } = await import('./notify/engine')
+  await onRefund(orderId, refundId)
   return { ok: true }
 }
 
