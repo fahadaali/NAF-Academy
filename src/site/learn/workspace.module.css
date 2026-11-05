@@ -1,0 +1,24 @@
+.video { display: grid; gap: 16px; }
+.side { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+.video[data-theater='1'] { margin-inline: calc(var(--gutter) * -1); }
+.done { color: var(--success); font-weight: 700; }
+.panel { display: grid; gap: 12px; align-content: start; padding: 18px 20px; border-radius: var(--radius-l); background: var(--surface); border: 1px solid var(--line); }
+.panel h3 { font-size: 17px; }
+.muted { color: var(--muted); font-size: 14px; }
+.chapters { display: grid; gap: 2px; }
+.chapters button { display: flex; gap: 12px; inline-size: 100%; text-align: start; padding: 8px 10px; border-radius: 10px; font-size: 14.5px; }
+.chapters button:hover { background: var(--surface-2); }
+.chapters span { color: var(--accent); font-weight: 700; min-inline-size: 48px; }
+.compose { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: end; }
+.compose textarea { inline-size: 100%; padding: 10px 12px; border-radius: var(--radius-s); border: 1px solid var(--line-strong); background: var(--bg); color: var(--text); font-size: 15px; resize: vertical; }
+.compose textarea:focus { outline: none; border-color: var(--gold-3); }
+.compose .btn, .compose :global(.btn) { min-block-size: 44px; }
+.notes { display: grid; gap: 6px; }
+.notes li { display: flex; gap: 10px; align-items: start; padding: 8px 10px; border-radius: 10px; background: var(--surface-2); font-size: 14.5px; line-height: 1.6; }
+.notes li > span { flex: 1; white-space: pre-line; }
+.stamp { color: var(--accent-strong); font-weight: 800; font-size: 13px; padding: 2px 8px; border-radius: 6px; background: color-mix(in srgb, var(--gold-3) 18%, transparent); }
+.x { color: var(--muted); font-size: 13px; }
+.x:hover { color: var(--danger); }
+.qa { display: grid; gap: 10px; }
+.qa li { display: grid; gap: 4px; padding: 10px 12px; border-radius: 10px; background: var(--surface-2); font-size: 14.5px; line-height: 1.7; }
+.answer { color: var(--text); border-inline-start: 3px solid var(--gold-3); padding-inline-start: 10px; }

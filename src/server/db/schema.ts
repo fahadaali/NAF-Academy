@@ -59,6 +59,7 @@ export const instructors = sqliteTable('instructors', {
 })
 
 import { COURSE_STATUS, DELIVERY, LESSON_TYPE, LEVEL } from '../../lib/enums'
+import type { Assignment, Attachment, Chapter, Drip, Quiz, VideoSource } from '../../lib/learning-types'
 export { COURSE_STATUS, DELIVERY, LESSON_TYPE, LEVEL }
 
 export type Faq = { q: string; a: string }
@@ -98,6 +99,10 @@ export const courses = sqliteTable(
     requirements: text('requirements', { mode: 'json' }).$type<string[]>().notNull().default(sql`'[]'`),
     faq: text('faq', { mode: 'json' }).$type<Faq[]>().notNull().default(sql`'[]'`),
     featured: integer('featured', { mode: 'boolean' }).notNull().default(false),
+    /** لا يُفتح درس حتى يكتمل ما قبله */
+    sequential: integer('sequential', { mode: 'boolean' }).notNull().default(false),
+    /** نسبة المشاهدة التي يُعدّ بها الفيديو مكتملاً */
+    completeAt: integer('complete_at').notNull().default(90),
     sortOrder: integer('sort_order').notNull().default(0),
     /** رابط معاينة سري للمسودات */
     previewToken: text('preview_token').notNull(),
@@ -136,6 +141,20 @@ export const lessons = sqliteTable('lessons', {
   /** درس معاينة مجاني يظهر لغير المسجّلين */
   preview: integer('preview', { mode: 'boolean' }).notNull().default(false),
   sortOrder: integer('sort_order').notNull().default(0),
+  /* المحتوى بحسب النوع */
+  video: text('video', { mode: 'json' }).$type<VideoSource>().notNull().default(sql`'{"provider":"none"}'`),
+  chapters: text('chapters', { mode: 'json' }).$type<Chapter[]>().notNull().default(sql`'[]'`),
+  body: text('body').notNull().default(''),
+  attachments: text('attachments', { mode: 'json' }).$type<Attachment[]>().notNull().default(sql`'[]'`),
+  quiz: text('quiz', { mode: 'json' }).$type<Quiz>(),
+  assignment: text('assignment', { mode: 'json' }).$type<Assignment>(),
+  drip: text('drip', { mode: 'json' }).$type<Drip>().notNull().default(sql`'{"mode":"none","date":null,"days":null}'`),
+  /* للجلسات المباشرة والحضورية */
+  startsAt: text('starts_at'),
+  endsAt: text('ends_at'),
+  joinUrl: text('join_url').notNull().default(''),
+  location: text('location').notNull().default(''),
+  recording: text('recording', { mode: 'json' }).$type<VideoSource>(),
 })
 
 /** إعدادات ومحتوى الصفحات (مفتاح ← JSON) */
@@ -457,3 +476,89 @@ export const messageLog = sqliteTable(
 )
 
 export type MemberRow = typeof members.$inferSelect
+
+/* ═══════════════════ التعلّم ═══════════════════ */
+
+/** ملفات عامة (مرفقات الدروس وتسليمات الواجبات) — منفصلة عن مكتبة الصور */
+export const assets = sqliteTable('assets', {
+  id: id(),
+  key: text('key').notNull().unique(),
+  name: text('name').notNull(),
+  mime: text('mime').notNull(),
+  size: integer('size').notNull(),
+  /** private: لا يُنزَّل إلا للمسجّل أو الفريق */
+  scope: text('scope', { enum: ['lesson', 'submission'] }).notNull(),
+  ownerLearnerId: text('owner_learner_id'),
+  ...stamps,
+})
+
+export const lessonProgress = sqliteTable(
+  'lesson_progress',
+  {
+    learnerId: text('learner_id').notNull().references(() => learners.id, { onDelete: 'cascade' }),
+    lessonId: text('lesson_id').notNull().references(() => lessons.id, { onDelete: 'cascade' }),
+    courseId: text('course_id').notNull(),
+    positionSec: integer('position_sec').notNull().default(0),
+    watchedSec: integer('watched_sec').notNull().default(0),
+    completedAt: text('completed_at'),
+    ...stamps,
+  },
+  (t) => [primaryKey({ columns: [t.learnerId, t.lessonId] }), index('progress_course_idx').on(t.learnerId, t.courseId)],
+)
+
+export const notes = sqliteTable('notes', {
+  id: id(),
+  learnerId: text('learner_id').notNull().references(() => learners.id, { onDelete: 'cascade' }),
+  lessonId: text('lesson_id').notNull().references(() => lessons.id, { onDelete: 'cascade' }),
+  atSec: integer('at_sec'),
+  body: text('body').notNull(),
+  ...stamps,
+}, (t) => [index('notes_lesson_idx').on(t.learnerId, t.lessonId)])
+
+export const questions = sqliteTable('questions', {
+  id: id(),
+  lessonId: text('lesson_id').notNull().references(() => lessons.id, { onDelete: 'cascade' }),
+  courseId: text('course_id').notNull(),
+  learnerId: text('learner_id').notNull().references(() => learners.id, { onDelete: 'cascade' }),
+  body: text('body').notNull(),
+  answer: text('answer'),
+  answeredBy: text('answered_by'),
+  answeredAt: text('answered_at'),
+  ...stamps,
+}, (t) => [index('questions_lesson_idx').on(t.lessonId)])
+
+export const quizAttempts = sqliteTable('quiz_attempts', {
+  id: id(),
+  learnerId: text('learner_id').notNull().references(() => learners.id, { onDelete: 'cascade' }),
+  lessonId: text('lesson_id').notNull().references(() => lessons.id, { onDelete: 'cascade' }),
+  answers: text('answers', { mode: 'json' }).$type<Record<string, string[]>>().notNull().default(sql`'{}'`),
+  scorePct: integer('score_pct'),
+  passed: integer('passed', { mode: 'boolean' }),
+  startedAt: text('started_at').notNull(),
+  submittedAt: text('submitted_at'),
+}, (t) => [index('attempts_idx').on(t.learnerId, t.lessonId)])
+
+export const submissions = sqliteTable('submissions', {
+  id: id(),
+  learnerId: text('learner_id').notNull().references(() => learners.id, { onDelete: 'cascade' }),
+  lessonId: text('lesson_id').notNull().references(() => lessons.id, { onDelete: 'cascade' }),
+  courseId: text('course_id').notNull(),
+  assetId: text('asset_id').references(() => assets.id, { onDelete: 'set null' }),
+  note: text('note').notNull().default(''),
+  status: text('status', { enum: ['submitted', 'accepted', 'revise'] }).notNull().default('submitted'),
+  feedback: text('feedback').notNull().default(''),
+  reviewedBy: text('reviewed_by'),
+  reviewedAt: text('reviewed_at'),
+  ...stamps,
+}, (t) => [index('subs_lesson_idx').on(t.lessonId)])
+
+export const attendance = sqliteTable('attendance', {
+  learnerId: text('learner_id').notNull().references(() => learners.id, { onDelete: 'cascade' }),
+  lessonId: text('lesson_id').notNull().references(() => lessons.id, { onDelete: 'cascade' }),
+  courseId: text('course_id').notNull(),
+  method: text('method', { enum: ['qr', 'manual', 'join'] }).notNull(),
+  by: text('by').notNull().default(''),
+  at: stamps.createdAt,
+}, (t) => [primaryKey({ columns: [t.learnerId, t.lessonId] })])
+
+export type LessonFull = typeof lessons.$inferSelect

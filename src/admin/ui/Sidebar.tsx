@@ -13,6 +13,8 @@ const groups: { title: string; items: { href: string; label: string; icon: strin
     { href: '/admin/tracks', label: 'المسارات', icon: '☰', perm: 'content.read' },
     { href: '/admin/instructors', label: 'المدربون', icon: '◉', perm: 'content.read' },
     { href: '/admin/media', label: 'مكتبة الصور', icon: '▣', perm: 'content.write' },
+    { href: '/admin/learning', label: 'الواجبات والأسئلة', icon: '✎', perm: 'learning.review' },
+    { href: '/admin/learning/sessions', label: 'الجلسات والحضور', icon: '⌖', perm: 'attendance.mark' },
   ] },
   { title: 'المبيعات', items: [
     { href: '/admin/sales', label: 'لوحة المبيعات', icon: '◔', perm: 'sales.read' },
@@ -34,7 +36,10 @@ const groups: { title: string; items: { href: string; label: string; icon: strin
 
 export function Sidebar({ name, role, mode, perms }: { name: string; role: string; mode: 'naf-auth' | 'password'; perms: Perm[] }) {
   const path = usePathname()
-  const on = (href: string) => (href === '/admin' ? path === '/admin' : path.startsWith(href))
+  const hit = (href: string) => (href === '/admin' ? path === '/admin' : path === href || path.startsWith(`${href}/`))
+  /* أطول رابط مطابق هو النشط — فلا تُضاء «الواجبات» داخل «الجلسات» */
+  const active = groups.flatMap((g) => g.items).filter((i) => hit(i.href)).sort((a, b) => b.href.length - a.href.length)[0]?.href
+  const on = (href: string) => href === active
   return (
     <aside className={styles.side}>
       <Link href="/admin" className={styles.brand}>

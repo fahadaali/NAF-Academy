@@ -14,3 +14,4 @@
 .table td { padding: 14px 16px; border-block-start: 1px solid var(--line); }
 .table a { color: var(--accent); font-weight: 600; }
 .form { display: grid; gap: 14px; max-inline-size: 560px; padding: 26px; border-radius: var(--radius-l); background: var(--surface); border: 1px solid var(--line); }
+.courseHead { display: flex; justify-content: space-between; align-items: start; gap: 14px; }

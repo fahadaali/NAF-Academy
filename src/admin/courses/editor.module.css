@@ -56,3 +56,7 @@
   .layout { grid-template-columns: 1fr; }
   .preview { position: static; max-inline-size: 420px; }
 }
+.lessonWrap { display: grid; gap: 8px; }
+.detailBtn { font-size: 13px; font-weight: 700; color: var(--text-soft); padding: 6px 10px; border-radius: 8px; box-shadow: inset 0 0 0 1px var(--line-strong); }
+.detailBtn[aria-expanded='true'] { background: var(--on-bg); color: var(--on-fg); box-shadow: none; }
+.detailBtn[data-err='1'] { box-shadow: inset 0 0 0 1.5px var(--danger); color: var(--danger); }

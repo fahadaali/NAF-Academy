@@ -30,7 +30,7 @@ export async function courseForEdit(id: string) {
     tiers: tiers.map(({ id, name, description, price, compareAt, features, highlight, capacity }) => ({ id, name, description, price, compareAt, features, highlight, capacity })),
     groupRules: rules.map(({ minQty, percent }) => ({ minQty, percent })).sort((a, b) => a.minQty - b.minQty),
     instructorIds: links.map((l) => l.instructorId),
-    curriculum: mods.map((m) => ({ id: m.id, title: m.title, lessons: lessons.filter((l) => l.moduleId === m.id).map(({ id, title, type, minutes, preview }) => ({ id, title, type, minutes, preview })) })),
+    curriculum: mods.map((m) => ({ id: m.id, title: m.title, lessons: lessons.filter((l) => l.moduleId === m.id).map(({ moduleId: _m, sortOrder: _s, ...rest }) => rest) })),
   }
 }
 

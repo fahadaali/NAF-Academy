@@ -13,12 +13,56 @@ const text = (max = 300) => z.string().trim().max(max)
 const lines = z.array(text(300)).transform((a) => a.filter(Boolean)).pipe(z.array(z.string()).max(30))
 const halalas = z.number().int().min(0).max(100_000_000)
 
+const videoInput = z.discriminatedUnion('provider', [
+  z.object({ provider: z.literal('stream'), uid: z.string().trim().regex(/^[a-f0-9]{32}$/, 'معرّف Stream من 32 حرفاً') }),
+  z.object({ provider: z.literal('url'), url: z.string().trim().url('رابط فيديو غير صالح').regex(/^https:\/\//, 'رابط https فقط').max(1000) }),
+  z.object({ provider: z.literal('none') }),
+])
+const optionInput = z.object({ id: z.string().min(1).max(40), text: z.string().trim().min(1, 'نص الخيار مطلوب').max(500) })
+const quizQuestion = z.object({
+  id: z.string().min(1).max(40),
+  kind: z.enum(['single', 'multi', 'truefalse', 'case']),
+  prompt: z.string().trim().min(1, 'نص السؤال مطلوب').max(2000),
+  caseText: z.string().max(8000).optional(),
+  options: z.array(optionInput).min(2, 'خياران على الأقل').max(10),
+  correct: z.array(z.string()).min(1, 'حدّد الإجابة الصحيحة'),
+  explanation: z.string().max(2000).optional(),
+  points: z.number().int().min(1).max(100).optional(),
+}).refine((q) => q.correct.every((c) => q.options.some((o) => o.id === c)), { message: 'الإجابة الصحيحة ليست من الخيارات', path: ['correct'] })
+  .refine((q) => q.kind === 'multi' || q.correct.length === 1, { message: 'إجابة صحيحة واحدة لهذا النوع', path: ['correct'] })
+export const quizInput = z.object({
+  passPct: z.number().int().min(1).max(100),
+  attempts: z.number().int().min(1).max(50).nullable(),
+  timeLimitMin: z.number().int().min(1).max(600).nullable(),
+  shuffle: z.boolean(),
+  showAnswers: z.boolean(),
+  questions: z.array(quizQuestion).max(200),
+})
+export const assignmentInput = z.object({
+  instructions: z.string().max(10_000),
+  maxSizeMb: z.number().int().min(1).max(25),
+  accept: z.array(z.string().regex(/^[a-z0-9]{2,5}$/)).min(1).max(10),
+  dueDays: z.number().int().min(1).max(365).nullable(),
+})
+
 export const lessonInput = z.object({
   id: z.string().optional(),
   title: text(200).min(1, 'عنوان الدرس مطلوب'),
   type: z.enum(LESSON_TYPE),
   minutes: z.number().int().min(0).max(10_000),
   preview: z.boolean(),
+  video: videoInput.default({ provider: 'none' }),
+  chapters: z.array(z.object({ at: z.number().int().min(0), title: z.string().trim().min(1).max(160) })).max(100).default([]),
+  body: z.string().max(50_000).default(''),
+  attachments: z.array(z.object({ assetId: z.string(), name: z.string().max(200), size: z.number().int() })).max(30).default([]),
+  quiz: quizInput.nullable().default(null),
+  assignment: assignmentInput.nullable().default(null),
+  drip: z.object({ mode: z.enum(['none', 'date', 'days']), date: iso, days: z.number().int().min(0).max(3650).nullable() }).default({ mode: 'none', date: null, days: null }),
+  startsAt: iso.default(null),
+  endsAt: iso.default(null),
+  joinUrl: z.union([z.literal(''), z.string().trim().url('رابط غير صالح').regex(/^https:\/\//, 'رابط https فقط').max(1000)]).default(''),
+  location: z.string().max(1000).default(''),
+  recording: videoInput.nullable().default(null),
 })
 
 export const moduleInput = z.object({
@@ -68,6 +112,8 @@ export const courseInput = z
     requirements: lines,
     faq: z.array(z.object({ q: text(300), a: text(2000) })).transform((a) => a.filter((f) => f.q && f.a)),
     featured: z.boolean(),
+    sequential: z.boolean().default(false),
+    completeAt: z.number().int().min(50).max(100).default(90),
     seoTitle: text(120),
     seoDescription: text(300),
     instructorIds: z.array(z.string()).max(12),

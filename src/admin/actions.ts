@@ -39,24 +39,33 @@ export async function saveCourse(id: string | null, raw: CourseInput): Promise<R
     return uniqueError(e) ?? { ok: false, errors: {}, message: 'تعذّر الحفظ' }
   }
 
-  /* المدربون والمنهج يُستبدلان كاملين بالترتيب الجديد */
-  const oldMods = await db.select({ id: s.modules.id }).from(s.modules).where(eq(s.modules.courseId, cid))
-  if (oldMods.length) await db.delete(s.lessons).where(inArray(s.lessons.moduleId, oldMods.map((m) => m.id)))
-  await db.delete(s.modules).where(eq(s.modules.courseId, cid))
+  /* المدربون يُستبدلون بالترتيب الجديد. والمنهج يُحدَّث بالمعرّفات — لا يُحذف ويُعاد إنشاؤه —
+     كي يبقى تقدّم المتدربين وملاحظاتهم واختباراتهم مرتبطة بدروسها. يُحذف فقط ما أُزيل فعلاً. */
   await db.delete(s.courseInstructors).where(eq(s.courseInstructors.courseId, cid))
   if (instructorIds.length)
     await db.insert(s.courseInstructors).values(instructorIds.map((iid, i) => ({ courseId: cid, instructorId: iid, sortOrder: i })))
+  const oldMods = await db.select({ id: s.modules.id }).from(s.modules).where(eq(s.modules.courseId, cid))
+  const oldModIds = new Set(oldMods.map((m) => m.id))
+  const oldLessons = oldMods.length ? await db.select({ id: s.lessons.id }).from(s.lessons).where(inArray(s.lessons.moduleId, [...oldModIds])) : []
+  const oldLessonIds = new Set(oldLessons.map((l) => l.id))
+  const keepMods = new Set<string>()
+  const keepLessons = new Set<string>()
   for (const [mi, m] of curriculum.entries()) {
-    const mid = m.id && !m.id.startsWith('new-') ? m.id : randomUUID()
-    await db.insert(s.modules).values({ id: mid, courseId: cid, title: m.title, sortOrder: mi })
-    if (m.lessons.length)
-      await db.insert(s.lessons).values(
-        m.lessons.map((l, li) => ({
-          id: l.id && !l.id.startsWith('new-') ? l.id : randomUUID(),
-          moduleId: mid, title: l.title, type: l.type, minutes: l.minutes, preview: l.preview, sortOrder: li,
-        })),
-      )
+    const mid = m.id && oldModIds.has(m.id) ? m.id : randomUUID()
+    if (oldModIds.has(mid)) await db.update(s.modules).set({ title: m.title, sortOrder: mi }).where(eq(s.modules.id, mid))
+    else await db.insert(s.modules).values({ id: mid, courseId: cid, title: m.title, sortOrder: mi })
+    keepMods.add(mid)
+    for (const [li, l] of m.lessons.entries()) {
+      const { id: lid0, ...fields } = l
+      const row = { ...fields, moduleId: mid, sortOrder: li }
+      if (lid0 && oldLessonIds.has(lid0)) { await db.update(s.lessons).set(row).where(eq(s.lessons.id, lid0)); keepLessons.add(lid0) }
+      else { const lid = randomUUID(); await db.insert(s.lessons).values({ ...row, id: lid }); keepLessons.add(lid) }
+    }
   }
+  const dropLessons = [...oldLessonIds].filter((x) => !keepLessons.has(x))
+  if (dropLessons.length) await db.delete(s.lessons).where(inArray(s.lessons.id, dropLessons))
+  const dropMods = [...oldModIds].filter((x) => !keepMods.has(x))
+  if (dropMods.length) await db.delete(s.modules).where(inArray(s.modules.id, dropMods))
   /* الباقات تُحدَّث بمعرّفاتها حتى لا تنقطع صلتها بالطلبات السابقة */
   const oldTiers = await db.select({ id: s.priceTiers.id }).from(s.priceTiers).where(eq(s.priceTiers.courseId, cid))
   const keep = new Set<string>()

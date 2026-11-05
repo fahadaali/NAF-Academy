@@ -1,0 +1,46 @@
+.card { display: grid; gap: 16px; padding: clamp(20px, 3vw, 30px); border-radius: var(--radius-l); background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow-1); }
+.h2 { font-family: var(--font-display); font-size: 26px; }
+.done { color: var(--success); font-weight: 700; }
+.err { color: var(--danger); font-weight: 600; }
+.hint { color: var(--muted); font-size: 14.5px; font-weight: 400; }
+.facts { display: flex; flex-wrap: wrap; gap: 10px 28px; }
+.facts dt { font-size: 13px; color: var(--muted); }
+.facts dd { font-weight: 800; font-size: 18px; }
+.qbar { position: sticky; inset-block-start: calc(var(--header-h) + 8px); z-index: 4; display: flex; justify-content: space-between; padding: 10px 14px; border-radius: 999px; background: var(--glass); backdrop-filter: blur(12px); border: 1px solid var(--line); font-weight: 600; font-size: 14px; }
+.clock { font-weight: 800; color: var(--accent-strong); }
+.clock[data-low='1'] { color: var(--danger); animation: blink 1s steps(2) infinite; }
+@keyframes blink { 50% { opacity: 0.4; } }
+.q { border: 0; padding: 0; display: grid; gap: 10px; padding-block: 14px; border-block-end: 1px solid var(--line); }
+.q legend, .q > p:first-child { font-weight: 700; font-size: 17px; line-height: 1.7; margin-block-end: 6px; }
+.q[data-ok='1'] .mark { color: var(--success); }
+.q[data-ok='0'] .mark { color: var(--danger); }
+.mark { font-size: 13px; font-weight: 700; margin-inline-start: 8px; }
+.case { padding: 14px 16px; border-radius: var(--radius-m); background: var(--surface-2); border-inline-start: 3px solid var(--gold-3); line-height: 1.9; white-space: pre-line; }
+.opts { display: grid; gap: 8px; }
+.opt { display: flex; gap: 12px; align-items: center; padding: 12px 14px; border-radius: var(--radius-m); box-shadow: inset 0 0 0 1px var(--line-strong); cursor: pointer; transition: box-shadow var(--t-base), background var(--t-base); }
+.opt input { accent-color: var(--gold-2); inline-size: 18px; block-size: 18px; }
+.opt:hover { box-shadow: inset 0 0 0 1px var(--gold-3); }
+.opt[data-on='1'] { box-shadow: inset 0 0 0 2px var(--gold-3); background: color-mix(in srgb, var(--gold-3) 8%, transparent); }
+.right { font-size: 14.5px; color: var(--success); }
+.explain { font-size: 14.5px; color: var(--text-soft); padding: 10px 12px; border-radius: 10px; background: var(--surface-2); line-height: 1.8; }
+.score { display: grid; justify-items: center; gap: 6px; padding: 18px; text-align: center; }
+.score > span { font-size: 64px; font-weight: 900; line-height: 1; color: var(--accent); }
+.score[data-pass='0'] > span { color: var(--muted); }
+.score strong { font-family: var(--font-display); font-size: 28px; }
+.score em { font-style: normal; color: var(--muted); font-size: 14px; }
+.upload { display: grid; gap: 12px; }
+.drop { display: grid; place-items: center; text-align: center; padding: 28px; border-radius: var(--radius-m); border: 1.5px dashed var(--line-strong); cursor: pointer; font-weight: 600; transition: border-color var(--t-base); }
+.drop:hover { border-color: var(--gold-3); }
+.drop input { margin-block-end: 8px; }
+.drop em { font-style: normal; font-weight: 400; color: var(--muted); font-size: 13px; }
+.note { inline-size: 100%; padding: 10px 12px; border-radius: var(--radius-s); border: 1px solid var(--line-strong); background: var(--bg); color: var(--text); font-size: 15px; }
+.subs { display: grid; gap: 8px; }
+.subs li { padding: 12px 14px; border-radius: var(--radius-m); background: var(--surface-2); font-size: 14.5px; }
+.subs li[data-status='accepted'] strong { color: var(--success); }
+.subs li[data-status='revise'] strong { color: var(--warn); }
+.countdown { display: flex; gap: 10px; flex-wrap: wrap; }
+.countdown span { display: grid; justify-items: center; min-inline-size: 76px; padding: 12px; border-radius: var(--radius-m); background: var(--night-1); color: var(--scene-muted); font-size: 12.5px; }
+.countdown b { font-size: 30px; font-weight: 900; color: var(--gold-4); line-height: 1.1; }
+.joinNow { min-block-size: 60px !important; font-size: 19px !important; justify-self: start; padding-inline: 40px !important; animation: glow 1.8s var(--ease-move) infinite; }
+@keyframes glow { 50% { box-shadow: 0 0 0 10px rgb(201 162 90 / 0.15), var(--shadow-glow); } }
+@media (prefers-reduced-motion: reduce) { .joinNow, .clock[data-low='1'] { animation: none; } }

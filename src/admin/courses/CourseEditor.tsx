@@ -17,6 +17,7 @@ import {
 } from '@/admin/ui/kit'
 import { MediaPicker, urlOf } from '@/admin/ui/MediaPicker'
 import { STATUS_HINT, STATUS_LABEL, STATUS_ORDER } from './labels'
+import { LessonDetail } from './LessonDetail'
 import styles from './editor.module.css'
 
 const TABS = [
@@ -212,7 +213,21 @@ export function CourseEditor({ id, initial, previewToken, tracks, instructors, m
             </>
           )}
 
-          {tab === 'curriculum' && <CurriculumEditor value={v.curriculum} onChange={(x) => set('curriculum', x)} errors={errors} />}
+          {tab === 'curriculum' && (
+            <>
+              <Section title="قواعد التعلّم" desc="تُطبَّق على كل المسجّلين">
+                <Grid>
+                  <Field label="التسلسل" hint="لا يُفتح الدرس حتى يكتمل الذي قبله">
+                    <Switch checked={v.sequential ?? false} onChange={(x) => set('sequential', x)} label="إلزام الترتيب" />
+                  </Field>
+                  <Field label="اكتمال الفيديو عند مشاهدة %" hint="نسبة ما يُشاهَد فعلاً من الفيديو ليُعدّ مكتملاً" error={err('completeAt')}>
+                    <Input type="number" dir="ltr" min={50} max={100} value={v.completeAt ?? 90} onChange={(e) => set('completeAt', Number(e.target.value))} />
+                  </Field>
+                </Grid>
+              </Section>
+              <CurriculumEditor value={v.curriculum} onChange={(x) => set('curriculum', x)} errors={errors} />
+            </>
+          )}
 
           {tab === 'people' && (
             <Section title="المدربون" desc="بالترتيب — الأول يظهر في البطاقة">
@@ -295,7 +310,7 @@ function CurriculumEditor({ value, onChange, errors }: { value: Curriculum; onCh
               <Input value={m.title} placeholder="عنوان الوحدة" onChange={(e) => setMod(i, { ...m, title: e.target.value })} data-err={errors[`curriculum.${i}.title`] ? '1' : '0'} />
               <RowTools i={i} n={value.length} move={mods.move} onRemove={() => confirm('حذف الوحدة ودروسها؟') && onChange(value.filter((_, k) => k !== i))} />
             </div>
-            <LessonList value={m.lessons} onChange={(ls) => setMod(i, { ...m, lessons: ls })} />
+            <LessonList value={m.lessons} onChange={(ls) => setMod(i, { ...m, lessons: ls })} errors={errors} prefix={`curriculum.${i}.lessons`} />
           </div>
         ))}
       </div>
@@ -304,20 +319,28 @@ function CurriculumEditor({ value, onChange, errors }: { value: Curriculum; onCh
   )
 }
 
-function LessonList({ value, onChange }: { value: Curriculum[number]['lessons']; onChange: (v: Curriculum[number]['lessons']) => void }) {
+function LessonList({ value, onChange, errors, prefix }: { value: Curriculum[number]['lessons']; onChange: (v: Curriculum[number]['lessons']) => void; errors: Errors; prefix: string }) {
   const { props, move } = useSortable(value, onChange)
+  const [open, setOpen] = useState<string | null>(null)
+  const bad = (i: number) => Object.keys(errors).some((k) => k.startsWith(`${prefix}.${i}.`) && !k.endsWith('.title'))
   const set = (i: number, patch: Partial<Curriculum[number]['lessons'][number]>) => onChange(value.map((l, k) => (k === i ? { ...l, ...patch } : l)))
   return (
     <div className={styles.lessons}>
       {value.map((l, i) => (
-        <div key={l.id ?? i} className={styles.lesson} {...props(i)}>
+        <div key={l.id ?? i} className={styles.lessonWrap}>
+        <div className={styles.lesson} {...props(i)}>
           <Input value={l.title} placeholder="عنوان الدرس" onChange={(e) => set(i, { title: e.target.value })} />
           <select className={styles.lessonType} value={l.type} onChange={(e) => set(i, { type: e.target.value as typeof l.type })}>
             {LESSON_TYPE.map((t) => <option key={t} value={t}>{LESSON_LABEL[t]}</option>)}
           </select>
           <label className={styles.minutes}><input type="number" dir="ltr" min={0} value={l.minutes} onChange={(e) => set(i, { minutes: Number(e.target.value) })} /> د</label>
           <label className={styles.previewChk}><input type="checkbox" checked={l.preview} onChange={(e) => set(i, { preview: e.target.checked })} /> معاينة مجانية</label>
+          <button type="button" className={styles.detailBtn} aria-expanded={open === (l.id ?? String(i))} data-err={bad(i) ? '1' : '0'} onClick={() => setOpen(open === (l.id ?? String(i)) ? null : l.id ?? String(i))}>
+            التفاصيل {open === (l.id ?? String(i)) ? '▴' : '▾'}
+          </button>
           <RowTools i={i} n={value.length} move={move} onRemove={() => onChange(value.filter((_, k) => k !== i))} />
+        </div>
+        {open === (l.id ?? String(i)) && <LessonDetail value={l} onChange={(p) => set(i, p)} err={(k) => errors[`${prefix}.${i}.${k}`]} />}
         </div>
       ))}
       <button type="button" className={styles.addLesson} onClick={() => onChange([...value, { id: `new-${Date.now()}`, title: '', type: 'video', minutes: 0, preview: false }])}>+ درس</button>

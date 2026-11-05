@@ -9,6 +9,7 @@ import { count } from 'drizzle-orm'
 import * as s from '../src/server/db/schema'
 import { corporate, courses, hero, instructors, ladder, stats, tracks } from '../src/content/seed'
 import { DEFAULT_HOME } from '../src/content/home-defaults'
+import { EMPTY_ASSIGNMENT, EMPTY_QUIZ, type Quiz } from '../src/lib/learning-types'
 
 const url = process.env.DATABASE_URL ?? 'file:.data/academy.db'
 if (url.startsWith('file:')) {
@@ -53,6 +54,23 @@ const demoModules = [
   { title: 'التقييم', lessons: [['الاختبار النهائي', 'quiz', 30, false]] },
 ] as const
 
+/* محتوى تجريبي للدروس — يُستبدل من محرّر الدرس في اللوحة */
+const demoQuiz: Quiz = {
+  ...EMPTY_QUIZ,
+  questions: [
+    { id: 'q1', kind: 'single', prompt: 'ما الأصل في عبء الإثبات؟', options: [{ id: 'a', text: 'على المدّعي' }, { id: 'b', text: 'على المدّعى عليه' }, { id: 'c', text: 'على المحكمة' }], correct: ['a'], explanation: 'البيّنة على من ادّعى.' },
+    { id: 'q2', kind: 'truefalse', prompt: 'الإقرار حجة قاصرة على المُقِرّ.', options: [{ id: 't', text: 'صح' }, { id: 'f', text: 'خطأ' }], correct: ['t'] },
+    { id: 'q3', kind: 'multi', prompt: 'أيّ مما يلي من طرق الإثبات؟', options: [{ id: 'a', text: 'الكتابة' }, { id: 'b', text: 'الشهادة' }, { id: 'c', text: 'الإشاعة' }], correct: ['a', 'b'] },
+  ],
+}
+function demoLesson(type: string, startsAt: string | null, minutes: number) {
+  if (type === 'quiz') return { quiz: demoQuiz, body: 'اختبار قصير يقيس فهمك لمحاور الدورة.' }
+  if (type === 'assignment') return { assignment: { ...EMPTY_ASSIGNMENT, instructions: 'صُغ بنداً تعاقدياً وفق ما تعلّمته، وارفع الملف هنا ليراجعه المدرب.' } }
+  if (type === 'live' && startsAt) return { startsAt, endsAt: new Date(Date.parse(startsAt) + minutes * 60_000).toISOString() }
+  if (type === 'video') return { body: 'ملخص الدرس ونقاطه الرئيسية تُكتب من محرّر الدرس في اللوحة.' }
+  return { body: 'محتوى الدرس يُكتب من اللوحة.' }
+}
+
 for (const [i, c] of courses.entries()) {
   const id = randomUUID()
   await db.insert(s.courses).values({
@@ -82,7 +100,7 @@ for (const [i, c] of courses.entries()) {
     const mid = randomUUID()
     await db.insert(s.modules).values({ id: mid, courseId: id, title: m.title, sortOrder: mi })
     for (const [li, [title, type, minutes, preview]] of m.lessons.entries()) {
-      await db.insert(s.lessons).values({ id: randomUUID(), moduleId: mid, title, type, minutes, preview, sortOrder: li })
+      await db.insert(s.lessons).values({ id: randomUUID(), moduleId: mid, title, type, minutes, preview, sortOrder: li, ...demoLesson(type, c.startsAt ?? null, minutes) })
     }
   }
 }
