@@ -6,20 +6,14 @@ import { Badge, PageHead } from '@/admin/ui/kit'
 import { when } from './labels'
 import p from '@/admin/ui/panel.module.css'
 import { useCan } from '@/admin/ui/perms'
+import { downloadCsv } from '@/admin/ui/csv'
 
-type Enroll = { e: { id: string; status: 'active' | 'canceled'; source: string; createdAt: string; orderId: string | null }; l: { name: string; email: string; phone: string; org: string }; number: string | null; tier: string | null }
+type Enroll = { e: { id: string; status: 'active' | 'canceled'; source: string; createdAt: string; orderId: string | null }; l: { id: string; name: string; email: string; phone: string; org: string }; number: string | null; tier: string | null }
 type Interest = { id: string; kind: string; name: string; email: string; phone: string; createdAt: string }
 
 const SOURCE: Record<string, string> = { purchase: 'شراء', free: 'مجاني', grant: 'منحة', manual: 'يدوي', seat: 'مقعد مؤسسة' }
 const KIND: Record<string, string> = { notify_open: 'أبلغني عند الفتح', waitlist: 'قائمة الانتظار', next_cohort: 'الدفعة القادمة', register: 'اهتمام بالتسجيل' }
 
-function download(name: string, rows: (string | number)[][]) {
-  const text = '﻿' + rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n')
-  const a = document.createElement('a')
-  a.href = URL.createObjectURL(new Blob([text], { type: 'text/csv;charset=utf-8' }))
-  a.download = name
-  a.click()
-}
 
 export function LearnersBoard({ courseId, title, enrolls, interest }: { courseId: string; title: string; enrolls: Enroll[]; interest: Interest[] }) {
   const orders = useCan()('sales.orders')
@@ -30,7 +24,7 @@ export function LearnersBoard({ courseId, title, enrolls, interest }: { courseId
     <>
       <PageHead title="المسجّلون" sub={`${title.replace(/~\d?/g, '')} · ${active} تسجيل نشط · ${interest.length} مهتم`}
         actions={<>
-          <button className="btn ghost" onClick={() => download('learners.csv', [['الاسم', 'البريد', 'الجوال', 'الجهة', 'المصدر', 'الباقة', 'الطلب', 'الحالة', 'التاريخ'], ...list.map((x) => [x.l.name, x.l.email, x.l.phone, x.l.org, SOURCE[x.e.source], x.tier ?? '', x.number ?? '', x.e.status === 'active' ? 'نشط' : 'ملغى', x.e.createdAt])])}>تصدير المسجّلين</button>
+          <button className="btn ghost" onClick={() => downloadCsv('learners.csv', [['الاسم', 'البريد', 'الجوال', 'الجهة', 'المصدر', 'الباقة', 'الطلب', 'الحالة', 'التاريخ'], ...list.map((x) => [x.l.name, x.l.email, x.l.phone, x.l.org, SOURCE[x.e.source], x.tier ?? '', x.number ?? '', x.e.status === 'active' ? 'نشط' : 'ملغى', x.e.createdAt])])}>تصدير المسجّلين</button>
           {orders && <Link className="btn" href="/admin/orders/new">+ تسجيل يدوي</Link>}
           <Link className="btn ghost" href={`/admin/courses/${courseId}`}>العودة للدورة</Link>
         </>} />
@@ -40,7 +34,7 @@ export function LearnersBoard({ courseId, title, enrolls, interest }: { courseId
           <tbody>
             {list.map((x) => (
               <tr key={x.e.id}>
-                <td><strong>{x.l.name}</strong><div className={p.muted} dir="ltr" style={{ textAlign: 'end' }}>{x.l.email}</div></td>
+                <td><Link href={`/admin/learners/${x.l.id}`} className={p.rowLink}>{x.l.name}</Link><div className={p.muted} dir="ltr" style={{ textAlign: 'end' }}>{x.l.email}</div></td>
                 <td>{SOURCE[x.e.source]}{x.tier && <div className={p.muted}>{x.tier}</div>}</td>
                 <td>{x.number && x.e.orderId ? <Link className={`${p.rowLink} num`} href={`/admin/orders/${x.e.orderId}`}>{x.number}</Link> : '—'}</td>
                 <td className={`${p.muted} num`}>{when(x.e.createdAt)}</td>
@@ -71,7 +65,7 @@ export function LearnersBoard({ courseId, title, enrolls, interest }: { courseId
             <thead><tr><th>الاسم</th><th>البريد</th><th>النوع</th><th>التاريخ</th></tr></thead>
             <tbody>{interest.map((i) => <tr key={i.id}><td>{i.name || '—'}</td><td dir="ltr" style={{ textAlign: 'end' }}>{i.email}</td><td>{KIND[i.kind]}</td><td className={`${p.muted} num`}>{when(i.createdAt)}</td></tr>)}</tbody>
           </table>
-          <button className="btn ghost" style={{ marginBlockStart: 12 }} onClick={() => download('interest.csv', [['الاسم', 'البريد', 'الجوال', 'النوع', 'التاريخ'], ...interest.map((i) => [i.name, i.email, i.phone, KIND[i.kind], i.createdAt])])}>تصدير المهتمين</button>
+          <button className="btn ghost" style={{ marginBlockStart: 12 }} onClick={() => downloadCsv('interest.csv', [['الاسم', 'البريد', 'الجوال', 'النوع', 'التاريخ'], ...interest.map((i) => [i.name, i.email, i.phone, KIND[i.kind], i.createdAt])])}>تصدير المهتمين</button>
         </>
       )}
     </>

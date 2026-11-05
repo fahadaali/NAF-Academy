@@ -24,6 +24,7 @@ const groups: { title: string; items: { href: string; label: string; icon: strin
     { href: '/admin/analytics', label: 'التحليلات', icon: '◮', perm: 'analytics.read' },
     { href: '/admin/sales', label: 'لوحة المبيعات', icon: '◔', perm: 'sales.read' },
     { href: '/admin/orders', label: 'الطلبات', icon: '▥', perm: 'sales.read' },
+    { href: '/admin/learners', label: 'المتدربون', icon: '◍', perm: 'learners.read' },
     { href: '/admin/coupons', label: 'الكوبونات', icon: '✦', perm: 'sales.coupons' },
     { href: '/admin/corporate', label: 'طلبات المؤسسات', icon: '▦', perm: 'corporate.manage' },
     { href: '/admin/organizations', label: 'حسابات المؤسسات', icon: '◫', perm: 'corporate.manage' },
