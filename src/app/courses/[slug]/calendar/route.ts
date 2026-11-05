@@ -1,25 +1,48 @@
-/* ملف تقويم للدورة (Google / Outlook / Apple) */
-import { courseDetail } from '@/server/queries'
+/* ملف تقويم للدورة (Google / Outlook / Apple): حدث لكل جلسة مجدولة (مباشرة أو حضورية)،
+   وإن لم تكن للدورة جلسات فحدث واحد بموعدها. يُتاح للعموم ما دامت الدورة ظاهرة، وللمسجّل فيها دائماً. */
+import { and, asc, eq, inArray, isNotNull, isNull } from 'drizzle-orm'
+import { db, schema as s } from '@/server/db'
+import { currentLearner } from '@/server/learner-auth'
+import { isPublic, liveStatus } from '@/lib/course-meta'
 import { plain } from '@/motion/kashida'
 
 const fmt = (d: Date) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d+Z$/, 'Z')
-const esc = (s: string) => s.replace(/[\\,;]/g, (m) => '\\' + m).replace(/\n/g, '\\n')
+const esc = (t: string) => t.replace(/[\\,;]/g, (m) => '\\' + m).replace(/\n/g, '\\n')
+const H = 3600e3
 
 export async function GET(req: Request, ctx: { params: Promise<{ slug: string }> }) {
-  const d = await courseDetail((await ctx.params).slug)
-  if (!d || !d.course.startsAt) return new Response('Not found', { status: 404 })
-  const start = new Date(d.course.startsAt)
-  const end = d.row.endsAt ? new Date(d.row.endsAt) : new Date(start.getTime() + Math.max(1, Math.min(d.course.hours || 2, 8)) * 3600e3)
-  const url = new URL(`/courses/${d.course.slug}`, req.url).toString()
-  const lines = [
-    'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//NAF Academy//AR', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH',
-    'BEGIN:VEVENT', `UID:${d.row.id}@naf-academy`, `DTSTAMP:${fmt(new Date())}`, `DTSTART:${fmt(start)}`, `DTEND:${fmt(end)}`,
-    `SUMMARY:${esc(plain(d.course.title))}`, `DESCRIPTION:${esc(`${d.course.subtitle ?? ''}\n${url}`)}`,
-    d.course.city ? `LOCATION:${esc([d.course.city, d.row.venue.split('\n')[0]].filter(Boolean).join(' — '))}` : '',
-    `URL:${url}`, 'BEGIN:VALARM', 'TRIGGER:-PT1H', 'ACTION:DISPLAY', 'DESCRIPTION:تبدأ الدورة بعد ساعة', 'END:VALARM',
-    'END:VEVENT', 'END:VCALENDAR',
-  ].filter(Boolean)
+  const [c] = await db.select().from(s.courses).where(and(eq(s.courses.slug, (await ctx.params).slug), isNull(s.courses.deletedAt)))
+  if (!c) return new Response('Not found', { status: 404 })
+  if (!isPublic(liveStatus(c.status, c.publishAt))) {
+    const me = await currentLearner()
+    const [en] = me ? await db.select({ id: s.enrollments.id }).from(s.enrollments).where(and(eq(s.enrollments.courseId, c.id), eq(s.enrollments.learnerId, me.id), eq(s.enrollments.status, 'active'))) : []
+    if (!en) return new Response('Not found', { status: 404 })
+  }
+  const mods = await db.select({ id: s.modules.id }).from(s.modules).where(eq(s.modules.courseId, c.id))
+  const sessions = mods.length
+    ? await db.select().from(s.lessons).where(and(inArray(s.lessons.moduleId, mods.map((m) => m.id)), inArray(s.lessons.type, ['live', 'onsite']), isNotNull(s.lessons.startsAt))).orderBy(asc(s.lessons.startsAt))
+    : []
+  const title = plain(c.title)
+  const page = new URL(`/courses/${c.slug}`, req.url).toString()
+  const place = [c.city, c.venue.split('\n')[0]].filter(Boolean).join(' — ')
+  const event = (uid: string, start: Date, end: Date, summary: string, url: string, location: string, alarm: string) => [
+    'BEGIN:VEVENT', `UID:${uid}@naf-academy`, `DTSTAMP:${fmt(new Date())}`, `DTSTART:${fmt(start)}`, `DTEND:${fmt(end)}`,
+    `SUMMARY:${esc(summary)}`, `DESCRIPTION:${esc(`${c.subtitle ?? ''}\n${url}`)}`, location ? `LOCATION:${esc(location)}` : '',
+    `URL:${url}`, 'BEGIN:VALARM', 'TRIGGER:-PT1H', 'ACTION:DISPLAY', `DESCRIPTION:${esc(alarm)}`, 'END:VALARM', 'END:VEVENT',
+  ]
+  const events = sessions.length
+    ? sessions.flatMap((l) => {
+        const start = new Date(l.startsAt!)
+        const end = l.endsAt ? new Date(l.endsAt) : new Date(start.getTime() + 2 * H)
+        const where = l.type === 'onsite' ? l.location.split('\n')[0] || place : 'عن بُعد'
+        return event(l.id, start, end, `${title} — ${l.title}`, new URL(`/learn/${c.slug}/${l.id}`, req.url).toString(), where, 'تبدأ الجلسة بعد ساعة')
+      })
+    : c.startsAt
+      ? event(c.id, new Date(c.startsAt), c.endsAt ? new Date(c.endsAt) : new Date(Date.parse(c.startsAt) + Math.max(1, Math.min(c.hours || 2, 8)) * H), title, page, place, 'تبدأ الدورة بعد ساعة')
+      : null
+  if (!events) return new Response('Not found', { status: 404 })
+  const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//NAF Academy//AR', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH', `X-WR-CALNAME:${esc(title)}`, ...events, 'END:VCALENDAR'].filter(Boolean)
   return new Response(lines.join('\r\n'), {
-    headers: { 'content-type': 'text/calendar; charset=utf-8', 'content-disposition': `attachment; filename="${d.course.slug}.ics"` },
+    headers: { 'content-type': 'text/calendar; charset=utf-8', 'content-disposition': `attachment; filename="${c.slug}.ics"`, 'cache-control': 'private, no-store' },
   })
 }

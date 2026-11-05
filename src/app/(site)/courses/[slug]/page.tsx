@@ -2,7 +2,8 @@ import type { Metadata } from 'next'
 import { brandView } from '@/server/brand'
 import { notFound } from 'next/navigation'
 import { CourseView } from '@/site/CourseView'
-import { catalog, courseDetail } from '@/server/queries'
+import { catalog, courseDetail, homeContent } from '@/server/queries'
+import { paymentSettings } from '@/server/settings'
 import { plain } from '@/motion/kashida'
 import { breadcrumbs, course, ldJson } from '@/lib/seo'
 import { siteUrl } from '@/server/site'
@@ -27,6 +28,7 @@ export default async function CoursePage({ params }: { params: Promise<{ slug: s
   if (!d) notFound()
   const site = siteUrl() ?? ''
   const r = d.row
+  const [home, pay] = await Promise.all([homeContent(), paymentSettings()])
   const ld = [
     course(site, {
       slug: r.slug, title: plain(d.course.title), description: r.seoDescription || d.course.subtitle || '', image: d.course.cover ? `${site}${d.course.cover.url}` : undefined,
@@ -40,7 +42,7 @@ export default async function CoursePage({ params }: { params: Promise<{ slug: s
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: ldJson(ld) }} />
-      <CourseView data={d} />
+      <CourseView data={d} corporate={home.sections.some((x) => x.key === 'corporate' && x.visible)} vat={pay.vatRate} />
     </>
   )
 }

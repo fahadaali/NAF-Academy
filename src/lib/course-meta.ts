@@ -31,11 +31,19 @@ export function resolveStatus(status: CourseStatus, publishAt: string | null | u
   return status
 }
 
-/** ترتيب العرض: المفتوحة والقادمة بالأقرب موعداً، ثم المكتملة، ثم المنتهية */
+/** الحالة كما يراها الزائر الآن: المجدولة تُفتح بموعدها، والمفتوحة التي نفدت مقاعدها «اكتمل العدد» */
+export function liveStatus(status: CourseStatus, publishAt: string | null | undefined, seats?: { total: number; taken: number } | null, now = new Date()): CourseStatus {
+  const st = resolveStatus(status, publishAt, now)
+  return st === 'open' && seats && seats.total > 0 && seats.taken >= seats.total ? 'full' : st
+}
+
+/** ترتيب العرض: المفتوحة، ثم القادمة، ثم المكتملة، ثم المنتهية — وداخل كل حالة ترتيب اللوحة (السحب)، ثم الأقرب موعداً */
 const rank: Partial<Record<CourseStatus, number>> = { open: 0, soon: 1, full: 2, closed: 3 }
-export function publicOrder<T extends { status: CourseStatus; startsAt?: string | null }>(a: T, b: T): number {
+export function publicOrder<T extends { status: CourseStatus; startsAt?: string | null; order?: number }>(a: T, b: T): number {
   const r = (rank[a.status] ?? 9) - (rank[b.status] ?? 9)
   if (r) return r
+  const o = (a.order ?? 0) - (b.order ?? 0)
+  if (o) return o
   const ta = a.startsAt ? Date.parse(a.startsAt) : Infinity
   const tb = b.startsAt ? Date.parse(b.startsAt) : Infinity
   return ta - tb

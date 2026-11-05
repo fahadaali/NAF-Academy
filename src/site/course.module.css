@@ -140,3 +140,11 @@ details[open] > summary .chev { transform: rotate(-135deg); }
 .quotes p { font-family: var(--font-text); line-height: 1.9; }
 .quotes small { color: var(--muted); font-size: 13px; }
 @media (max-width: 560px) { .reviews { grid-template-columns: 1fr; } }
+/* حقل الكوبون في بطاقة السعر — يطبّقه الشريط أعلى الصفحة ويمرّره للتسجيل */
+.couponForm { display: flex; gap: 8px; align-items: end; }
+.couponForm label { display: grid; gap: 4px; flex: 1; font-size: 13px; color: var(--muted); }
+.couponForm input { min-block-size: 44px; padding-inline: 14px; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--surface); color: var(--text); font-size: 15px; letter-spacing: 0.06em; text-transform: uppercase; }
+.couponForm input:focus { outline: none; border-color: var(--gold-3); box-shadow: 0 0 0 4px color-mix(in srgb, var(--gold-3) 16%, transparent); }
+.couponForm :global(.btn) { min-block-size: 44px; padding-inline: 18px; }
+a.free { text-decoration: none; }
+a.free:hover { text-decoration: underline; text-underline-offset: 3px; }

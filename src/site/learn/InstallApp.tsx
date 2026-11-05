@@ -5,7 +5,8 @@ import st from './learn.module.css'
 
 type Prompt = Event & { prompt(): Promise<void>; userChoice: Promise<{ outcome: string }> }
 
-export function InstallApp() {
+/** `icon`: أيقونة الهوية المرفوعة من اللوحة (وإلا الافتراضية) */
+export function InstallApp({ icon = '/icons/icon-192.png' }: { icon?: string }) {
   const [evt, setEvt] = useState<Prompt | null>(null)
   const [ios, setIos] = useState(false)
   const [hidden, setHidden] = useState(true)
@@ -22,7 +23,7 @@ export function InstallApp() {
   const dismiss = () => { setHidden(true); try { localStorage.setItem('naf-install-dismissed', '1') } catch { /* خصوصية */ } }
   return (
     <aside className={st.install} aria-label="تثبيت التطبيق">
-      <img src="/icons/icon-192.png" alt="" width={44} height={44} />
+      <img src={icon} alt="" width={44} height={44} />
       <div>
         <strong>ثبّت الأكاديمية على جهازك</strong>
         <span>{ios ? 'من زر المشاركة ⎋ اختر «إضافة إلى الشاشة الرئيسية».' : 'وصول أسرع لدوراتك، وتنبيهات قبل الجلسات.'}</span>

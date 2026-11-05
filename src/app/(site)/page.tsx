@@ -20,7 +20,8 @@ export default async function Home() {
   const [home, { tracks, courses, instructors }, brand] = await Promise.all([homeContent(), catalog(), brandView()])
   const trackOf = (slug: string) => tracks.find((t) => t.slug === slug)
   const instructorOf = (slug: string) => instructors.find((i) => i.slug === slug)
-  const upcoming = courses.slice(0, 10)
+  /* «دورة مميزة» تتقدّم في الرئيسية (كما يَعِد المحرّر)، ثم الترتيب العام */
+  const upcoming = [...courses.filter((c) => c.featured), ...courses.filter((c) => !c.featured)].slice(0, 10)
 
   const scenes: Record<SceneKey, React.ReactNode> = {
     ladder: <Ladder {...home.ladder} eyebrow={home.heads.ladder.eyebrow} />,

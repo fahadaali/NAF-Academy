@@ -115,7 +115,10 @@ export async function duplicateCourse(id: string): Promise<Result> {
   if (tiers.length) await db.insert(s.priceTiers).values(tiers.map((t) => ({ ...t, id: randomUUID(), courseId: nid })))
   const rules = await db.select().from(s.groupRules).where(eq(s.groupRules.courseId, id))
   if (rules.length) await db.insert(s.groupRules).values(rules.map((r) => ({ ...r, id: randomUUID(), courseId: nid })))
-  await audit(admin.name, 'duplicate', 'course', nid, `نسخة من ${c.title}`)
+  /* «أبلغني بالدفعة القادمة»: النسخة هي الدفعة القادمة — يُنقل إليها من لم يُبلَّغ بعد، فيصله «فُتح التسجيل» عند فتحها */
+  const moved = await db.update(s.interest).set({ courseId: nid, updatedAt: now() })
+    .where(and(eq(s.interest.courseId, id), eq(s.interest.kind, 'next_cohort'), isNull(s.interest.notifiedAt))).returning({ id: s.interest.id })
+  await audit(admin.name, 'duplicate', 'course', nid, `نسخة من ${c.title}${moved.length ? ` · نُقل ${moved.length} من قائمة «الدفعة القادمة»` : ''}`)
   return { ok: true, id: nid }
 }
 

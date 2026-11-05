@@ -4,6 +4,7 @@ import { brandView } from '@/server/brand'
 import { Footer } from '@/components/Footer'
 import { MotionRoot } from '@/components/MotionRoot'
 import { Beacon } from '@/components/Beacon'
+import { CouponCatcher } from '@/site/CouponBanner'
 import { menuOf } from '@/content/home-defaults'
 import { homeContent } from '@/server/queries'
 
@@ -14,7 +15,7 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
       <MotionRoot />
       <Beacon />
       <Header nav={menuOf(home)} brand={brand} />
-      <main id="main">{children}</main>
+      <main id="main"><CouponCatcher />{children}</main>
       <Footer title={home.footer.title} cta={home.footer.cta} brand={brand} />
     </>
   )

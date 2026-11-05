@@ -15,3 +15,4 @@
 .s .current { font-size: 20px; } .s .original { font-size: 14px; }
 .m .current { font-size: 26px; } .m .original { font-size: 16px; }
 .l .current { font-size: 38px; } .l .original { font-size: 19px; }
+.from { font-size: 0.62em; font-weight: 600; color: var(--muted); }

@@ -8,6 +8,7 @@ import { Prose } from '@/components/Prose'
 import { Riyal } from '@/components/Riyal'
 import { CouponBanner } from './CouponBanner'
 import { formatAmount } from '@/lib/pricing'
+import { mergeRules } from '@/lib/certificate'
 import { levelLabel, modeLabel, statusView } from '@/lib/course-meta'
 import { formatDay, formatHijri, formatTime, formatWeekday } from '@/lib/dates'
 import s from './course.module.css'
@@ -18,7 +19,8 @@ function Stars({ value }: { value: number }) {
 
 const LESSON: Record<string, string> = { video: 'فيديو', article: 'مقال', file: 'ملف', quiz: 'اختبار', live: 'مباشر', onsite: 'حضوري', assignment: 'واجب' }
 
-export function CourseView({ data, preview }: { data: CourseDetail; preview?: boolean }) {
+/** `corporate`: مشهد «للمؤسسات» ظاهر في الرئيسية (وإلا فرابطه ميت) · `vat`: نسبة الضريبة المئوية لإيضاح أن السعر شامل */
+export function CourseView({ data, preview, corporate = true, vat = 0 }: { data: CourseDetail; preview?: boolean; corporate?: boolean; vat?: number }) {
   const { course: c, row, track, instructors, curriculum, related, tiers, groupRules } = data
   const fromPrice = tiers.length ? Math.min(...tiers.map((t) => t.price)) : null
   const st = statusView[c.status] ?? { label: 'مسودة', cta: 'معاينة فقط', dim: false, tone: 'soon' as const }
@@ -26,6 +28,11 @@ export function CourseView({ data, preview }: { data: CourseDetail; preview?: bo
   const minutes = curriculum.reduce((a, m) => a + m.lessons.reduce((b, l) => b + l.minutes, 0), 0)
   const left = c.seats ? c.seats.total - c.seats.taken : undefined
   const enroll = `/courses/${c.slug}/enroll`
+  const hasLive = curriculum.some((m) => m.lessons.some((l) => l.type === 'live'))
+  /* خصم المجموعة: أعلى نسبة بعدد مقاعدها هي، وأول عتبة يبدأ عندها */
+  const bestRule = groupRules.reduce<(typeof groupRules)[number] | null>((b, g) => (!b || g.percent > b.percent ? g : b), null)
+  const firstRule = groupRules[0]
+  const isFree = fromPrice === null && (c.pricing.free || c.pricing.amount <= 0)
 
   return (
     <article className={s.page} data-status={st.tone}>
@@ -106,7 +113,10 @@ export function CourseView({ data, preview }: { data: CourseDetail; preview?: bo
                         <li key={l.id}>
                           <span className={s.ltype} data-type={l.type}>{LESSON[l.type]}</span>
                           <span className={s.ltitle}>{l.title}</span>
-                          {l.preview && <span className={s.free}>معاينة مجانية</span>}
+                          {(l.type === 'live' || l.type === 'onsite') && l.startsAt && (
+                            <span className={`${s.muted} num`}>{formatWeekday(l.startsAt)} {formatDay(l.startsAt)} · {formatTime(l.startsAt)}</span>
+                          )}
+                          {l.preview && <a className={s.free} href={`/learn/${c.slug}/${l.id}`}>معاينة مجانية ←</a>}
                           {l.minutes > 0 && <span className={`${s.muted} num`}>{l.minutes} د</span>}
                         </li>
                       ))}
@@ -191,7 +201,14 @@ export function CourseView({ data, preview }: { data: CourseDetail; preview?: bo
           <div className={s.card} data-dim={st.dim ? '1' : '0'}>
             {st.dim && <span className={s.closedBadge}>{st.label}</span>}
             {fromPrice !== null ? <p className={`num ${s.from}`}><span>تبدأ من</span> {formatAmount(fromPrice)} <Riyal /></p> : <PriceTag pricing={c.pricing} size="l" />}
-            {groupRules.length > 0 && <p className={s.muted}>خصم حتى <span className="num">{Math.max(...groupRules.map((g) => g.percent))}%</span> عند تسجيل <span className="num">{groupRules[0].minQty}</span> مقاعد فأكثر</p>}
+            {!isFree && vat > 0 && <p className={s.muted}>الأسعار شاملة ضريبة القيمة المضافة <span className="num">{vat}%</span></p>}
+            {bestRule && firstRule && (
+              <p className={s.muted}>
+                {groupRules.length > 1
+                  ? <>خصم المجموعات يبدأ من <span className="num">{firstRule.minQty}</span> مقاعد، ويبلغ <span className="num">{bestRule.percent}%</span> عند <span className="num">{bestRule.minQty}</span> فأكثر</>
+                  : <>خصم <span className="num">{bestRule.percent}%</span> عند تسجيل <span className="num">{bestRule.minQty}</span> مقاعد فأكثر</>}
+              </p>
+            )}
             {c.seats && c.status !== 'closed' && (
               <div className={s.seats}>
                 <div className={s.bar}><span style={{ ['--f' as string]: c.seats.taken / c.seats.total }} /></div>
@@ -202,10 +219,16 @@ export function CourseView({ data, preview }: { data: CourseDetail; preview?: bo
             <ul role="list" className={s.includes}>
               <li>{modeLabel[c.mode]}{c.startsAt ? ` · ${formatDay(c.startsAt)}` : ''}</li>
               <li className="num">{c.hours} ساعة تدريبية</li>
-              <li>شهادة إتمام برمز تحقق</li>
-              {c.mode !== 'onsite' && <li>تسجيلات الجلسات للمسجّلين</li>}
+              {mergeRules(row.certificate).enabled && <li>شهادة إتمام برمز تحقق</li>}
+              {hasLive && <li>تسجيلات الجلسات للمسجّلين</li>}
             </ul>
-            <a href="/#corporate" className={s.corp}>تسجيل فريق أو مؤسسة ←</a>
+            {st.tone === 'open' && !isFree && (
+              <form method="get" className={s.couponForm}>
+                <label><span>لديك كوبون؟</span><input name="coupon" dir="ltr" autoComplete="off" spellCheck={false} placeholder="CODE" /></label>
+                <button className="btn ghost" type="submit">تطبيق</button>
+              </form>
+            )}
+            {corporate && <a href="/#corporate" className={s.corp}>تسجيل فريق أو مؤسسة ←</a>}
           </div>
         </aside>
       </div>
@@ -215,7 +238,7 @@ export function CourseView({ data, preview }: { data: CourseDetail; preview?: bo
           <div className="wrap">
             <h2 className={s.h2}>من المسار نفسه</h2>
             <div className={`${s.relatedGrid} stagger reveal`}>
-              {related.map((r) => <CourseCard key={r.slug} course={r} track={track} instructor={instructors[0]} />)}
+              {related.map((r) => <CourseCard key={r.slug} course={r} track={track} instructor={data.people.find((p) => p.slug === r.instructor)} />)}
             </div>
           </div>
         </section>

@@ -6,8 +6,9 @@ import type { GatewayStatus } from '@/server/payments/gateway'
 import { savePaymentSettings } from './actions'
 import { Field, Grid, Input, PageHead, SaveBar, Section, Switch, Textarea } from '@/admin/ui/kit'
 import s from './sales.module.css'
+import { PAY_METHOD_LABEL } from '@/lib/enums'
 
-const METHOD: Record<PaymentSettings['methods'][number], string> = { creditcard: 'مدى والبطاقات', applepay: 'Apple Pay', stcpay: 'STC Pay' }
+const METHOD: Record<PaymentSettings['methods'][number], string> = PAY_METHOD_LABEL
 
 export function PaymentSettingsForm({ initial, status }: { initial: PaymentSettings; status: GatewayStatus }) {
   const router = useRouter()

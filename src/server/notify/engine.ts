@@ -19,6 +19,10 @@ import { BACKOFF_MIN, EVENT_META, fill, leftLabel, mergeNotify, reminderDue, typ
 import { dripOpensAt } from '@/lib/learning'
 import { formatDay, formatHijri, formatTime, formatWeekday } from '@/lib/dates'
 import { formatAmount, priceView } from '@/lib/pricing'
+import { resolveStatus } from '@/lib/course-meta'
+
+/** مفتوحة الآن؟ «المجدولة» تُفتح بنفسها عند موعد نشرها — كما تراها الواجهة */
+const openNow = (c: { status: typeof s.courses.$inferSelect['status']; publishAt: string | null }, now: Date) => resolveStatus(c.status, c.publishAt, now) === 'open'
 
 type Row = typeof s.notifications.$inferInsert
 const iso = (d: Date) => d.toISOString()
@@ -204,10 +208,15 @@ export async function planScan(now: Date, cfg: NotifySettings) {
   /* ٥) فتح التسجيل لقوائم الاهتمام */
   if (on('registration_open')) {
     const list = await db.select({ i: s.interest, c: s.courses }).from(s.interest).innerJoin(s.courses, eq(s.courses.id, s.interest.courseId))
-      .where(and(isNull(s.interest.notifiedAt), eq(s.courses.status, 'open'), isNull(s.courses.deletedAt)))
-    const { seatsUsed } = await import('../sales')
+      .where(and(isNull(s.interest.notifiedAt), inArray(s.courses.status, ['open', 'scheduled']), isNull(s.courses.deletedAt)))
+    const { seatsUsed, salesOpen } = await import('../sales')
+    /* الدفع مقفل: «فُتح التسجيل» لدورة مدفوعة وعدٌ لا يتحقق — ننتظر فتحه */
+    const sellable = await salesOpen()
+    const tiered = new Set((await db.select({ id: s.priceTiers.courseId }).from(s.priceTiers).groupBy(s.priceTiers.courseId)).map((x) => x.id))
     const room = new Map<string, boolean>()
     for (const { i, c } of list) {
+      if (!openNow(c, now)) continue
+      if (!sellable && !c.free && (c.price > 0 || tiered.has(c.id))) continue
       if (!room.has(c.id)) room.set(c.id, !c.seatsTotal || (await seatsUsed(c)) < c.seatsTotal)
       if (!room.get(c.id)) continue
       const base = { event: 'registration_open', courseId: c.id, ref: { interestId: i.id }, sendAt: iso(now), learnerId: null }
@@ -219,8 +228,11 @@ export async function planScan(now: Date, cfg: NotifySettings) {
   /* ٦) قرب انتهاء العرض */
   if (on('sale_ending') && cfg.saleHours > 0) {
     const courses = await db.select().from(s.courses)
-      .where(and(eq(s.courses.status, 'open'), isNull(s.courses.deletedAt), isNotNull(s.courses.compareAt), isNotNull(s.courses.saleEndsAt), gte(s.courses.saleEndsAt, iso(now)), lte(s.courses.saleEndsAt, iso(new Date(t + cfg.saleHours * 3600e3)))))
+      .where(and(inArray(s.courses.status, ['open', 'scheduled']), isNull(s.courses.deletedAt), isNotNull(s.courses.saleEndsAt), gte(s.courses.saleEndsAt, iso(now)), lte(s.courses.saleEndsAt, iso(new Date(t + cfg.saleHours * 3600e3)))))
+    /* العرض على السعر الأساسي أو على باقة — كلاهما ينتهي بموعد الدورة نفسه */
+    const tierSale = new Set((await db.select({ id: s.priceTiers.courseId }).from(s.priceTiers).where(sql`${s.priceTiers.compareAt} > ${s.priceTiers.price}`)).map((x) => x.id))
     for (const c of courses) {
+      if (!openNow(c, now) || !((c.compareAt ?? 0) > c.price || tierSale.has(c.id))) continue
       const people = await db.select({ email: s.interest.email }).from(s.interest).where(eq(s.interest.courseId, c.id)).groupBy(s.interest.email)
       const enrolled = new Set((await db.select({ email: s.learners.email }).from(s.enrollments).innerJoin(s.learners, eq(s.learners.id, s.enrollments.learnerId))
         .where(and(eq(s.enrollments.courseId, c.id), eq(s.enrollments.status, 'active')))).map((x) => x.email))
@@ -316,7 +328,7 @@ async function contextFor(n: typeof s.notifications.$inferSelect, site: string, 
     case 'registration_open': {
       const [i] = await db.select().from(s.interest).where(eq(s.interest.id, String(n.ref.interestId)))
       if (!i) return { ok: false, reason: 'أُزيل الاهتمام' }
-      if (course.status !== 'open') return { ok: false, reason: 'أُغلق التسجيل' }
+      if (!openNow(course, now)) return { ok: false, reason: 'أُغلق التسجيل' }
       vars.name = i.name.split(/\s+/)[0] ?? ''
       vars.link = `${site}/courses/${course.slug}`
       return { ok: true, vars, name: vars.name, after: async () => { await db.update(s.interest).set({ notifiedAt: new Date().toISOString() }).where(eq(s.interest.id, i.id)) } }

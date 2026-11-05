@@ -7,6 +7,27 @@ import { Riyal } from '@/components/Riyal'
 
 const KEY = 'naf-academy-coupon'
 
+/** في غلاف الموقع: ‎?coupon=CODE في أي صفحة (رابط الكوبون من اللوحة يفتح الكتالوج) يُحفظ للجلسة،
+    فيُطبَّق في صفحة أي دورة يختارها الزائر بعد ذلك. صفحة الدورة نفسها يتولاها CouponBanner. */
+export function CouponCatcher() {
+  const [code, setCode] = useState('')
+  useEffect(() => {
+    const c = new URLSearchParams(location.search).get('coupon')?.trim()
+    if (!c) return
+    try { sessionStorage.setItem(KEY, c) } catch {}
+    if (!/^\/courses\/[^/]+$/.test(location.pathname)) setCode(c)
+  }, [])
+  if (!code) return null
+  return (
+    <div role="status" style={{
+      position: 'sticky', insetBlockStart: 'var(--header-h)', zIndex: 30, display: 'flex', justifyContent: 'center', gap: 12, flexWrap: 'wrap',
+      padding: '10px 16px', background: 'var(--gold-3)', color: 'var(--night-1)', fontWeight: 700, fontSize: 15,
+    }}>
+      <span>كوبون {code.toUpperCase()} محفوظ — يُطبَّق على سعر الدورة التي تختارها</span>
+    </div>
+  )
+}
+
 export function CouponBanner({ slug }: { slug: string }) {
   const [q, setQ] = useState<QuoteView | null>(null)
   const [code, setCode] = useState('')

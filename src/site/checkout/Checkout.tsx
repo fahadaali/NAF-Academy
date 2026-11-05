@@ -9,6 +9,7 @@ import { ease, prefersCalm, timing } from '@/motion/tokens'
 import { Riyal } from '@/components/Riyal'
 import { CodeLogin, type Verified } from '@/site/auth/CodeLogin'
 import s from './checkout.module.css'
+import { PAY_METHOD_LABEL, type PayMethod } from '@/lib/enums'
 
 function useTween(target: number) {
   const [v, setV] = useState(target)
@@ -49,9 +50,11 @@ type Props = {
   refundPolicy: string
   learner: Verified | null
   channels: ('email' | 'sms')[]
+  /** الوسائل المفعّلة في إعدادات الدفع */
+  methods: PayMethod[]
 }
 
-export function Checkout({ slug, title, tiers, groupRules, maxQty, initial, initialCode, salesOpen, terms, refundPolicy, learner, channels }: Props) {
+export function Checkout({ slug, title, tiers, groupRules, maxQty, initial, initialCode, salesOpen, terms, refundPolicy, learner, channels, methods }: Props) {
   const router = useRouter()
   const [tierId, setTierId] = useState<string | null>(initial.tierId)
   const [qty, setQty] = useState(1)
@@ -202,7 +205,7 @@ export function Checkout({ slug, title, tiers, groupRules, maxQty, initial, init
               <span>سجّل اهتمامك أدناه ونبلغك فور فتح التسجيل.</span>
             </div>
           )}
-          {canPay && !free && <p className={s.secure}>🔒 الدفع عبر ميسر — مدى، والبطاقات، وApple Pay، وSTC Pay. لا نحفظ بيانات بطاقتك.</p>}
+          {canPay && !free && methods.length > 0 && <p className={s.secure}>🔒 الدفع عبر ميسر — {methods.map((m) => PAY_METHOD_LABEL[m]).join('، ')}. لا نحفظ بيانات بطاقتك.</p>}
         </div>
       </aside>
     </div>

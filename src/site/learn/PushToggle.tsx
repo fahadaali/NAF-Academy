@@ -9,7 +9,8 @@ const key = (b64: string) => {
   return Uint8Array.from(s, (c) => c.charCodeAt(0))
 }
 
-export function PushToggle({ publicKey }: { publicKey: string }) {
+/** `before`: مواعيد تذكير الجلسة على هذه القناة كما ضُبطت في اللوحة، مثل «بساعة وبـ10 دقائق» */
+export function PushToggle({ publicKey, before }: { publicKey: string; before: string }) {
   const [state, setState] = useState<'loading' | 'unsupported' | 'denied' | 'off' | 'on'>('loading')
   const [msg, setMsg] = useState('')
   useEffect(() => {
@@ -36,7 +37,7 @@ export function PushToggle({ publicKey }: { publicKey: string }) {
   return (
     <section className={st.course} aria-labelledby="push-h">
       <h2 id="push-h">تنبيهات هذا الجهاز</h2>
-      <p>تذكير قبل الجلسة بساعة وبعشر دقائق، وإشعار حين تصدر شهادتك — على هذا المتصفح.</p>
+      <p>{before ? `تذكير قبل الجلسة ${before}، ` : ''}وإشعار حين تصدر شهادتك — على هذا المتصفح.</p>
       {state === 'unsupported' && <p className={st.soon}>المتصفح لا يدعم التنبيهات. على آيفون: ثبّت الأكاديمية على الشاشة الرئيسية أولاً.</p>}
       {state === 'denied' && <p className={st.soon}>التنبيهات محظورة لهذا الموقع — اسمح بها من إعدادات المتصفح.</p>}
       {state === 'off' && <button className="btn" onClick={enable}>فعّل التنبيهات</button>}

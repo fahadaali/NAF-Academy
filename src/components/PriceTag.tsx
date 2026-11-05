@@ -31,7 +31,7 @@ export function PriceTag({ pricing, size = 'm' }: { pricing: Pricing; size?: 's'
     <div className={`${styles.tag} ${styles[size]}`}>
       <div className={styles.row}>
         <strong className={`${styles.current} num`}>
-          {formatAmount(v.current)} <Riyal />
+          {pricing.from && <span className={styles.from}>من </span>}{formatAmount(v.current)} <Riyal />
         </strong>
         {v.original && (
           <s className={`${styles.original} num`} aria-label={`السعر قبل العرض ${formatAmount(v.original)} ريال`}>

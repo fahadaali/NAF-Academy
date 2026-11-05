@@ -20,6 +20,8 @@ export type Pricing = {
   /** نهاية العرض ISO — يظهر عدّاد تنازلي */
   saleEndsAt?: string
   free?: boolean
+  /** سعر أرخص باقة — يُعرض «من …» */
+  from?: boolean
 }
 
 export type MediaView = { url: string; alt: string; x: number; y: number; w: number; h: number }
@@ -42,6 +44,10 @@ export type Course = {
   title: string
   subtitle?: string
   cover?: MediaView
+  /** تتقدّم في الرئيسية */
+  featured?: boolean
+  /** ترتيب اللوحة (السحب) */
+  order?: number
   /** كل المدربين بالترتيب — instructor هو الأول */
   instructors?: string[]
   track: string

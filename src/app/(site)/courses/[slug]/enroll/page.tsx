@@ -50,7 +50,7 @@ export default async function Enroll({ params, searchParams }: { params: Promise
             <Checkout
               slug={slug} title={title} tiers={d.tiers} groupRules={d.groupRules} maxQty={Math.min(50, left)}
               initial={initial} initialCode={sp.coupon ?? ''} salesOpen={open} terms={settings.terms} refundPolicy={settings.refundPolicy}
-              learner={learner} channels={channels}
+              learner={learner} channels={channels} methods={settings.methods}
             />
             {paidAndLocked && <div style={{ paddingBlockEnd: 100, marginBlockStart: -60 }}><InterestForm slug={slug} kind="register" /></div>}
           </>

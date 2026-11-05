@@ -164,6 +164,14 @@ export function leftLabel(minutes: number) {
   return `بعد ${count(minutes, 'دقيقة', 'دقيقتين', 'دقائق', 'دقيقة')}`
 }
 
+/** «بأسبوع» و«بيوم» و«بساعة» و«بـ10 دقائق» — مدة «قبل الجلسة» كما تُكتب في الواجهة */
+export function beforeLabel(minutes: number) {
+  if (minutes % (7 * 1440) === 0 && minutes / (7 * 1440) === 1) return 'بأسبوع'
+  if (minutes >= 1440) { const n = Math.round(minutes / 1440); return n === 1 ? 'بيوم' : n === 2 ? 'بيومين' : `بـ${count(n, '', '', 'أيام', 'يوماً')}` }
+  if (minutes >= 60) { const n = Math.round(minutes / 60); return n === 1 ? 'بساعة' : n === 2 ? 'بساعتين' : `بـ${count(n, '', '', 'ساعات', 'ساعة')}` }
+  return minutes === 1 ? 'بدقيقة' : minutes === 2 ? 'بدقيقتين' : `بـ${count(minutes, '', '', 'دقائق', 'دقيقة')}`
+}
+
 /** مهلة السماح: إن فات موعد التذكير بأكثر منها لا يُرسل (لا تذكير متأخر بلا معنى) */
 export function graceMinutes(offset: number) {
   return Math.max(10, Math.min(360, Math.floor(offset / 2)))

@@ -2,6 +2,7 @@
 import { and, eq, isNull } from 'drizzle-orm'
 import { db, schema as s } from '@/server/db'
 import { siteUrl } from '@/server/site'
+import { brandView } from '@/server/brand'
 
 export const dynamic = 'force-dynamic'
 
@@ -13,7 +14,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ slug: string }
   const title = c.title.replace(/~\d/g, '')
   return Response.json({
     '@context': 'https://w3id.org/openbadges/v2', type: 'BadgeClass', id: `${site}/badges/${slug}`,
-    name: title, description: c.subtitle || title, image: `${site}/icon.svg`,
+    name: title, description: c.subtitle || title, image: `${site}${(await brandView()).icon?.url ?? '/icon.svg'}`,
     criteria: { id: `${site}/courses/${slug}`, narrative: 'استيفاء متطلبات الدورة واعتماد الأكاديمية' },
     issuer: `${site}/badges/issuer`,
   }, { headers: { 'content-type': 'application/ld+json' } })
