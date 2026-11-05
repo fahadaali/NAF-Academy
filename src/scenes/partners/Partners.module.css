@@ -1,0 +1,7 @@
+.partners { padding-block: clamp(56px, 10vh, 110px); background: var(--bg); border-block: 1px solid var(--line); }
+.title { display: block; margin-block: 12px 28px; }
+.row { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: clamp(22px, 4vw, 56px); margin-block-start: 22px; }
+.item { display: grid; place-items: center; min-block-size: 64px; }
+.item img { block-size: clamp(34px, 4vw, 48px); inline-size: auto; max-inline-size: 180px; object-fit: contain; filter: grayscale(1); opacity: 0.68; transition: filter var(--t-gentle) var(--ease-glide), opacity var(--t-gentle) var(--ease-glide); }
+.item a:hover img, .item a:focus-visible img, .item:hover img { filter: none; opacity: 1; }
+.name { font-family: var(--font-display); font-size: clamp(18px, 2vw, 24px); color: var(--muted); }

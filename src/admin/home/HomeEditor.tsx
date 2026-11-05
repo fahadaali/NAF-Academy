@@ -4,12 +4,14 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { SCENE_LABEL, type HomeContent } from '@/content/home-defaults'
 import { saveHome } from '@/admin/actions'
-import { Field, Grid, Input, ListEditor, PageHead, RowTools, SaveBar, Section, Switch, Textarea, useSortable } from '@/admin/ui/kit'
+import { FaqEditor, Field, Grid, Input, ListEditor, PageHead, RowTools, SaveBar, Section, Switch, Textarea, useSortable } from '@/admin/ui/kit'
+import { MediaPicker } from '@/admin/ui/MediaPicker'
+import type { Media } from '@/server/db/schema'
 import { plain } from '@/motion/kashida'
 
 const KASHIDA_HINT = 'للتمدّد: ضع ~ ثم رقماً من 1 إلى 5 بين حرفين متصلين، مثل «بالمم~3ارسة»'
 
-export function HomeEditor({ initial }: { initial: HomeContent }) {
+export function HomeEditor({ initial, media }: { initial: HomeContent; media: Media[] }) {
   const router = useRouter()
   const [v, setV] = useState(initial)
   const [saved, setSaved] = useState(JSON.stringify(initial))
@@ -69,7 +71,7 @@ export function HomeEditor({ initial }: { initial: HomeContent }) {
       </Section>
 
       <Section title="عناوين الأقسام" desc={KASHIDA_HINT}>
-        {(['tracks', 'courses', 'instructors', 'corporate'] as const).map((k) => (
+        {(['tracks', 'courses', 'instructors', 'voices', 'partners', 'faq', 'corporate'] as const).map((k) => (
           <Grid key={k}>
             <Field label={`${SCENE_LABEL[k]} — السطر الصغير`}><Input value={v.heads[k].eyebrow} onChange={(e) => head(k, 'eyebrow', e.target.value)} /></Field>
             {k === 'corporate'
@@ -89,6 +91,39 @@ export function HomeEditor({ initial }: { initial: HomeContent }) {
           </div>
         ))}
         <button type="button" className="btn ghost" style={{ justifySelf: 'start' }} onClick={() => up((o) => ({ ...o, stats: [...o.stats, { value: 0, label: '' }] }))}>+ رقم</button>
+      </Section>
+
+      <Section title="آراء المتدربين" desc="اقتباسات حقيقية بإذن أصحابها — يغيب المشهد ما دامت القائمة فارغة">
+        {v.voices.map((x, i) => (
+          <div key={i} style={{ display: 'grid', gap: 10, padding: 12, borderRadius: 12, background: 'var(--surface-2)' }}>
+            <Textarea rows={2} aria-label="نص الرأي" placeholder="نص الرأي" value={x.quote} onChange={(e) => up((o) => ({ ...o, voices: o.voices.map((y, k) => (k === i ? { ...y, quote: e.target.value } : y)) }))} />
+            <Grid cols={3}>
+              <Input aria-label="الاسم" placeholder="الاسم" value={x.name} onChange={(e) => up((o) => ({ ...o, voices: o.voices.map((y, k) => (k === i ? { ...y, name: e.target.value } : y)) }))} />
+              <Input aria-label="الصفة" placeholder="الصفة (محامٍ، مستشار في …)" value={x.role} onChange={(e) => up((o) => ({ ...o, voices: o.voices.map((y, k) => (k === i ? { ...y, role: e.target.value } : y)) }))} />
+              <RowTools i={i} n={v.voices.length} move={(a, b) => up((o) => { const n = o.voices.slice(); const [m] = n.splice(a, 1); n.splice(b, 0, m); return { ...o, voices: n } })} onRemove={() => up((o) => ({ ...o, voices: o.voices.filter((_, k) => k !== i) }))} />
+            </Grid>
+            <MediaPicker label="الصورة (اختيارية)" value={x.photoId} onChange={(photoId) => up((o) => ({ ...o, voices: o.voices.map((y, k) => (k === i ? { ...y, photoId } : y)) }))} library={media} ratio="1 / 1" />
+          </div>
+        ))}
+        <button type="button" className="btn ghost" style={{ justifySelf: 'start' }} disabled={v.voices.length >= 12} onClick={() => up((o) => ({ ...o, voices: [...o.voices, { quote: '', name: '', role: '', photoId: null }] }))}>+ رأي</button>
+      </Section>
+
+      <Section title="الجهات الشريكة" desc="شعار ورابط اختياري لكل جهة — يغيب المشهد ما دامت القائمة فارغة">
+        {v.partners.map((x, i) => (
+          <div key={i} style={{ display: 'grid', gap: 10, padding: 12, borderRadius: 12, background: 'var(--surface-2)' }}>
+            <Grid cols={3}>
+              <Input aria-label="اسم الجهة" placeholder="اسم الجهة" value={x.name} onChange={(e) => up((o) => ({ ...o, partners: o.partners.map((y, k) => (k === i ? { ...y, name: e.target.value } : y)) }))} />
+              <Input aria-label="الرابط" placeholder="https://… (اختياري)" dir="ltr" value={x.url} onChange={(e) => up((o) => ({ ...o, partners: o.partners.map((y, k) => (k === i ? { ...y, url: e.target.value.trim() } : y)) }))} />
+              <RowTools i={i} n={v.partners.length} move={(a, b) => up((o) => { const n = o.partners.slice(); const [m] = n.splice(a, 1); n.splice(b, 0, m); return { ...o, partners: n } })} onRemove={() => up((o) => ({ ...o, partners: o.partners.filter((_, k) => k !== i) }))} />
+            </Grid>
+            <MediaPicker label="الشعار (PNG شفاف يُفضَّل)" value={x.logoId} onChange={(logoId) => up((o) => ({ ...o, partners: o.partners.map((y, k) => (k === i ? { ...y, logoId } : y)) }))} library={media} ratio="3 / 1" />
+          </div>
+        ))}
+        <button type="button" className="btn ghost" style={{ justifySelf: 'start' }} disabled={v.partners.length >= 24} onClick={() => up((o) => ({ ...o, partners: [...o.partners, { name: '', logoId: null, url: '' }] }))}>+ جهة</button>
+      </Section>
+
+      <Section title="الأسئلة الشائعة" desc="أسئلة عامة عن الأكاديمية (أسئلة كل دورة في صفحتها) — يغيب المشهد ما دامت فارغة">
+        <FaqEditor value={v.faq} onChange={(faq) => up((o) => ({ ...o, faq }))} />
       </Section>
 
       <Section title="للمؤسسات">

@@ -2,6 +2,7 @@
 import { z } from 'zod'
 import { COURSE_STATUS, DELIVERY, LESSON_TYPE, LEVEL, TONES } from '@/lib/enums'
 import { DEFAULT_RULES } from '@/lib/certificate'
+import { SCENES } from '@/content/home-defaults'
 
 const slug = z
   .string()
@@ -202,7 +203,10 @@ export const homeInput = z.object({
   }),
   stats: z.array(z.object({ value: z.number().min(0).max(1e9), suffix: t(6).optional(), label: t(60) })).max(8),
   corporate: z.object({ title: t(120), body: t(600), sizes: z.array(t(20)).max(8), interests: z.array(t(40)).max(12) }),
-  sections: z.array(z.object({ key: z.enum(['ladder', 'tracks', 'courses', 'instructors', 'impact', 'corporate']), visible: z.boolean(), menu: t(30).optional() })).length(6),
+  sections: z.array(z.object({ key: z.enum(SCENES), visible: z.boolean(), menu: t(30).optional() })).length(SCENES.length),
+  voices: z.array(z.object({ quote: t(600).min(1, 'نص الرأي مطلوب'), name: t(80).min(1, 'الاسم مطلوب'), role: t(120), photoId: z.string().nullable() })).max(12).default([]),
+  partners: z.array(z.object({ name: t(80).min(1, 'اسم الجهة مطلوب'), logoId: z.string().nullable(), url: z.string().max(300).regex(/^$|^https:\/\//, 'رابط يبدأ بـ https') })).max(24).default([]),
+  faq: z.array(z.object({ q: t(200).min(1, 'السؤال مطلوب'), a: t(1500).min(1, 'الجواب مطلوب') })).max(20).default([]),
   heads: z.record(z.string(), z.object({ eyebrow: t(60), title: t(160) })),
   footer: z.object({ title: t(120), cta: t(40) }),
 })

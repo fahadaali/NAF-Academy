@@ -11,8 +11,11 @@ import { Timeline } from '@/scenes/timeline/Timeline'
 import { Instructors } from '@/scenes/people/Instructors'
 import { Impact } from '@/scenes/impact/Impact'
 import { Corporate } from '@/scenes/corporate/Corporate'
+import { Voices } from '@/scenes/voices/Voices'
+import { Partners } from '@/scenes/partners/Partners'
+import { Faq } from '@/scenes/faq/Faq'
 import type { SceneKey } from '@/content/home-defaults'
-import { catalog, homeContent } from '@/server/queries'
+import { catalog, homeContent, mediaViews } from '@/server/queries'
 import { pagesContent } from '@/server/queries'
 
 /* تُعاد عند كل حفظ في اللوحة، وكل خمس دقائق لما يتغيّر بالوقت (نشر مجدول، انتهاء عرض) */
@@ -27,6 +30,8 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function Home() {
   const [home, { tracks, courses, instructors }, brand] = await Promise.all([homeContent(), catalog(), brandView()])
   const trackOf = (slug: string) => tracks.find((t) => t.slug === slug)
+  /* صور الآراء وشعارات الشركاء بمعرّفاتها */
+  const pics = await mediaViews([...home.voices.map((v) => v.photoId), ...home.partners.map((x) => x.logoId)])
   const instructorOf = (slug: string) => instructors.find((i) => i.slug === slug)
   /* «دورة مميزة» تتقدّم في الرئيسية (كما يَعِد المحرّر)، ثم الترتيب العام */
   const upcoming = [...courses.filter((c) => c.featured), ...courses.filter((c) => !c.featured)].slice(0, 10)
@@ -43,6 +48,9 @@ export default async function Home() {
     ),
     instructors: <Instructors people={instructors} head={home.heads.instructors} />,
     impact: <Impact stats={home.stats} />,
+    voices: <Voices head={home.heads.voices} items={home.voices} photos={pics} />,
+    partners: <Partners head={home.heads.partners} items={home.partners} logos={pics} />,
+    faq: <Faq head={home.heads.faq} items={home.faq} />,
     corporate: <Corporate {...home.corporate} eyebrow={home.heads.corporate.eyebrow} />,
   }
 

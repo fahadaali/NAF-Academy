@@ -338,6 +338,8 @@ async function mediaInUse(id: string): Promise<string[]> {
   if (b.academy?.light === id || b.academy?.dark === id) out.push('شعار الأكاديمية')
   if (b.naf?.light === id || b.naf?.dark === id) out.push('شعار شركة ناف')
   if (b.icon === id) out.push('أيقونة التطبيق')
+  const [home] = await db.select().from(s.settings).where(eq(s.settings.key, 'home'))
+  if (JSON.stringify(home?.value ?? {}).includes(`"${id}"`)) out.push('الصفحة الرئيسية (الآراء أو الشركاء)')
   const tpls = await db.select({ name: s.certificateTemplates.name, design: s.certificateTemplates.design }).from(s.certificateTemplates)
   for (const t of tpls) if (JSON.stringify(t.design ?? {}).includes(`"${id}"`)) out.push(`قالب الشهادة «${t.name}»`)
   return out

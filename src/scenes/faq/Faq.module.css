@@ -1,0 +1,11 @@
+.faq { padding-block: clamp(80px, 14vh, 160px); background: var(--bg); }
+.grid { display: grid; grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr); gap: clamp(28px, 5vw, 72px); align-items: start; }
+@media (max-width: 860px) { .grid { grid-template-columns: 1fr; } }
+.title { display: block; margin-block-start: 12px; }
+.list { display: grid; gap: 10px; }
+.item { border-radius: var(--radius-m); background: var(--surface); border: 1px solid var(--line); }
+.item summary { display: flex; justify-content: space-between; align-items: center; gap: 14px; padding: 18px 20px; font-weight: 700; font-size: 16.5px; cursor: pointer; list-style: none; }
+.item summary::-webkit-details-marker { display: none; }
+.item p { padding: 0 20px 18px; color: var(--text-soft); line-height: var(--lh-body); font-family: var(--font-text); }
+.chev { inline-size: 10px; block-size: 10px; flex: none; border-inline-end: 2px solid var(--gold-3); border-block-end: 2px solid var(--gold-3); transform: rotate(45deg); transition: transform var(--t-base) var(--ease-glide); }
+.item[open] .chev { transform: rotate(-135deg); }

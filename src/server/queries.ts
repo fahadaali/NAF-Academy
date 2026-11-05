@@ -3,7 +3,7 @@ import 'server-only'
 import { and, asc, count, desc, eq, inArray, isNull } from 'drizzle-orm'
 import { db, schema as s } from './db'
 import type { Course, Instructor, MediaView, Pricing, Track } from '@/content/types'
-import { DEFAULT_HOME, DEFAULT_MENU, type HomeContent } from '@/content/home-defaults'
+import { DEFAULT_HOME, DEFAULT_MENU, SCENES, type HomeContent } from '@/content/home-defaults'
 import { mergePages, type PagesContent } from '@/content/pages-defaults'
 import { corporate as seedCorporate, hero as seedHero, ladder as seedLadder, stats as seedStats } from '@/content/seed'
 import { isPublic, liveStatus, publicOrder } from '@/lib/course-meta'
@@ -56,6 +56,14 @@ function cheapestTier(tiers: TierRow[], c: CourseRow, now: Date): Pricing {
   return { ...best, from: tiers.length > 1 }
 }
 
+/** صور بمعرّفاتها كما تعرضها الواجهة (المحذوف لا يُعرض) — لمشاهد الرئيسية التي تحفظ معرّفات */
+export async function mediaViews(ids: (string | null | undefined)[]): Promise<Map<string, MediaView>> {
+  const m = await mediaMap(ids)
+  const out = new Map<string, MediaView>()
+  for (const [id, row] of m) { const v = mediaView(row); if (v) out.set(id, v) }
+  return out
+}
+
 /** كل ما تحتاجه الواجهة العامة دفعة واحدة */
 export async function catalog(now = new Date()) {
   const [trackRows, courseRows, instRows, links, enrolled, granted, tierRows] = await Promise.all([
@@ -86,6 +94,15 @@ export async function catalog(now = new Date()) {
   return { tracks, courses, instructors, rows: all }
 }
 
+/** مشهد أُضيف إلى المنصة بعد حفظ ترتيب الرئيسية: يُلحق قبل «للمؤسسات» (أو في آخرها) — ويغيب ما دام محتواه فارغاً */
+function withNewScenes(saved: HomeContent['sections']): HomeContent['sections'] {
+  const have = new Set(saved.map((x) => x.key))
+  const known = saved.filter((x) => (SCENES as readonly string[]).includes(x.key))
+  const missing = SCENES.filter((k) => !have.has(k)).map((key) => ({ key, visible: true, menu: DEFAULT_MENU[key] }))
+  const at = known.findIndex((x) => x.key === 'corporate')
+  return at < 0 ? [...known, ...missing] : [...known.slice(0, at), ...missing, ...known.slice(at)]
+}
+
 export async function homeContent(): Promise<HomeContent> {
   const [row] = await db.select().from(s.settings).where(eq(s.settings.key, 'home'))
   const v = (row?.value ?? {}) as Partial<HomeContent>
@@ -93,7 +110,7 @@ export async function homeContent(): Promise<HomeContent> {
   return {
     hero: seedHero, ladder: seedLadder, stats: seedStats, corporate: seedCorporate, ...DEFAULT_HOME, ...v,
     heads: { ...DEFAULT_HOME.heads, ...(v.heads ?? {}) },
-    sections: (v.sections ?? DEFAULT_HOME.sections).map((x) => ({ ...x, menu: x.menu ?? DEFAULT_MENU[x.key] })),
+    sections: withNewScenes(v.sections ?? DEFAULT_HOME.sections).map((x) => ({ ...x, menu: x.menu ?? DEFAULT_MENU[x.key] })),
   } as HomeContent
 }
 
