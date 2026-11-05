@@ -40,7 +40,7 @@ export async function saveNotify(raw: NotifySettings): Promise<{ ok: boolean; er
   if (!p.success) return { ok: false, errors: Object.fromEntries(p.error.issues.map((i) => [i.path.join('.'), i.message])) }
   const v = { ...p.data, sessionOffsets: [...p.data.sessionOffsets].sort((a, b) => b.minutes - a.minutes), cartDelays: [...new Set(p.data.cartDelays)].sort((a, b) => a - b) }
   await setSetting('notify', v)
-  await audit(st.name, 'update', 'settings', 'notify', 'قوالب الرسائل وتوقيتاتها')
+  await audit(st.name, 'update', 'settings', 'notify', 'قوالب الرسائل وتوقيتاتها', v)
   revalidatePath('/admin/notifications')
   return { ok: true }
 }

@@ -53,7 +53,7 @@ export async function saveBrand(raw: BrandInput): Promise<{ ok: boolean; error?:
   await setSetting('brand', v)
   /* الشهادات الصادرة: يُعاد توليد ملفها بالشعار الجديد عند أول تنزيل */
   await db.update(s.certificates).set({ pdfKey: null }).where(isNotNull(s.certificates.pdfKey))
-  await audit(st.name, 'update', 'settings', 'brand', `${v.name} · شعارات: ${ids.length}`)
+  await audit(st.name, 'update', 'settings', 'brand', `${v.name} · شعارات: ${ids.length}`, v)
   revalidatePath('/', 'layout')
   return { ok: true }
 }

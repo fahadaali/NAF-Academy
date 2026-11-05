@@ -5,6 +5,7 @@ import { PriceTag } from '@/components/PriceTag'
 import { Picture } from '@/components/Picture'
 import { CourseCard } from '@/components/CourseCard'
 import { Prose } from '@/components/Prose'
+import { Blocks } from '@/components/Blocks'
 import { Riyal } from '@/components/Riyal'
 import { CouponBanner } from './CouponBanner'
 import { Teaser } from './Teaser'
@@ -122,7 +123,7 @@ export function CourseView({ data, preview, corporate = true, vat = 0 }: { data:
             </section>
           )}
 
-          {row.description && <section className={s.block}><h2 className={s.h2}>عن الدورة</h2><Prose text={row.description} /></section>}
+          {data.blocks.length > 0 && <section className={s.block}><h2 className={s.h2}>عن الدورة</h2><Blocks blocks={data.blocks} media={data.blockMedia} /></section>}
 
           {curriculum.length > 0 && (
             <section className={s.block}>

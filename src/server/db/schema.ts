@@ -50,6 +50,8 @@ export const instructors = sqliteTable('instructors', {
   highlights: text('highlights', { mode: 'json' }).$type<string[]>().notNull().default(sql`'[]'`),
   links: text('links', { mode: 'json' }).$type<{ label: string; url: string }[]>().notNull().default(sql`'[]'`),
   photoId: text('photo_id').references(() => media.id, { onDelete: 'set null' }),
+  /** صورة المشهد (عريضة) — لمشهد المدربين وبطل صفحة المدرب؛ والرسمية للبطاقات */
+  sceneId: text('scene_id').references(() => media.id, { onDelete: 'set null' }),
   /** طريقة الظهور: بطاقة كاملة، مختصرة، أو مخفي من الرئيسية */
   display: text('display', { enum: ['full', 'compact', 'hidden'] }).notNull().default('full'),
   featured: integer('featured', { mode: 'boolean' }).notNull().default(false),
@@ -61,6 +63,7 @@ export const instructors = sqliteTable('instructors', {
 import { COURSE_STATUS, DELIVERY, LESSON_TYPE, LEVEL } from '../../lib/enums'
 import type { Assignment, Attachment, Chapter, Drip, Quiz, VideoSource } from '../../lib/learning-types'
 import type { CertDesign, CertRules, Criterion } from '../../lib/certificate'
+import type { Block } from '../../lib/blocks'
 export { COURSE_STATUS, DELIVERY, LESSON_TYPE, LEVEL }
 
 export type Faq = { q: string; a: string }
@@ -101,6 +104,8 @@ export const courses = sqliteTable(
     teaser: text('teaser', { mode: 'json' }).$type<VideoSource>().notNull().default(sql`'{"provider":"none"}'`),
     /* المحتوى */
     description: text('description').notNull().default(''),
+    /** الوصف كتلاً من المحرّر الغني — فارغ = يُشتق من description (المحتوى القديم) */
+    content: text('content', { mode: 'json' }).$type<Block[] | null>(),
     outcomes: text('outcomes', { mode: 'json' }).$type<string[]>().notNull().default(sql`'[]'`),
     audience: text('audience', { mode: 'json' }).$type<string[]>().notNull().default(sql`'[]'`),
     requirements: text('requirements', { mode: 'json' }).$type<string[]>().notNull().default(sql`'[]'`),
@@ -442,6 +447,8 @@ export const enrollments = sqliteTable(
     cohortId: text('cohort_id').references(() => cohorts.id, { onDelete: 'set null' }),
     /** نهاية الوصول — فارغ = دائم */
     accessUntil: text('access_until'),
+    /** مقعد من عقد مؤسسة */
+    contractId: text('contract_id'),
     ...stamps,
   },
   (t) => [
@@ -503,6 +510,8 @@ export const members = sqliteTable(
     role: text('role').notNull().default('support'),
     perms: text('perms'),
     isActive: integer('is_active').notNull().default(1),
+    /** للمدرب: ملفه في قائمة المدربين — يُحصر دوره في دوراته */
+    instructorId: text('instructor_id'),
     lastSeenAt: integer('last_seen_at'),
     createdAt: integer('created_at').notNull(),
   },
@@ -571,7 +580,7 @@ export const assets = sqliteTable('assets', {
   mime: text('mime').notNull(),
   size: integer('size').notNull(),
   /** private: لا يُنزَّل إلا للمسجّل أو الفريق */
-  scope: text('scope', { enum: ['lesson', 'submission'] }).notNull(),
+  scope: text('scope', { enum: ['lesson', 'submission', 'contract', 'caption'] }).notNull(),
   ownerLearnerId: text('owner_learner_id'),
   ...stamps,
 })
@@ -780,3 +789,39 @@ export const pushSubscriptions = sqliteTable('push_subscriptions', {
 })
 
 export type LessonFull = typeof lessons.$inferSelect
+
+/* ───────── المسودات المؤقتة ─────────
+   ما يكتبه المحرّر قبل الحفظ — لمعاينة الصفحة كاملة على الحاسب والجوال. تنتهي بعد ساعة. */
+export const drafts = sqliteTable('drafts', {
+  key: text('key').primaryKey(),
+  value: text('value', { mode: 'json' }).notNull(),
+  expiresAt: text('expires_at').notNull(),
+})
+
+/* ───────── عقود المؤسسات ─────────
+   عدد مقاعد في نافذة زمنية لنطاق دورات — يخصّصها الفريق أو مسؤول المؤسسة فتصير تسجيلات (enrollments.contractId). */
+export const CONTRACT_STATUS = ['draft', 'active', 'expired', 'cancelled'] as const
+export const orgContracts = sqliteTable(
+  'org_contracts',
+  {
+    id: id(),
+    orgId: text('org_id').notNull().references(() => organizations.id, { onDelete: 'cascade' }),
+    number: text('number').notNull().default(''),
+    title: text('title').notNull(),
+    status: text('status', { enum: CONTRACT_STATUS }).notNull().default('draft'),
+    startsAt: text('starts_at'),
+    endsAt: text('ends_at'),
+    seats: integer('seats').notNull(),
+    scope: text('scope', { enum: ['all', 'courses'] }).notNull().default('all'),
+    courseIds: text('course_ids', { mode: 'json' }).$type<string[]>().notNull().default(sql`'[]'`),
+    /** قيمة العقد بالهللة (شاملة الضريبة) */
+    total: integer('total').notNull().default(0),
+    /** ملف العقد الموقّع في التخزين الخاص (assets) */
+    fileId: text('file_id'),
+    notes: text('notes').notNull().default(''),
+    ...stamps,
+    ...soft,
+  },
+  (t) => [index('contracts_org_idx').on(t.orgId)],
+)
+export type ContractRow = typeof orgContracts.$inferSelect

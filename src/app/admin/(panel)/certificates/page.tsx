@@ -1,6 +1,7 @@
 import { and, count, desc, eq, isNull } from 'drizzle-orm'
 import { db, schema as s } from '@/server/db'
-import { requirePermission } from '@/server/auth'
+import { courseScope, requirePermission } from '@/server/auth'
+import { inList } from '@/server/db/limits'
 import { Board, Recheck, type BoardRow } from '@/admin/certificates/Board'
 import { PageHead } from '@/admin/ui/kit'
 import { when } from '@/admin/sales/labels'
@@ -9,14 +10,15 @@ import p from '@/admin/ui/panel.module.css'
 const F = [['pending', 'بانتظار المراجعة'], ['issued', 'صادرة'], ['rejected', 'مرفوضة'], ['revoked', 'ملغاة']] as const
 
 export default async function Certificates({ searchParams }: { searchParams: Promise<{ s?: string; c?: string }> }) {
-  await requirePermission('certificates.manage')
+  const scope = await courseScope(await requirePermission('certificates.manage'))
+  const by = scope === null ? undefined : inList(s.certificates.courseId, scope)
   const q = await searchParams
   const status = (F.find(([k]) => k === q.s)?.[0] ?? 'pending') as (typeof F)[number][0]
   const [rows, counts, courses] = await Promise.all([
     db.select({ c: s.certificates, email: s.learners.email }).from(s.certificates).innerJoin(s.learners, eq(s.learners.id, s.certificates.learnerId))
-      .where(and(eq(s.certificates.status, status), q.c ? eq(s.certificates.courseId, q.c) : undefined)).orderBy(desc(s.certificates.updatedAt)).limit(500),
-    db.select({ st: s.certificates.status, n: count() }).from(s.certificates).groupBy(s.certificates.status),
-    db.select({ id: s.courses.id, title: s.courses.title }).from(s.courses).where(isNull(s.courses.deletedAt)),
+      .where(and(eq(s.certificates.status, status), by, q.c ? eq(s.certificates.courseId, q.c) : undefined)).orderBy(desc(s.certificates.updatedAt)).limit(500),
+    db.select({ st: s.certificates.status, n: count() }).from(s.certificates).where(by).groupBy(s.certificates.status),
+    db.select({ id: s.courses.id, title: s.courses.title }).from(s.courses).where(and(isNull(s.courses.deletedAt), scope === null ? undefined : inList(s.courses.id, scope))),
   ])
   const n = new Map(counts.map((x) => [x.st, x.n]))
   const board: BoardRow[] = rows.map(({ c, email }) => ({

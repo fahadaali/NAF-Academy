@@ -1,0 +1,14 @@
+.permsBtn { min-block-size: 34px; padding-inline: 10px; border-radius: 8px; font-size: 13px; font-weight: 600; color: var(--accent-strong); }
+.permsBtn:hover { background: var(--surface-2); }
+.dialog { inline-size: min(640px, calc(100vw - 32px)); max-block-size: calc(100svh - 48px); padding: 20px; border: 0; border-radius: var(--radius-l); background: var(--surface); color: var(--text); box-shadow: var(--shadow-2); }
+.dialog::backdrop { background: color-mix(in srgb, var(--night-0) 55%, transparent); }
+.dHead { display: grid; gap: 4px; margin-block-end: 12px; }
+.muted { display: block; color: var(--muted); font-size: 12.5px; font-weight: 400; }
+.group { display: grid; gap: 6px; margin-block-end: 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius-m); }
+.group legend { padding-inline: 6px; font-weight: 700; font-size: 14px; }
+.perm { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 6px 4px; border-radius: 8px; }
+.perm[data-on='1'] > span { color: var(--text); }
+.perm[data-on='0'] > span { color: var(--muted); }
+.perm select { min-block-size: 34px; border-radius: 8px; border: 1px solid var(--line-strong); background: var(--bg); color: var(--text); font: inherit; font-size: 13px; }
+.err { color: var(--danger); font-weight: 600; }
+.dActions { display: flex; gap: 8px; flex-wrap: wrap; }

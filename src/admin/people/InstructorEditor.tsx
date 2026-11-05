@@ -1,4 +1,5 @@
 'use client'
+import { History } from '@/admin/ui/History'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import type { Media } from '@/server/db/schema'
@@ -28,7 +29,7 @@ export function InstructorEditor({ id, initial, media }: { id: string | null; in
   }
   return (
     <>
-      <PageHead title={id ? v.name : 'مدرب جديد'} sub={`/instructors/${v.slug || '…'}`} />
+      <PageHead title={id ? v.name : 'مدرب جديد'} sub={`/instructors/${v.slug || '…'}`} actions={id && write ? <History entity="instructor" id={id} current={v} onRestore={(x) => { setV(x); setMsg({ ok: true, text: 'حُمّلت النسخة — راجعها ثم احفظ' }) }} /> : null} />
       <Section title="البيانات">
         <Grid>
           <Field label="الاسم" error={errors.name}><Input value={v.name} onChange={(e) => set('name', e.target.value)} /></Field>
@@ -37,7 +38,8 @@ export function InstructorEditor({ id, initial, media }: { id: string | null; in
         </Grid>
         <Field label="النبذة"><Textarea rows={5} value={v.bio} onChange={(e) => set('bio', e.target.value)} /></Field>
         <Field label="أبرز الخبرات" hint="نقاط قصيرة تظهر في البطاقة الكاملة"><ListEditor value={v.highlights} onChange={(x) => set('highlights', x)} add="خبرة" /></Field>
-        <Field label="الصورة" hint="الوجه في نقطة التركيز"><MediaPicker value={v.photoId} onChange={(x) => set('photoId', x)} library={media} ratio="4 / 4.2" label="الصورة" /></Field>
+        <Field label="الصورة الرسمية" hint="الوجه في نقطة التركيز — للبطاقات وصفحات الدورات"><MediaPicker value={v.photoId} onChange={(x) => set('photoId', x)} library={media} ratio="4 / 4.2" label="الصورة" /></Field>
+        <Field label="صورة المشهد" hint="اختيارية — صورة أوسع في بيئة العمل لمشهد المدربين في الرئيسية وأعلى صفحة المدرب. بدونها تُستعمل الرسمية"><MediaPicker value={v.sceneId ?? null} onChange={(x) => set('sceneId', x)} library={media} ratio="3 / 4" label="صورة المشهد" /></Field>
       </Section>
       <Section title="طريقة الظهور">
         <Segmented value={v.display} onChange={(x) => set('display', x)} options={[

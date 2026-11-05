@@ -2,18 +2,21 @@ import 'server-only'
 /* دليل المتدربين وملف كل متدرب — قراءة فقط. المدفوعات والرسائل تُعرض بصلاحيتها (الصفحة تقرر). */
 import { and, count, desc, eq, like, or, sql } from 'drizzle-orm'
 import { db, schema as s } from '@/server/db'
-import { requirePermission } from '@/server/auth'
+import { courseScope, requirePermission } from '@/server/auth'
+import { inList } from '@/server/db/limits'
 import { progressOf } from '@/server/notify/engine'
 
 export const PAGE_SIZE = 50
 
 export async function learnersList(opts: { q?: string; course?: string; page?: number }) {
-  await requirePermission('learners.read')
+  const scope = await courseScope(await requirePermission('learners.read'))
   const q = (opts.q ?? '').trim().slice(0, 80)
   const like_ = `%${q.replace(/[%_]/g, '')}%`
   const where = and(
     q ? or(like(s.learners.name, like_), like(s.learners.email, like_.toLowerCase()), like(s.learners.phone, like_), like(s.learners.org, like_)) : undefined,
     opts.course ? sql`exists (select 1 from enrollments e where e.learner_id = ${s.learners.id} and e.course_id = ${opts.course} and e.status = 'active')` : undefined,
+    /* المدرب: متدربو دوراته وحدها */
+    scope === null ? undefined : sql`exists (select 1 from enrollments e where e.learner_id = ${s.learners.id} and e.course_id in (select value from json_each(${JSON.stringify(scope)})))`,
   )
   const page = Math.max(0, Math.floor(opts.page ?? 0))
   const [rows, [total], courses] = await Promise.all([
@@ -30,9 +33,13 @@ export async function learnersList(opts: { q?: string; course?: string; page?: n
 }
 
 export async function learnerProfile(id: string) {
-  await requirePermission('learners.read')
+  const scope = await courseScope(await requirePermission('learners.read'))
   const [l] = await db.select().from(s.learners).where(eq(s.learners.id, id))
   if (!l) return null
+  if (scope !== null) {
+    const [mine] = await db.select({ id: s.enrollments.id }).from(s.enrollments).where(and(eq(s.enrollments.learnerId, id), inList(s.enrollments.courseId, scope)))
+    if (!mine) return null
+  }
   const [enrolls, orders, certs, orgs, interest, reviews, messages] = await Promise.all([
     db.select({ e: s.enrollments, title: s.courses.title, slug: s.courses.slug, tier: s.priceTiers.name, number: s.orders.number })
       .from(s.enrollments).innerJoin(s.courses, eq(s.courses.id, s.enrollments.courseId))

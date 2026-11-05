@@ -18,6 +18,7 @@ import type { PagesContent } from '@/content/pages-defaults'
 import type { CourseStatus } from '@/content/types'
 import { COURSE_STATUS } from '@/lib/enums'
 import { chunksOf, inList } from '@/server/db/limits'
+import { blocksText } from '@/lib/blocks'
 import {
   courseInput, errorsOf, homeInput, instructorInput, pagesInput, trackInput,
   type CourseInput, type InstructorInput, type Result, type TrackInput,
@@ -39,7 +40,9 @@ export async function saveCourse(id: string | null, raw: CourseInput, opts: { co
   const admin = await requirePermission('content.write')
   const p = courseInput.safeParse(raw)
   if (!p.success) return { ok: false, errors: errorsOf(p.error), message: 'راجع الحقول المعلّمة' }
-  const { instructorIds, curriculum, tiers, groupRules, ...v } = p.data
+  const { instructorIds, curriculum, tiers, groupRules, ...rest } = p.data
+  /* الوصف النصي يُشتق من الكتل — للبحث والرسائل والنسخ النصية */
+  const v = rest.content ? { ...rest, description: blocksText(rest.content) } : rest
   const cid = id ?? randomUUID()
   /* درس أو باقة أُزيلت من المحرّر ولها سجلات متدربين أو طلبات: لا تُحذف بصمت (الحذف يمحو التقدّم والواجبات والحضور) —
      يُطلب تأكيد صريح أولاً */
@@ -267,6 +270,7 @@ export async function purge(entity: Entity, id: string, confirm: string): Promis
     await db.update(s.courses).set({ coverId: null }).where(eq(s.courses.coverId, id))
     await db.update(s.tracks).set({ coverId: null }).where(eq(s.tracks.coverId, id))
     await db.update(s.instructors).set({ photoId: null }).where(eq(s.instructors.photoId, id))
+    await db.update(s.instructors).set({ sceneId: null }).where(eq(s.instructors.sceneId, id))
     await deleteObject((row as typeof s.media.$inferSelect).key)
   }
   await db.delete(t).where(eq(t.id, id))

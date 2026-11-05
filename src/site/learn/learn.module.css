@@ -41,3 +41,4 @@
 
 /* الحركة: البطاقات تتتابع عند التركيب (globals.css) */
 .grid { composes: stagger from global; }
+.contract { display: grid; gap: 8px; margin-block-start: 14px; }

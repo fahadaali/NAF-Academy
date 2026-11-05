@@ -3,11 +3,12 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import type { MemberRow } from '@/server/db/schema'
 import { ROLES, ROLE_HINT, ROLE_LABEL, type Role } from '@/lib/permissions'
-import { inviteMember, setMemberActive, setMemberRole } from './actions'
+import { inviteMember, setMemberActive, setMemberInstructor, setMemberRole } from './actions'
+import { PermsDialog } from './PermsDialog'
 import { Badge, Field, Grid, Input, PageHead, Section, Select } from '@/admin/ui/kit'
 import p from '@/admin/ui/panel.module.css'
 
-export function TeamBoard({ members, mode, meId }: { members: MemberRow[]; mode: 'naf-auth' | 'password'; meId: string }) {
+export function TeamBoard({ members, mode, meId, instructors = [] }: { members: MemberRow[]; mode: 'naf-auth' | 'password'; meId: string; instructors?: { id: string; name: string }[] }) {
   const router = useRouter()
   const [v, setV] = useState({ email: '', name: '', role: 'content' as Role })
   const [msg, setMsg] = useState('')
@@ -29,7 +30,7 @@ export function TeamBoard({ members, mode, meId }: { members: MemberRow[]; mode:
       {msg && <p role="alert" style={{ color: 'var(--danger)', fontWeight: 600, marginBlockEnd: 12 }}>{msg}</p>}
       {members.length === 0 ? <div className={p.empty}>لا أعضاء بعد.</div> : (
         <table className={p.table}>
-          <thead><tr><th>العضو</th><th>الدور</th><th>الحالة</th><th><span className="sr-only">إجراءات</span></th></tr></thead>
+          <thead><tr><th>العضو</th><th>الدور</th><th>الحالة</th><th>الصلاحيات</th><th><span className="sr-only">إجراءات</span></th></tr></thead>
           <tbody>
             {members.map((m) => (
               <tr key={m.userId}>
@@ -39,8 +40,15 @@ export function TeamBoard({ members, mode, meId }: { members: MemberRow[]; mode:
                     {!(ROLES as readonly string[]).includes(m.role) && <option value={m.role} disabled>بانتظار التفعيل — اختر دوراً</option>}
                     {ROLES.map((r) => <option key={r} value={r}>{ROLE_LABEL[r]}</option>)}
                   </select>
+                  {m.role === 'instructor' && (
+                    <select aria-label="ملف المدرب" className={p.select} style={{ marginBlockStart: 6, display: 'block' }} value={m.instructorId ?? ''} onChange={(e) => act(() => setMemberInstructor(m.userId, e.target.value || null))}>
+                      <option value="">— اربطه بملف مدرب ليرى دوراته —</option>
+                      {instructors.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}
+                    </select>
+                  )}
                 </td>
                 <td>{m.userId.startsWith('invite:') ? <Badge tone="soon">مدعو — لم يدخل بعد</Badge> : m.isActive ? <Badge tone="open">نشط</Badge> : <Badge tone="draft">موقوف</Badge>}</td>
+                <td><PermsDialog userId={m.userId} role={m.role} perms={m.perms} name={m.displayName || m.email || ''} onDone={() => router.refresh()} /></td>
                 <td>{m.userId !== meId && <button className={`${p.iconBtn} ${m.isActive ? p.danger : ''}`} onClick={() => (m.isActive ? confirm(`إيقاف ${m.email}؟ يُبلَّغ المركز فوراً.`) : true) && act(() => setMemberActive(m.userId, !m.isActive))}>{m.isActive ? 'إيقاف' : 'تفعيل'}</button>}</td>
               </tr>
             ))}

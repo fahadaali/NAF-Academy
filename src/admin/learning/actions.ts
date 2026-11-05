@@ -6,7 +6,7 @@ import { revalidatePath } from 'next/cache'
 import { and, eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { db, schema as s } from '@/server/db'
-import { requirePermission } from '@/server/auth'
+import { courseScope, inScope, requirePermission } from '@/server/auth'
 import { audit } from '@/server/audit'
 import { putObject } from '@/server/storage'
 import { directUpload, streamState } from '@/server/stream'
@@ -57,7 +57,7 @@ export async function reviewSubmission(raw: unknown): Promise<{ ok: boolean; err
   if (!p.success) return { ok: false, error: 'بيانات غير صالحة' }
   if (p.data.status === 'revise' && !p.data.feedback) return { ok: false, error: 'اكتب ملاحظاتك للمتدرب' }
   const [sub] = await db.select().from(s.submissions).where(eq(s.submissions.id, p.data.id))
-  if (!sub) return { ok: false, error: 'التسليم غير موجود' }
+  if (!sub || !inScope(await courseScope(st), sub.courseId)) return { ok: false, error: 'التسليم غير موجود' }
   const now = new Date().toISOString()
   await db.update(s.submissions).set({ status: p.data.status, feedback: p.data.feedback, reviewedBy: st.name, reviewedAt: now, updatedAt: now }).where(eq(s.submissions.id, sub.id))
   if (p.data.status === 'accepted') {
@@ -78,6 +78,8 @@ export async function answerQuestion(raw: unknown): Promise<{ ok: boolean; error
   const st = await requirePermission('learning.review')
   const p = answerInput.safeParse(raw)
   if (!p.success) return { ok: false, error: p.error.issues[0]?.message ?? 'بيانات غير صالحة' }
+  const [q] = await db.select({ courseId: s.questions.courseId }).from(s.questions).where(eq(s.questions.id, p.data.id))
+  if (!q || !inScope(await courseScope(st), q.courseId)) return { ok: false, error: 'السؤال غير موجود' }
   const now = new Date().toISOString()
   const r = await db.update(s.questions).set({ answer: p.data.answer, answeredBy: st.name, answeredAt: now, updatedAt: now }).where(eq(s.questions.id, p.data.id)).returning({ id: s.questions.id })
   if (!r.length) return { ok: false, error: 'السؤال غير موجود' }
@@ -98,7 +100,7 @@ export async function checkIn(token: string): Promise<CheckIn> {
   if (!t) return { ok: false, error: 'تذكرة غير صالحة' }
   const [row] = await db.select({ l: s.lessons, courseId: s.modules.courseId, course: s.courses.title }).from(s.lessons)
     .innerJoin(s.modules, eq(s.modules.id, s.lessons.moduleId)).innerJoin(s.courses, eq(s.courses.id, s.modules.courseId)).where(eq(s.lessons.id, t.lessonId))
-  if (!row || row.l.type !== 'onsite') return { ok: false, error: 'الجلسة غير موجودة' }
+  if (!row || row.l.type !== 'onsite' || !inScope(await courseScope(st), row.courseId)) return { ok: false, error: 'الجلسة غير موجودة' }
   const [learner] = await db.select().from(s.learners).where(eq(s.learners.id, t.learnerId))
   const [en] = learner ? await db.select().from(s.enrollments).where(and(eq(s.enrollments.learnerId, learner.id), eq(s.enrollments.courseId, row.courseId), eq(s.enrollments.status, 'active'))) : []
   if (!learner || !en) return { ok: false, error: 'صاحب التذكرة غير مسجّل في الدورة' }
@@ -119,7 +121,7 @@ export async function checkIn(token: string): Promise<CheckIn> {
 export async function setAttendance(learnerId: string, lessonId: string, present: boolean): Promise<{ ok: boolean; error?: string }> {
   const st = await requirePermission('attendance.mark')
   const [row] = await db.select({ type: s.lessons.type, courseId: s.modules.courseId }).from(s.lessons).innerJoin(s.modules, eq(s.modules.id, s.lessons.moduleId)).where(eq(s.lessons.id, lessonId))
-  if (!row || (row.type !== 'live' && row.type !== 'onsite')) return { ok: false, error: 'ليست جلسة' }
+  if (!row || (row.type !== 'live' && row.type !== 'onsite') || !inScope(await courseScope(st), row.courseId)) return { ok: false, error: 'ليست جلسة' }
   const [en] = await db.select().from(s.enrollments).where(and(eq(s.enrollments.learnerId, learnerId), eq(s.enrollments.courseId, row.courseId), eq(s.enrollments.status, 'active')))
   if (!en) return { ok: false, error: 'غير مسجّل' }
   if (present) {

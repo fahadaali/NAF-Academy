@@ -18,11 +18,11 @@ export function Instructors({ people, head }: { people: Instructor[]; head: Sect
             <li key={p.slug} className={`reveal ${styles.item}`} data-display={p.display} style={{ ['--d' as string]: i }}>
               <Tilt className={styles.card}>
                 <a href={`/instructors/${p.slug}`} className={styles.portrait} aria-label={p.name}>
-                  {p.photo ? <Picture media={p.photo} className={styles.photo} /> : <svg viewBox="0 0 100 100" className={styles.bust}>
+                  {p.scene ?? p.photo ? <Picture media={(p.scene ?? p.photo)!} className={styles.photo} /> : <svg viewBox="0 0 100 100" className={styles.bust}>
                     <circle cx="50" cy="38" r="15" />
                     <path d="M20 92c2-18 14-28 30-28s28 10 30 28" />
                   </svg>}
-                  {!p.photo && <span className={styles.rings} />}
+                  {!(p.scene ?? p.photo) && <span className={styles.rings} />}
                 </a>
                 <div className={styles.info}>
                   {p.featured && <span className={styles.badge}>مدرب مميز</span>}

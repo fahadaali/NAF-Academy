@@ -188,6 +188,17 @@
   .prose h3 { font-family: var(--font-display); font-size: 24px; color: var(--text); margin-block-start: 10px; }
   .prose ul { display: grid; gap: 6px; padding-inline-start: 22px; }
   .prose li::marker { color: var(--gold-3); }
+  .prose ol { display: grid; gap: 6px; padding-inline-start: 22px; list-style: decimal; }
+  .prose strong { color: var(--text); font-weight: 700; }
+  .prose a { color: var(--accent-strong); text-decoration: underline; text-underline-offset: 3px; }
+  .prose-quote { margin: 4px 0; padding-inline-start: 18px; border-inline-start: 3px solid var(--gold-3); font-family: var(--font-text); font-size: 19px; color: var(--text); }
+  .prose-quote cite { display: block; margin-block-start: 6px; font-family: var(--font); font-size: 14px; font-style: normal; color: var(--muted); }
+  .prose-note { padding: 14px 16px; border-radius: var(--radius-m); background: color-mix(in srgb, var(--gold-3) 12%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gold-3) 35%, transparent); color: var(--text); }
+  .prose-note[data-tone='info'] { background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--line); }
+  .prose-figure { display: grid; gap: 8px; margin: 6px 0; }
+  .prose-figure img, .prose-figure video { inline-size: 100%; block-size: auto; border-radius: var(--radius-m); }
+  .prose-figure figcaption { font-size: 14px; color: var(--muted); }
+  .prose-hr { border: 0; block-size: 1px; background: var(--line); margin: 10px 0; }
 }
 
 /* هيكل التحميل — نبض شفافية فقط، ويتوقف مع تقليل الحركة */

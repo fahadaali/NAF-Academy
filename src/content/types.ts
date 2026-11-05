@@ -90,6 +90,8 @@ export type Instructor = {
   featured?: boolean
   bio?: string
   photo?: MediaView
+  /** صورة المشهد — للرئيسية وبطل صفحة المدرب (وإلا الرسمية) */
+  scene?: MediaView
   links?: { label: string; url: string }[]
 }
 

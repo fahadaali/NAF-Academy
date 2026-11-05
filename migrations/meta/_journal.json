@@ -71,6 +71,13 @@
       "when": 1793912577050,
       "tag": "0009_cohorts_promotions",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1793913757112,
+      "tag": "0010_editor_scope_contracts",
+      "breakpoints": true
     }
   ]
 }

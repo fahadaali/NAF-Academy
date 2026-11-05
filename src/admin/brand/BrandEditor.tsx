@@ -2,10 +2,11 @@
 /* الهوية والشعارات — ثلاث صيغ لشعار الأكاديمية، لكل منها نسختان (للخلفيات الفاتحة والداكنة)، والأيقونة، والأسماء،
    مع معاينة حيّة لكل سطح. الملف المعروض SVG (متجه، ويتحرك في مواضع الحركة) أو PNG؛ واختيار SVG يولّد له
    توأماً PNG تلقائياً (للبريد والشهادة وصور المشاركة) — تحويل صيغة فقط، بلا أي تعديل في الرسم أو الألوان. */
+import { History } from '@/admin/ui/History'
 import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import type { Media } from '@/server/db/schema'
-import { large, LOGO_MIME, type BrandSettings, type BrandView, type LogoImg, type LogoSlot, type LogoSlotKey } from '@/lib/brand'
+import { large, LOGO_MIME, mergeBrand, type BrandSettings, type BrandView, type LogoImg, type LogoSlot, type LogoSlotKey } from '@/lib/brand'
 import { LogoMark, Wordmark } from '@/components/Logo'
 import { Emblem } from '@/components/Emblem'
 import { Field, Grid, Input, SaveBar, Section, Switch } from '@/admin/ui/kit'
@@ -174,7 +175,7 @@ export function BrandEditor({ initial, media }: { initial: BrandSettings; media:
           <figure><figcaption>رأس البريد</figcaption><div className={b.mail}><LogoMark pair={view.academy} alt={view.name} height={30} tone="dark" />{(v.showName || !(view.academy.light || view.academy.dark)) && <strong>{view.name}</strong>}</div></figure>
         </div>
       </Section>
-      <SaveBar dirty={dirty} saving={saving || !!busy} message={msg} onSave={save} />
+      <SaveBar dirty={dirty} saving={saving || !!busy} message={msg} onSave={save} extra={<History entity="settings" id="brand" current={v} onRestore={(x) => { setV(mergeBrand(x)); setMsg({ ok: true, text: 'حُمّلت النسخة — راجعها ثم احفظ' }) }} />} />
     </>
   )
 }

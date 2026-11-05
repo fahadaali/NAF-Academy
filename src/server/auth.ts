@@ -44,7 +44,7 @@ export function safeEqual(a: string, b: string) {
 export type Admin = { name: string; exp: number }
 
 /** عضو الفريق في هذا الطلب */
-export type Staff = { id: string; name: string; email: string; role: Role; perms: Record<string, unknown> | null; mode: StaffMode }
+export type Staff = { id: string; name: string; email: string; role: Role; perms: Record<string, unknown> | null; mode: StaffMode; instructorId: string | null }
 export type StaffMode = 'naf-auth' | 'password'
 
 /** naf-auth متى ضُبط في البيئة؛ وإلا دخول كلمة المرور (التطوير، أو مخرج طوارئ صريح) */
@@ -92,11 +92,31 @@ export async function currentStaff(): Promise<Staff | null> {
     try { perms = JSON.parse(h.get(H_PERMS) ?? 'null') } catch {}
     const [m] = await db.select().from(s.members).where(eq(s.members.userId, sub))
     if (!m || !m.isActive) return null
-    return { id: sub, name: m.displayName || m.email || 'عضو', email: m.email ?? '', role, perms, mode: 'naf-auth' }
+    /* الصلاحيات من جدول الأعضاء في الأكاديمية (يقرؤه naf-auth نفسه)؛ وما يصل في الترويسة يُنقص فقط */
+    const local = parsePerms(m.perms)
+    return { id: sub, name: m.displayName || m.email || 'عضو', email: m.email ?? '', role, perms: mergePerms(local, perms), mode: 'naf-auth', instructorId: m.instructorId ?? null }
   }
   const a = await passwordSession()
-  return a ? { id: `local:${a.name}`, name: a.name, email: '', role: 'owner', perms: null, mode: 'password' } : null
+  return a ? { id: `local:${a.name}`, name: a.name, email: '', role: 'owner', perms: null, mode: 'password', instructorId: null } : null
 }
+
+const parsePerms = (x: string | null) => { try { const v = JSON.parse(x ?? 'null'); return v && typeof v === 'object' ? (v as Record<string, unknown>) : null } catch { return null } }
+/** الإضافة من الأكاديمية وحدها؛ والحجب من الاثنين */
+function mergePerms(local: Record<string, unknown> | null, sent: Record<string, unknown> | null): Record<string, unknown> | null {
+  const list = (o: Record<string, unknown> | null, k: string) => (Array.isArray(o?.[k]) ? (o![k] as string[]) : [])
+  const add = list(local, '+')
+  const del = [...new Set([...list(local, '-'), ...list(sent, '-')])]
+  return add.length || del.length ? { '+': add, '-': del } : null
+}
+
+/** نطاق دورات العضو: المدرب يرى دوراته وحدها (الدورات المسنَدة إلى ملفه)، وغيره كل الدورات (null) */
+export async function courseScope(st: Staff): Promise<string[] | null> {
+  if (st.role !== 'instructor') return null
+  if (!st.instructorId) return []
+  const rows = await db.select({ id: s.courseInstructors.courseId }).from(s.courseInstructors).where(eq(s.courseInstructors.instructorId, st.instructorId))
+  return rows.map((r) => r.id)
+}
+export const inScope = (scope: string[] | null, courseId: string) => scope === null || scope.includes(courseId)
 
 /** للوحة: عضو فريق بأي دور — وإلا إلى الدخول */
 export async function requireAdmin(): Promise<Staff> {

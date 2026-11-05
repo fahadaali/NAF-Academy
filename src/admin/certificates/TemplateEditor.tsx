@@ -1,6 +1,7 @@
 'use client'
 /* محرّر قالب الشهادة — اسحب العناصر على المعاينة (أو حرّكها بالأسهم)، وعدّل النصوص والموقّعين والخلفية،
    ثم «معاينة PDF» تولّد الملف الحقيقي بالقالب الحالي قبل الحفظ. */
+import { History } from '@/admin/ui/History'
 import { useEffect, useRef, useState } from 'react'
 import type { BrandView } from '@/lib/brand'
 import { useRouter } from 'next/navigation'
@@ -140,7 +141,7 @@ export function TemplateEditor({ id, initial, media, brand }: { id: string | nul
           )}
         </div>
       </div>
-      <SaveBar dirty={dirty} saving={saving} message={msg} onSave={save} />
+      <SaveBar dirty={dirty} saving={saving} message={msg} onSave={save} extra={id ? <History entity="certificate_template" id={id} current={v} onRestore={(x) => { setV(x); setMsg({ ok: true, text: 'حُمّلت النسخة — راجعها ثم احفظ' }) }} /> : null} />
     </>
   )
 }

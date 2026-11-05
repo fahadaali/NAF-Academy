@@ -1,5 +1,6 @@
 'use client'
 /* محرّر الرئيسية — النصوص، وترتيب المشاهد وإظهارها، ونقاط الكشيدة (~). */
+import { History } from '@/admin/ui/History'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { SCENE_LABEL, type HomeContent } from '@/content/home-defaults'
@@ -24,7 +25,7 @@ export function HomeEditor({ initial, media }: { initial: HomeContent; media: Me
 
   return (
     <>
-      <PageHead title="الصفحة الرئيسية" sub="كل ما يظهر في الرئيسية — يُنشر فور الحفظ" actions={<a className="btn ghost" href="/" target="_blank" rel="noreferrer">عرض ↗</a>} />
+      <PageHead title="الصفحة الرئيسية" sub="كل ما يظهر في الرئيسية — يُنشر فور الحفظ" actions={<><History entity="home" id="home" current={v} onRestore={(x) => { setV(x); setMsg({ ok: true, text: 'حُمّلت النسخة — راجعها ثم احفظ' }) }} /><a className="btn ghost" href="/" target="_blank" rel="noreferrer">عرض ↗</a></>} />
 
       <Section title="ترتيب المشاهد" desc="اسحب لتغيير الترتيب، وأوقف ما لا تريد إظهاره. الافتتاح والتذييل ثابتان. «في القائمة» اسمه في شريط الموقع — اتركه فارغاً ليغيب عنها، والمخفي لا يظهر فيها أبداً.">
         {v.sections.map((x, i) => (

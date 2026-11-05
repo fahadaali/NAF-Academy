@@ -56,6 +56,19 @@ export const assignmentInput = z.object({
   dueDays: z.number().int().min(1).max(365).nullable(),
 })
 
+const line = (max = 4000) => z.string().max(max)
+export const blockInput = z.discriminatedUnion('t', [
+  z.object({ t: z.literal('p'), text: line() }),
+  z.object({ t: z.literal('h'), text: line(200) }),
+  z.object({ t: z.literal('ul'), items: z.array(line(1000)).max(50) }),
+  z.object({ t: z.literal('ol'), items: z.array(line(1000)).max(50) }),
+  z.object({ t: z.literal('quote'), text: line(), cite: line(200) }),
+  z.object({ t: z.literal('note'), text: line(), tone: z.enum(['info', 'gold']) }),
+  z.object({ t: z.literal('img'), mediaId: z.string().max(60), caption: line(300) }),
+  z.object({ t: z.literal('video'), url: z.union([z.literal(''), z.string().trim().url('رابط فيديو غير صالح').regex(/^https:\/\//, 'رابط https فقط').max(1000)]), caption: line(300) }),
+  z.object({ t: z.literal('hr') }),
+])
+
 export const lessonInput = z.object({
   id: z.string().optional(),
   title: text(200).min(1, 'عنوان الدرس مطلوب'),
@@ -121,6 +134,7 @@ export const courseInput = z
     accessDays: z.number().int().min(1, 'يوم واحد على الأقل').max(3650).nullable().default(null),
     teaser: videoInput.default({ provider: 'none' }),
     description: text(20_000),
+    content: z.array(blockInput).max(200).nullable().default(null),
     outcomes: lines,
     audience: lines,
     requirements: lines,
@@ -176,6 +190,7 @@ export const instructorInput = z.object({
   highlights: lines,
   links: z.array(z.object({ label: text(60), url: z.string().url('رابط غير صالح').max(500) })).max(10),
   photoId: z.string().nullable(),
+  sceneId: z.string().nullable().default(null),
   display: z.enum(['full', 'compact', 'hidden']),
   featured: z.boolean(),
 })
@@ -264,3 +279,35 @@ export const promotionInput = z.object({
   if (v.startsAt && v.endsAt && Date.parse(v.startsAt) >= Date.parse(v.endsAt)) ctx.addIssue({ code: 'custom', path: ['endsAt'], message: 'النهاية بعد البداية' })
 })
 export type PromotionInput = z.input<typeof promotionInput>
+
+/* ───────── مسودة المعاينة ───────── */
+export const courseDraftInput = z.object({
+  title: z.string().max(160),
+  subtitle: z.string().max(300),
+  coverId: z.string().nullable(),
+  content: z.array(blockInput).max(200).nullable(),
+  outcomes: z.array(z.string().max(300)).max(30),
+  audience: z.array(z.string().max(300)).max(30),
+  requirements: z.array(z.string().max(300)).max(30),
+  faq: z.array(z.object({ q: z.string().max(300), a: z.string().max(2000) })).max(50),
+})
+export type CourseDraft = z.infer<typeof courseDraftInput>
+
+/* ───────── عقود المؤسسات ───────── */
+export const contractInput = z.object({
+  number: z.string().trim().max(60),
+  title: z.string().trim().min(2, 'عنوان العقد مطلوب').max(160),
+  status: z.enum(['draft', 'active', 'expired', 'cancelled']),
+  startsAt: iso,
+  endsAt: iso,
+  seats: z.number().int().min(1, 'مقعد واحد على الأقل').max(100_000),
+  scope: z.enum(['all', 'courses']),
+  courseIds: z.array(z.string().uuid()).max(500),
+  total: halalas,
+  fileId: z.string().uuid().nullable(),
+  notes: z.string().trim().max(4000),
+}).superRefine((v, ctx) => {
+  if (v.scope === 'courses' && !v.courseIds.length) ctx.addIssue({ code: 'custom', path: ['courseIds'], message: 'اختر دورة واحدة على الأقل' })
+  if (v.startsAt && v.endsAt && Date.parse(v.startsAt) >= Date.parse(v.endsAt)) ctx.addIssue({ code: 'custom', path: ['endsAt'], message: 'نهاية العقد بعد بدايته' })
+})
+export type ContractInput = z.input<typeof contractInput>

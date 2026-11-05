@@ -13,6 +13,7 @@ import { cohortsOf } from './cohorts'
 import { livePromotions, promosFor } from './promotions'
 import type { CourseRow, InstructorRow, LessonRow, Media, ModuleRow, TierRow, TrackRow } from './db/schema'
 import { inList } from '@/server/db/limits'
+import { blocksFrom, type Block } from '@/lib/blocks'
 
 export const mediaUrl = (m: Pick<Media, 'key'>) => `/media/${m.key}`
 
@@ -35,7 +36,7 @@ const toTrack = (t: TrackRow, count: number, m: Map<string, Media>): Track => ({
 
 const toInstructor = (p: InstructorRow, m: Map<string, Media>): Instructor => ({
   slug: p.slug, name: p.name, title: p.title, highlights: p.highlights, display: p.display, featured: p.featured,
-  bio: p.bio, links: p.links, photo: mediaView(m.get(p.photoId ?? '')),
+  bio: p.bio, links: p.links, photo: mediaView(m.get(p.photoId ?? '')), scene: mediaView(m.get(p.sceneId ?? '')),
 })
 
 const seatsOf = (total: number | null, taken: number) => (total ? { total, taken: Math.min(taken, total) } : undefined)
@@ -97,7 +98,7 @@ export async function catalog(now = new Date()) {
   const [promoRows, cohortMap] = await Promise.all([livePromotions(now), cohortsOf(courseRows.map((c) => c.id))])
   const booked = new Map<string, number>()
   for (const r of [...enrolled, ...granted]) booked.set(r.courseId, (booked.get(r.courseId) ?? 0) + r.n)
-  const m = await mediaMap([...trackRows.map((t) => t.coverId), ...courseRows.map((c) => c.coverId), ...instRows.map((p) => p.photoId)])
+  const m = await mediaMap([...trackRows.map((t) => t.coverId), ...courseRows.map((c) => c.coverId), ...instRows.flatMap((p) => [p.photoId, p.sceneId])])
   const trackSlug = new Map(trackRows.map((t) => [t.id, t.slug]))
   const instSlug = new Map(instRows.map((p) => [p.id, p.slug]))
   const byCourse = new Map<string, string[]>()
@@ -156,6 +157,9 @@ export type CourseDetail = {
   /** كل المدربين — لبطاقات الدورات ذات الصلة */
   people: Instructor[]
   reviews: { avg: number; count: number; dist: number[]; items: { id: string; rating: number; comment: string; display: string; at: string }[] }
+  /** الوصف كتلاً (من المحرّر الغني أو مشتقاً من النص القديم) وصوره */
+  blocks: Block[]
+  blockMedia: Map<string, MediaView>
 }
 
 /** صفحة الدورة — المسودة والمؤرشفة لا تظهر إلا برمز المعاينة */
@@ -174,7 +178,10 @@ export async function courseDetail(slug: string, preview?: string, now = new Dat
   /* التقييمات المعتمدة فقط — الاسم كما اختاره المتدرب */
   const revs = await db.select().from(s.reviews).where(and(eq(s.reviews.courseId, hit.row.id), eq(s.reviews.status, 'approved'))).orderBy(desc(s.reviews.createdAt))
   const dist = [1, 2, 3, 4, 5].map((n) => revs.filter((r) => r.rating === n).length)
+  const blocks = hit.row.content ?? blocksFrom(hit.row.description)
+  const blockMedia = await mediaViews(blocks.map((b) => (b.t === 'img' ? b.mediaId : null)))
   return {
+    blocks, blockMedia,
     course: hit.view,
     row: hit.row,
     tiers: tiers.map(({ id, name, description, price, compareAt, features, highlight }) => {

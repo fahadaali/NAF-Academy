@@ -6,12 +6,20 @@ import { revalidatePath } from 'next/cache'
 import { and, eq, isNull, ne } from 'drizzle-orm'
 import { z } from 'zod'
 import { db, schema as s } from '@/server/db'
-import { requirePermission } from '@/server/auth'
+import { courseScope, inScope, requirePermission, type Staff } from '@/server/auth'
 import { audit } from '@/server/audit'
 import { certBrand, issueCertificate, recheckCourse, regeneratePdf } from '@/server/certificates'
 import { certificatePdf } from '@/server/certificates/pdf'
 import { BLOCKS, DEFAULT_DESIGN, type CertDesign } from '@/lib/certificate'
 import { inList } from '@/server/db/limits'
+
+/** المدرب لا يمسّ إلا شهادات دوراته */
+async function mine(st: Staff, id: string) {
+  const scope = await courseScope(st)
+  if (scope === null) return true
+  const [c] = await db.select({ courseId: s.certificates.courseId }).from(s.certificates).where(eq(s.certificates.id, id))
+  return !!c && inScope(scope, c.courseId)
+}
 
 const refresh = () => { revalidatePath('/admin/certificates', 'layout'); revalidatePath('/learn', 'layout') }
 
@@ -22,6 +30,7 @@ export async function approveCertificates(ids: string[]): Promise<{ ok: boolean;
   if (!list.success) return { ok: false, n: 0 }
   /* خطأ في شهادة لا يوقف بقية الدفعة */
   for (const id of list.data) {
+    if (!(await mine(st, id))) continue
     try {
       const r = await issueCertificate(id, st.name)
       if (r?.status === 'issued') n++
@@ -37,6 +46,7 @@ export async function rejectCertificate(raw: unknown): Promise<{ ok: boolean; er
   const st = await requirePermission('certificates.manage')
   const p = reasonInput.safeParse(raw)
   if (!p.success) return { ok: false, error: p.error.issues[0]?.message }
+  if (!(await mine(st, p.data.id))) return { ok: false, error: 'الشهادة غير موجودة' }
   const r = await db.update(s.certificates).set({ status: 'rejected', reason: p.data.reason, decidedBy: st.name, updatedAt: new Date().toISOString() })
     .where(and(eq(s.certificates.id, p.data.id), eq(s.certificates.status, 'pending'))).returning({ id: s.certificates.id })
   if (!r.length) return { ok: false, error: 'لا يمكن رفضها الآن' }
@@ -49,6 +59,7 @@ export async function revokeCertificate(raw: unknown): Promise<{ ok: boolean; er
   const st = await requirePermission('certificates.manage')
   const p = reasonInput.safeParse(raw)
   if (!p.success) return { ok: false, error: p.error.issues[0]?.message }
+  if (!(await mine(st, p.data.id))) return { ok: false, error: 'الشهادة غير موجودة' }
   const now = new Date().toISOString()
   const r = await db.update(s.certificates).set({ status: 'revoked', reason: p.data.reason, revokedAt: now, decidedBy: st.name, updatedAt: now })
     .where(and(eq(s.certificates.id, p.data.id), eq(s.certificates.status, 'issued'))).returning({ code: s.certificates.code })
@@ -62,6 +73,7 @@ export async function revokeCertificate(raw: unknown): Promise<{ ok: boolean; er
 /** إعادة المرفوضة إلى المراجعة */
 export async function reopenCertificate(id: string) {
   const st = await requirePermission('certificates.manage')
+  if (!z.string().uuid().safeParse(id).success || !(await mine(st, id))) return { ok: false }
   await db.update(s.certificates).set({ status: 'pending', reason: '', updatedAt: new Date().toISOString() }).where(and(eq(s.certificates.id, id), eq(s.certificates.status, 'rejected')))
   await audit(st.name, 'reopen', 'certificate', id, '')
   refresh()
@@ -70,6 +82,7 @@ export async function reopenCertificate(id: string) {
 
 export async function regenerateCertificate(id: string) {
   const st = await requirePermission('certificates.manage')
+  if (!z.string().uuid().safeParse(id).success || !(await mine(st, id))) return { ok: false }
   await regeneratePdf(id)
   await audit(st.name, 'regenerate', 'certificate', id, '')
   refresh()
@@ -78,6 +91,7 @@ export async function regenerateCertificate(id: string) {
 
 export async function recheck(courseId: string): Promise<{ ok: boolean; n: number }> {
   const st = await requirePermission('certificates.manage')
+  if (!inScope(await courseScope(st), courseId)) return { ok: false, n: 0 }
   const n = await recheckCourse(courseId, st.name)
   await audit(st.name, 'recheck', 'course', courseId, `${n} مستوفٍ`)
   refresh()
@@ -119,7 +133,7 @@ export async function saveTemplate(id: string | null, raw: TemplateInput): Promi
   if (id) await db.update(s.certificateTemplates).set({ ...p.data, updatedAt: new Date().toISOString() }).where(eq(s.certificateTemplates.id, id))
   else await db.insert(s.certificateTemplates).values({ id: tid, ...p.data })
   if (p.data.isDefault) await db.update(s.certificateTemplates).set({ isDefault: false }).where(ne(s.certificateTemplates.id, tid))
-  await audit(st.name, id ? 'update' : 'create', 'certificate_template', tid, p.data.name)
+  await audit(st.name, id ? 'update' : 'create', 'certificate_template', tid, p.data.name, p.data)
   refresh()
   return { ok: true, id: tid }
 }

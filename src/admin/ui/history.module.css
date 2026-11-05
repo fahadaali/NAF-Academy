@@ -1,0 +1,20 @@
+.drawer { position: fixed; inset-block: 0; inset-inline-start: 0; z-index: 70; inline-size: min(520px, 100vw); display: grid; align-content: start; gap: 12px; padding: 18px 20px; overflow-y: auto; background: var(--surface); box-shadow: var(--shadow-2); animation: drawer-in var(--t-reveal) var(--ease-glide) backwards; }
+@keyframes drawer-in { from { transform: translate3d(-24px, 0, 0); opacity: 0; } }
+:dir(rtl) .drawer { animation-name: drawer-in-rtl; }
+@keyframes drawer-in-rtl { from { transform: translate3d(24px, 0, 0); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .drawer { animation: none; } }
+.head { display: flex; justify-content: space-between; align-items: center; }
+.x { inline-size: 34px; block-size: 34px; border-radius: 50%; }
+.x:hover { background: var(--surface-2); }
+.muted { color: var(--muted); font-size: 14px; }
+.list { display: grid; gap: 6px; }
+.list button { display: grid; gap: 2px; inline-size: 100%; text-align: start; padding: 10px 12px; border-radius: var(--radius-m); box-shadow: inset 0 0 0 1px var(--line); }
+.list button:hover { background: var(--surface-2); }
+.list small { color: var(--muted); font-size: 12.5px; }
+.now { margin-inline-start: 8px; font-style: normal; font-size: 12px; color: var(--accent-strong); }
+.view { display: grid; gap: 10px; }
+.back { justify-self: start; color: var(--accent-strong); font-weight: 600; }
+.diff { inline-size: 100%; border-collapse: collapse; font-size: 13px; }
+.diff th, .diff td { padding: 8px; border-block-end: 1px solid var(--line); text-align: start; vertical-align: top; word-break: break-word; }
+.diff thead th { color: var(--muted); font-weight: 600; }
+.err { color: var(--danger); font-size: 14px; }

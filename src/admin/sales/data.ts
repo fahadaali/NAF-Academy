@@ -2,7 +2,7 @@ import 'server-only'
 /* قراءات المبيعات للوحة — تُستدعى بعد requireAdmin. */
 import { and, asc, count, desc, eq, gte, inArray, isNull, sql, sum } from 'drizzle-orm'
 import { db, schema as s } from '@/server/db'
-import { requirePermission } from '@/server/auth'
+import { courseScope, inScope, requirePermission } from '@/server/auth'
 import { inList } from '@/server/db/limits'
 
 const PAID = ['paid', 'partially_refunded', 'refunded'] as const
@@ -84,7 +84,8 @@ export async function couponRedemptionsOf(id: string) {
 }
 
 export async function courseLearners(courseId: string) {
-  await requirePermission('learners.read')
+  const scope = await courseScope(await requirePermission('learners.read'))
+  if (!inScope(scope, courseId)) return { enrolls: [], interest: [], cohorts: [] }
   const [enrolls, interest] = await Promise.all([
     db.select({ e: s.enrollments, l: s.learners, number: s.orders.number, tier: s.priceTiers.name })
       .from(s.enrollments).innerJoin(s.learners, eq(s.learners.id, s.enrollments.learnerId))

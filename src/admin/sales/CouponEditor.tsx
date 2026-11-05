@@ -1,4 +1,5 @@
 'use client'
+import { History } from '@/admin/ui/History'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { generateBatch, saveCoupon, type CouponInput } from './actions'
@@ -38,7 +39,7 @@ export function CouponEditor({ id, initial, courses, tracks }: { id: string | nu
 
   return (
     <>
-      <PageHead title={id ? v.code : 'كوبون جديد'} sub={batch ? 'دفعة أكواد فريدة لاستخدام واحد لكل كود — للمؤسسات والمنح' : 'رابط التطبيق التلقائي: /courses?coupon=' + (v.code || 'CODE')} />
+      <PageHead title={id ? v.code : 'كوبون جديد'} actions={id ? <History entity="coupon" id={id} current={v} onRestore={(x) => { setV(x); setMsg({ ok: true, text: 'حُمّلت النسخة — راجعها ثم احفظ' }) }} /> : null} sub={batch ? 'دفعة أكواد فريدة لاستخدام واحد لكل كود — للمؤسسات والمنح' : 'رابط التطبيق التلقائي: /courses?coupon=' + (v.code || 'CODE')} />
       {!id && <div style={{ marginBlockEnd: 16 }}><Switch checked={batch} onChange={setBatch} label="توليد دفعة أكواد لمؤسسة" /></div>}
       <Section title="الخصم">
         <Grid>

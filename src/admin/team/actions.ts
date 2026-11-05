@@ -8,7 +8,7 @@ import { db, schema as s } from '@/server/db'
 import { requirePermission, staffMode } from '@/server/auth'
 import { audit } from '@/server/audit'
 import { cfEnv } from '@/server/runtime'
-import { ROLES, type Role } from '@/lib/permissions'
+import { PERMS, ROLES, roleDefaults, type Role } from '@/lib/permissions'
 import { channelState, saveChannelSettings, type ChannelSettings } from '@/server/notify/channels'
 
 async function report(email: string | null, state: 'granted' | 'revoked', reason: string, role?: string) {
@@ -61,6 +61,42 @@ export async function setMemberActive(userId: string, active: boolean): Promise<
   await db.update(s.members).set({ isActive: active ? 1 : 0 }).where(eq(s.members.userId, userId))
   await report(m.email, active ? 'granted' : 'revoked', active ? 'أُعيد تفعيله من إعدادات الأكاديمية' : 'أُوقف من إعدادات الأكاديمية')
   await audit(me.name, active ? 'enable' : 'disable', 'member', m.email ?? userId, active ? 'تفعيل' : 'إيقاف')
+  revalidatePath('/admin/team')
+  return { ok: true }
+}
+
+/** تخصيص صلاحيات عضو فوق دوره: منح ما ليس في الدور، أو حجب ما فيه. يُحفظ في جدول الأعضاء الذي يقرؤه الدخول الموحّد. */
+export async function setMemberPerms(userId: string, raw: { add: string[]; remove: string[] }): Promise<{ ok: boolean; error?: string }> {
+  const me = await requirePermission('team.manage')
+  const p = z.object({ add: z.array(z.enum(PERMS)).max(PERMS.length), remove: z.array(z.enum(PERMS)).max(PERMS.length) }).safeParse(raw)
+  if (!p.success || typeof userId !== 'string') return { ok: false, error: 'بيانات غير صالحة' }
+  const [m] = await db.select().from(s.members).where(eq(s.members.userId, userId))
+  if (!m) return { ok: false, error: 'العضو غير موجود' }
+  const base = roleDefaults(m.role)
+  /* المنح لما ليس في الدور فقط، والحجب لما فيه فقط — فيبقى التخصيص صغيراً ومقروءاً */
+  const add = [...new Set(p.data.add)].filter((x) => !base.includes(x))
+  const remove = [...new Set(p.data.remove)].filter((x) => base.includes(x))
+  if (remove.includes('team.manage') && userId === me.id) return { ok: false, error: 'لا تحجب عن نفسك إدارة الفريق' }
+  if (remove.includes('team.manage') && m.role === 'owner' && (await ownersLeft(userId)) === 0) return { ok: false, error: 'لا بد من مالك يدير الفريق' }
+  const perms = add.length || remove.length ? JSON.stringify({ '+': add, '-': remove }) : null
+  await db.update(s.members).set({ perms }).where(eq(s.members.userId, userId))
+  await audit(me.name, 'perms', 'member', m.email ?? userId, `منح: ${add.join('، ') || '—'} · حجب: ${remove.join('، ') || '—'}`)
+  revalidatePath('/admin/team')
+  return { ok: true }
+}
+
+/** ربط عضو بملف مدرب — دور «مدرب» يُحصر في دورات هذا الملف */
+export async function setMemberInstructor(userId: string, instructorId: string | null): Promise<{ ok: boolean; error?: string }> {
+  const me = await requirePermission('team.manage')
+  if (typeof userId !== 'string' || (instructorId !== null && !z.string().uuid().safeParse(instructorId).success)) return { ok: false, error: 'بيانات غير صالحة' }
+  const [m] = await db.select().from(s.members).where(eq(s.members.userId, userId))
+  if (!m) return { ok: false, error: 'العضو غير موجود' }
+  if (instructorId) {
+    const [i] = await db.select({ id: s.instructors.id, name: s.instructors.name }).from(s.instructors).where(eq(s.instructors.id, instructorId))
+    if (!i) return { ok: false, error: 'المدرب غير موجود' }
+  }
+  await db.update(s.members).set({ instructorId }).where(eq(s.members.userId, userId))
+  await audit(me.name, 'link', 'member', m.email ?? userId, instructorId ? `ملف المدرب ${instructorId}` : 'فكّ الربط')
   revalidatePath('/admin/team')
   return { ok: true }
 }

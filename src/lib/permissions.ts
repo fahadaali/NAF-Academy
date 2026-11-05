@@ -14,7 +14,7 @@ export const ROLE_HINT: Record<Role, string> = {
   owner: 'كل شيء، بما فيه الفريق وإعدادات الدفع والحذف النهائي',
   content: 'الدورات والمسارات والمدربون والصور والصفحة الرئيسية وقوالب الرسائل',
   finance: 'الطلبات والاسترداد والكوبونات وتقارير المبيعات',
-  instructor: 'مسجّلو الدورات، وتقييم الواجبات، والرد على الأسئلة، وتسجيل الحضور، واعتماد الشهادات',
+  instructor: 'في دوراته وحدها (يُربط بملفه من هنا): مسجّلوها، وتقييم الواجبات، والرد على الأسئلة، وتسجيل الحضور، واعتماد الشهادات',
   support: 'الاطلاع على الطلبات والمسجّلين، والطلب اليدوي وتخصيص المقاعد',
 }
 
@@ -44,3 +44,15 @@ export function can(role: string, perm: Perm, custom?: Record<string, unknown> |
   const del = Array.isArray(custom?.['-']) ? (custom!['-'] as string[]) : []
   return (base.includes(perm) || add.includes(perm)) && !del.includes(perm)
 }
+
+/** صلاحيات الدور وحده (قبل التخصيص) — لعرضها في نافذة صلاحيات العضو */
+export const roleDefaults = (role: string): Perm[] => (isRole(role) ? [...MATRIX[role]] : [])
+
+/** أسماء الصلاحيات ومجموعاتها في واجهة الفريق */
+export const PERM_GROUPS: { title: string; perms: [Perm, string][] }[] = [
+  { title: 'المحتوى والموقع', perms: [['content.read', 'الاطلاع على المحتوى'], ['content.write', 'تعديل الدورات والمسارات والمدربين والصور'], ['site.write', 'الرئيسية والصفحات العامة والهوية']] },
+  { title: 'المبيعات', perms: [['sales.read', 'الاطلاع على الطلبات والتقارير'], ['sales.orders', 'الطلبات اليدوية والمقاعد والتسجيلات'], ['sales.refund', 'الاسترداد'], ['sales.coupons', 'الكوبونات والعروض العامة'], ['payments.manage', 'إعدادات الدفع']] },
+  { title: 'المتدربون والتعلّم', perms: [['learners.read', 'دليل المتدربين وملفاتهم'], ['learning.review', 'الواجبات والأسئلة'], ['attendance.mark', 'الحضور والجلسات'], ['certificates.manage', 'الشهادات وقوالبها']] },
+  { title: 'الرسائل والمؤسسات', perms: [['notify.manage', 'قوالب الرسائل الآلية'], ['messages.read', 'سجل الرسائل'], ['channels.manage', 'قنوات البريد والجوال والمتصفح'], ['corporate.manage', 'المؤسسات وعقودها']] },
+  { title: 'الإدارة', perms: [['team.manage', 'الفريق والصلاحيات'], ['audit.read', 'سجل التعديلات'], ['analytics.read', 'التحليلات'], ['trash.purge', 'الحذف النهائي من السلة']] },
+]

@@ -1,5 +1,6 @@
 'use client'
 /* محرّر الدورة — تبويبات، ومعاينة حيّة للبطاقة كما ستظهر في الموقع، وحفظ بشريط ثابت. */
+import { History } from '@/admin/ui/History'
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import type { InstructorRow, Media, TrackRow } from '@/server/db/schema'
@@ -19,6 +20,9 @@ import { MediaPicker, urlOf } from '@/admin/ui/MediaPicker'
 import { STATUS_HINT, STATUS_LABEL, STATUS_ORDER } from './labels'
 import { LessonDetail, VideoField } from './LessonDetail'
 import { CohortsPanel } from '@/admin/cohorts/CohortsPanel'
+import { BlockEditor } from '@/admin/ui/BlockEditor'
+import { FullPreview } from './FullPreview'
+import { blocksFrom } from '@/lib/blocks'
 import type { CohortRow, CohortSessionRow } from '@/server/db/schema'
 import { DEFAULT_RULES } from '@/lib/certificate'
 import styles from './editor.module.css'
@@ -29,6 +33,17 @@ const TABS = [
   ['curriculum', 'المنهج'], ['certificate', 'الشهادة'], ['people', 'المدربون'], ['publish', 'النشر والظهور'],
 ] as const
 type Tab = (typeof TABS)[number][0]
+
+/** أسماء الحقول في مقارنة سجل النسخ */
+const COURSE_LABELS: Record<string, string> = {
+  title: 'العنوان', subtitle: 'العنوان الفرعي', slug: 'الرابط', trackId: 'المسار', level: 'المستوى', mode: 'نمط التقديم', status: 'الحالة',
+  publishAt: 'موعد النشر', startsAt: 'البداية', endsAt: 'النهاية', hours: 'الساعات', seatsTotal: 'السعة', seatsTaken: 'المحجوز يدوياً',
+  city: 'المدينة', venue: 'المقر', venueMapUrl: 'الخريطة', coverId: 'الغلاف', teaser: 'الفيديو التشويقي', price: 'السعر', compareAt: 'السعر قبل العرض',
+  saleStartsAt: 'بداية العرض', saleEndsAt: 'نهاية العرض', free: 'مجانية', accessDays: 'مدة الوصول', description: 'الوصف (نص)', content: 'الوصف',
+  outcomes: 'النتائج', audience: 'الفئة', requirements: 'المتطلبات', faq: 'الأسئلة الشائعة', featured: 'مميزة', sequential: 'التسلسل',
+  completeAt: 'اكتمال الفيديو', certificate: 'الشهادة', seoTitle: 'عنوان SEO', seoDescription: 'وصف SEO', instructorIds: 'المدربون',
+  curriculum: 'المنهج', tiers: 'الباقات', groupRules: 'خصم المجموعات',
+}
 
 const LESSON_LABEL: Record<(typeof LESSON_TYPE)[number], string> = {
   video: 'فيديو', article: 'مقال', file: 'ملف', quiz: 'اختبار', live: 'جلسة مباشرة', onsite: 'جلسة حضورية', assignment: 'واجب',
@@ -58,6 +73,7 @@ export function CourseEditor({ id, initial, previewToken, tracks, instructors, m
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
   const [slugTouched, setSlugTouched] = useState(!!id)
+  const [full, setFull] = useState(false)
   const dirty = JSON.stringify(v) !== saved
 
   const set = <K extends keyof CourseInput>(k: K, val: CourseInput[K]) => { setV((o) => ({ ...o, [k]: val })); setMsg(null) }
@@ -113,8 +129,12 @@ export function CourseEditor({ id, initial, previewToken, tracks, instructors, m
       <PageHead
         title={id ? v.title || 'دورة' : 'دورة جديدة'}
         sub={id ? `/${v.slug}` : 'ابدأ بالعنوان والمسار، ثم أكمل بقية التبويبات'}
-        actions={id && previewToken ? <><a className="btn ghost" href={`/admin/courses/${id}/learners`}>المسجّلون</a><a className="btn ghost" href={`/courses/${v.slug}/preview/${previewToken}`} target="_blank" rel="noreferrer">معاينة الصفحة ↗</a></> : null}
+        actions={id && previewToken ? <><a className="btn ghost" href={`/admin/courses/${id}/learners`}>المسجّلون</a>{write && <button type="button" className="btn ghost" onClick={() => setFull(true)}>معاينة كاملة</button>}{write && <History entity="course" id={id} current={v} labels={COURSE_LABELS} onRestore={(x) => { setV(x); setMsg({ ok: true, text: 'حُمّلت النسخة — راجعها ثم احفظ' }) }} />}<a className="btn ghost" href={`/courses/${initial.slug}/preview/${previewToken}`} target="_blank" rel="noreferrer">المحفوظة ↗</a></> : null}
       />
+      {full && id && previewToken && (
+        <FullPreview courseId={id} url={`/courses/${initial.slug}/preview/${previewToken}`} onClose={() => setFull(false)}
+          draft={{ title: v.title, subtitle: v.subtitle, coverId: v.coverId, content: v.content ?? blocksFrom(v.description), outcomes: v.outcomes, audience: v.audience, requirements: v.requirements, faq: v.faq }} />
+      )}
 
       <div className={styles.layout}>
         <div className={styles.form}>
@@ -219,8 +239,8 @@ export function CourseEditor({ id, initial, previewToken, tracks, instructors, m
 
           {tab === 'content' && (
             <>
-              <Section title="الوصف" desc="فقرات، وعناوين تبدأ بـ ## ، وقوائم تبدأ بـ -">
-                <Textarea rows={10} value={v.description} onChange={(e) => set('description', e.target.value)} />
+              <Section title="الوصف" desc="كتل بالترتيب: فقرات وعناوين وقوائم واقتباسات وتنبيهات وصور — «معاينة كاملة» تعرض الصفحة كما ستظهر قبل الحفظ">
+                <BlockEditor value={v.content ?? blocksFrom(v.description)} onChange={(x) => set('content', x)} media={media} />
               </Section>
               <Section title="ستتمكّن من…" desc="نتائج التعلّم — تظهر بارزة في أعلى صفحة الدورة">
                 <ListEditor value={v.outcomes} onChange={(x) => set('outcomes', x)} placeholder="مثال: صياغة بنود المسؤولية بدقة" add="نتيجة" />

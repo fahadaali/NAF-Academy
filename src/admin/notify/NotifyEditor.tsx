@@ -1,6 +1,7 @@
 'use client'
 /* محرّر الرسائل الآلية — قائمة الأحداث، وتحرير القالب بمتغيراته، ومعاينة حيّة (حاسب/جوال، فاتح/داكن)،
    وإرسال تجريبي، وتوقيتات التذكير. */
+import { History } from '@/admin/ui/History'
 import { useEffect, useRef, useState } from 'react'
 import { EVENTS, EVENT_META, VAR_LABEL, leftLabel, type Category, type EventKey, type NotifySettings, type Template } from '@/lib/notify'
 import { Field, Grid, Input, SaveBar, Section, Segmented, Switch, Textarea } from '@/admin/ui/kit'
@@ -56,7 +57,7 @@ export function NotifyEditor({ initial, staffEmail }: { initial: NotifySettings;
             : <TemplateEditor key={pick} event={pick} t={v.templates[pick]} set={(p) => setTpl(pick, p)} errors={errors} staffEmail={staffEmail} />}
         </div>
       </div>
-      <SaveBar dirty={dirty} saving={saving} message={msg} onSave={save} />
+      <SaveBar dirty={dirty} saving={saving} message={msg} onSave={save} extra={<History entity="settings" id="notify" current={v} onRestore={(x) => { setV(x); setMsg({ ok: true, text: 'حُمّلت النسخة — راجعها ثم احفظ' }) }} />} />
     </>
   )
 }

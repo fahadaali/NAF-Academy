@@ -2,47 +2,51 @@ import 'server-only'
 /* قراءات التعلّم للوحة — الواجبات، والأسئلة، والجلسات وحضورها. */
 import { and, asc, count, desc, eq, inArray, isNull, sql } from 'drizzle-orm'
 import { db, schema as s } from '@/server/db'
-import { requirePermission } from '@/server/auth'
+import { courseScope, inScope, requirePermission } from '@/server/auth'
 import { inList } from '@/server/db/limits'
 
+/** المدرب يرى دوراته وحدها — شرط يُضاف لكل قراءة */
+const scoped = (scope: string[] | null) => (scope === null ? undefined : inList(s.courses.id, scope))
+
 export async function submissionsQueue(status: 'submitted' | 'accepted' | 'revise' | 'all') {
-  await requirePermission('learning.review')
+  const scope = await courseScope(await requirePermission('learning.review'))
   return db.select({ sub: s.submissions, learner: s.learners, lesson: s.lessons.title, course: s.courses.title, slug: s.courses.slug, file: s.assets.name })
     .from(s.submissions)
     .innerJoin(s.learners, eq(s.learners.id, s.submissions.learnerId))
     .innerJoin(s.lessons, eq(s.lessons.id, s.submissions.lessonId))
     .innerJoin(s.courses, eq(s.courses.id, s.submissions.courseId))
     .leftJoin(s.assets, eq(s.assets.id, s.submissions.assetId))
-    .where(and(isNull(s.courses.deletedAt), status === 'all' ? undefined : eq(s.submissions.status, status)))
+    .where(and(isNull(s.courses.deletedAt), scoped(scope), status === 'all' ? undefined : eq(s.submissions.status, status)))
     .orderBy(status === 'submitted' ? asc(s.submissions.createdAt) : desc(s.submissions.createdAt)).limit(300)
 }
 
 export async function questionsQueue(open: boolean) {
-  await requirePermission('learning.review')
+  const scope = await courseScope(await requirePermission('learning.review'))
   return db.select({ q: s.questions, learner: s.learners.name, email: s.learners.email, lesson: s.lessons.title, course: s.courses.title })
     .from(s.questions)
     .innerJoin(s.learners, eq(s.learners.id, s.questions.learnerId))
     .innerJoin(s.lessons, eq(s.lessons.id, s.questions.lessonId))
     .innerJoin(s.courses, eq(s.courses.id, s.questions.courseId))
-    .where(and(isNull(s.courses.deletedAt), open ? isNull(s.questions.answer) : sql`${s.questions.answer} is not null`))
+    .where(and(isNull(s.courses.deletedAt), scoped(scope), open ? isNull(s.questions.answer) : sql`${s.questions.answer} is not null`))
     .orderBy(open ? asc(s.questions.createdAt) : desc(s.questions.answeredAt)).limit(300)
 }
 
 export async function learningCounts() {
-  await requirePermission('learning.review')
+  const scope = await courseScope(await requirePermission('learning.review'))
+  const by = (col: Parameters<typeof inList>[0]) => (scope === null ? undefined : inList(col, scope))
   const [[subs], [qs]] = await Promise.all([
-    db.select({ n: count() }).from(s.submissions).where(eq(s.submissions.status, 'submitted')),
-    db.select({ n: count() }).from(s.questions).where(isNull(s.questions.answer)),
+    db.select({ n: count() }).from(s.submissions).where(and(eq(s.submissions.status, 'submitted'), by(s.submissions.courseId))),
+    db.select({ n: count() }).from(s.questions).where(and(isNull(s.questions.answer), by(s.questions.courseId))),
   ])
   return { submissions: subs.n, questions: qs.n }
 }
 
 /** الجلسات المباشرة والحضورية مع عدد المسجّلين والحاضرين */
 export async function sessionsList() {
-  await requirePermission('attendance.mark')
+  const scope = await courseScope(await requirePermission('attendance.mark'))
   const rows = await db.select({ l: s.lessons, courseId: s.courses.id, course: s.courses.title })
     .from(s.lessons).innerJoin(s.modules, eq(s.modules.id, s.lessons.moduleId)).innerJoin(s.courses, eq(s.courses.id, s.modules.courseId))
-    .where(and(inArray(s.lessons.type, ['live', 'onsite']), isNull(s.courses.deletedAt)))
+    .where(and(inArray(s.lessons.type, ['live', 'onsite']), isNull(s.courses.deletedAt), scoped(scope)))
     .orderBy(asc(s.lessons.startsAt))
   if (!rows.length) return []
   const courseIds = [...new Set(rows.map((r) => r.courseId))]
@@ -56,10 +60,10 @@ export async function sessionsList() {
 }
 
 export async function sessionRoster(lessonId: string) {
-  await requirePermission('attendance.mark')
+  const scope = await courseScope(await requirePermission('attendance.mark'))
   const [row] = await db.select({ l: s.lessons, courseId: s.courses.id, course: s.courses.title })
     .from(s.lessons).innerJoin(s.modules, eq(s.modules.id, s.lessons.moduleId)).innerJoin(s.courses, eq(s.courses.id, s.modules.courseId)).where(eq(s.lessons.id, lessonId))
-  if (!row || (row.l.type !== 'live' && row.l.type !== 'onsite')) return null
+  if (!row || (row.l.type !== 'live' && row.l.type !== 'onsite') || !inScope(scope, row.courseId)) return null
   const people = await db.select({ learner: s.learners, at: s.attendance.at, method: s.attendance.method, by: s.attendance.by })
     .from(s.enrollments).innerJoin(s.learners, eq(s.learners.id, s.enrollments.learnerId))
     .leftJoin(s.attendance, and(eq(s.attendance.learnerId, s.enrollments.learnerId), eq(s.attendance.lessonId, lessonId)))

@@ -1,6 +1,7 @@
 'use client'
 /* العروض العامة: خصم تلقائي يظهر بجوار السعر باسمه وعدّاده، على المنصة كلها أو مسارات أو دورات.
    التسعير يختار الأفضل للمشتري بينه وبين عرض الدورة نفسها، بلا تراكم. */
+import { History } from '@/admin/ui/History'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { savePromotion } from './promotions'
@@ -90,7 +91,7 @@ export function PromotionsBoard({ rows, courses, tracks }: { rows: PromotionRow[
             <Switch checked={edit.v.active} onChange={(x) => set('active', x)} label={edit.v.active ? 'مفعّل' : 'موقوف'} />
           </Section>
           <SaveBar dirty={JSON.stringify(edit.v) !== edit.saved || !edit.id} saving={saving} message={msg} onSave={save}
-            extra={<button type="button" className="btn ghost" onClick={() => setEdit(null)}>رجوع</button>} />
+            extra={<>{edit.id && <History entity="promotion" id={edit.id} current={edit.v} onRestore={(x) => setEdit((e) => (e ? { ...e, v: x } : e))} />}<button type="button" className="btn ghost" onClick={() => setEdit(null)}>رجوع</button></>} />
         </>
       )}
     </>

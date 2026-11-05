@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { adminLists, auditEntries } from '@/admin/data'
-import { staffCan } from '@/server/auth'
+import { currentStaff, staffCan } from '@/server/auth'
 import { PageHead, Badge } from '@/admin/ui/kit'
 import { STATUS_LABEL } from '@/admin/courses/labels'
 import { resolveStatus } from '@/lib/course-meta'
@@ -11,6 +11,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
   const { denied } = await searchParams
   const [canAudit, canWrite] = await Promise.all([staffCan('audit.read'), staffCan('content.write')])
   const [{ courses, tracks, instructors, media }, log] = await Promise.all([adminLists(), canAudit ? auditEntries(8) : Promise.resolve([])])
+  const me = await currentStaff()
   const now = new Date()
   const live = courses.filter((c) => ['open', 'soon', 'full'].includes(resolveStatus(c.status, c.publishAt, now)))
   const drafts = courses.filter((c) => c.status === 'draft')
@@ -20,6 +21,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
     <>
       <PageHead title="نظرة عامة" sub="حال المحتوى المنشور الآن" actions={canWrite ? <Link className="btn" href="/admin/courses/new">+ دورة جديدة</Link> : null} />
       {denied && <p role="alert" style={{ padding: '12px 16px', borderRadius: 12, background: 'color-mix(in srgb, var(--danger) 12%, transparent)', color: 'var(--danger)', fontWeight: 600, marginBlockEnd: 16 }}>لا تملك صلاحية هذه الصفحة أو العملية. اطلبها من مالك الحساب.</p>}
+      {me?.role === 'instructor' && !me.instructorId && <p role="status" style={{ padding: '12px 16px', borderRadius: 12, background: 'var(--surface-2)', fontWeight: 600, marginBlockEnd: 16 }}>حسابك غير مربوط بملف مدرب بعد — لن تظهر لك دورات حتى يربطه مالك الحساب من «الفريق والصلاحيات».</p>}
       <div className={p.stats}>
         <Link href="/admin/courses" className={p.stat}><strong data-count>{live.length}</strong><span>دورة ظاهرة للتسجيل</span></Link>
         <Link href="/admin/courses" className={p.stat}><strong data-count>{drafts.length}</strong><span>مسودة</span></Link>

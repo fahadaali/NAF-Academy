@@ -35,7 +35,7 @@ export default async function InstructorPage({ params }: { params: Promise<{ slu
       </PageHero>
       <div className="wrap" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 50, paddingBlock: '60px 100px', alignItems: 'start' }}>
         <div style={{ position: 'relative', aspectRatio: '4 / 4.6', borderRadius: 'var(--radius-l)', overflow: 'hidden', background: 'radial-gradient(70% 60% at 50% 40%, var(--night-3), var(--night-1))', maxInlineSize: 420, display: 'grid', placeItems: 'center', color: 'var(--gold-3)', fontFamily: 'var(--font-display)', fontSize: 120 }}>
-          {p.photo ? <Picture media={p.photo} priority /> : p.name.slice(0, 1)}
+          {p.scene ?? p.photo ? <Picture media={(p.scene ?? p.photo)!} priority /> : p.name.slice(0, 1)}
         </div>
         <div style={{ display: 'grid', gap: 22 }}>
           {p.bio && <Prose text={p.bio} />}

@@ -1,14 +1,15 @@
 import 'server-only'
 /* قراءات اللوحة — تشمل المسودات، ولا تُستدعى إلا بعد requireAdmin. */
-import { asc, desc, eq, isNotNull, isNull } from 'drizzle-orm'
+import { and, asc, desc, eq, isNotNull, isNull, sql } from 'drizzle-orm'
 import { db, schema as s } from '@/server/db'
-import { requirePermission } from '@/server/auth'
+import { courseScope, inScope, requirePermission } from '@/server/auth'
 import { inList } from '@/server/db/limits'
 
 export async function adminLists() {
-  await requirePermission('content.read')
+  const scope = await courseScope(await requirePermission('content.read'))
   const [courses, tracks, instructors, media, links] = await Promise.all([
-    db.select().from(s.courses).where(isNull(s.courses.deletedAt)).orderBy(asc(s.courses.sortOrder)),
+    /* المدرب يرى دوراته وحدها */
+    db.select().from(s.courses).where(and(isNull(s.courses.deletedAt), scope === null ? undefined : inList(s.courses.id, scope))).orderBy(asc(s.courses.sortOrder)),
     db.select().from(s.tracks).where(isNull(s.tracks.deletedAt)).orderBy(asc(s.tracks.sortOrder)),
     db.select().from(s.instructors).where(isNull(s.instructors.deletedAt)).orderBy(asc(s.instructors.sortOrder)),
     db.select().from(s.media).where(isNull(s.media.deletedAt)).orderBy(desc(s.media.createdAt)),
@@ -18,9 +19,9 @@ export async function adminLists() {
 }
 
 export async function courseForEdit(id: string) {
-  await requirePermission('content.read')
+  const scope = await courseScope(await requirePermission('content.read'))
   const [course] = await db.select().from(s.courses).where(eq(s.courses.id, id))
-  if (!course) return null
+  if (!course || !inScope(scope, course.id)) return null
   const mods = await db.select().from(s.modules).where(eq(s.modules.courseId, id)).orderBy(asc(s.modules.sortOrder))
   /* دروس هذه الدورة وحدها — لا كل دروس المنصة */
   const lessons = mods.length ? await db.select().from(s.lessons).where(inList(s.lessons.moduleId, mods.map((m) => m.id))).orderBy(asc(s.lessons.sortOrder)) : []
@@ -64,6 +65,6 @@ export async function trashed() {
 
 export async function auditEntries(limit = 200) {
   await requirePermission('audit.read')
-  return db.select({ id: s.auditLog.id, actor: s.auditLog.actor, action: s.auditLog.action, entity: s.auditLog.entity, summary: s.auditLog.summary, at: s.auditLog.at })
+  return db.select({ id: s.auditLog.id, actor: s.auditLog.actor, action: s.auditLog.action, entity: s.auditLog.entity, entityId: s.auditLog.entityId, summary: s.auditLog.summary, at: s.auditLog.at, versioned: sql<number>`${s.auditLog.snapshot} is not null` })
     .from(s.auditLog).orderBy(desc(s.auditLog.id)).limit(limit)
 }

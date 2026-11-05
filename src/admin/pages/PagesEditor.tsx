@@ -1,5 +1,6 @@
 'use client'
 /* الصفحات العامة — رؤوس صفحات الدورات والمسارات والدخول والسياسات، ووصف الموقع، ووصف كل صفحة في نتائج البحث. */
+import { History } from '@/admin/ui/History'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import type { PageHeadContent, PagesContent } from '@/content/pages-defaults'
@@ -36,7 +37,7 @@ export function PagesEditor({ initial }: { initial: PagesContent }) {
 
   return (
     <>
-      <PageHead title="الصفحات العامة" sub="رؤوس الصفحات ووصفها في نتائج البحث والسياسات — تُنشر فور الحفظ" />
+      <PageHead title="الصفحات العامة" sub="رؤوس الصفحات ووصفها في نتائج البحث والسياسات — تُنشر فور الحفظ" actions={<History entity="pages" id="pages" current={v} onRestore={(x) => { setV(x); setMsg({ ok: true, text: 'حُمّلت النسخة — راجعها ثم احفظ' }) }} />} />
       <Section title="الموقع" desc="العنوان والوصف العامّان: نتائج البحث، والمشاركة، وبيان التطبيق المثبّت">
         <Grid>
           <Field label="عنوان الموقع"><Input value={v.site.title} onChange={(e) => up('site', { title: e.target.value })} /></Field>

@@ -1,4 +1,5 @@
 'use client'
+import { History } from '@/admin/ui/History'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import type { Media } from '@/server/db/schema'
@@ -30,7 +31,7 @@ export function TrackEditor({ id, initial, media }: { id: string | null; initial
   }
   return (
     <>
-      <PageHead title={id ? v.title : 'مسار جديد'} sub={`/tracks/${v.slug || '…'}`} />
+      <PageHead title={id ? v.title : 'مسار جديد'} sub={`/tracks/${v.slug || '…'}`} actions={id && write ? <History entity="track" id={id} current={v} onRestore={(x) => { setV(x); setMsg({ ok: true, text: 'حُمّلت النسخة — راجعها ثم احفظ' }) }} /> : null} />
       <Section title="المسار">
         <Grid>
           <Field label="العنوان" error={errors.title}><Input value={v.title} onChange={(e) => set('title', e.target.value)} /></Field>

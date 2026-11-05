@@ -33,10 +33,12 @@ export async function orgOverview(orgId: string) {
   const managers = members.filter((m) => m.role === 'manager').map((m) => m.l.id)
   /* الخصوصية: لا يرى المسؤول إلا الدورات التي رعتها المؤسسة (طلبات مسؤوليها) — لا ما اشتراه الموظف لنفسه */
   const sponsored = managers.length ? (await db.select({ id: s.orders.id }).from(s.orders).where(inList(s.orders.learnerId, managers))).map((o) => o.id) : []
-  const [enr, certs] = ids.length && sponsored.length
+  /* ومقاعد عقود المؤسسة */
+  const contracts = (await db.select({ id: s.orgContracts.id }).from(s.orgContracts).where(eq(s.orgContracts.orgId, orgId))).map((c) => c.id)
+  const [enr, certs] = ids.length && (sponsored.length || contracts.length)
     ? await Promise.all([
       db.select({ e: s.enrollments, title: s.courses.title, slug: s.courses.slug }).from(s.enrollments).innerJoin(s.courses, eq(s.courses.id, s.enrollments.courseId))
-        .where(and(inList(s.enrollments.learnerId, ids), eq(s.enrollments.status, 'active'), inList(s.enrollments.orderId, sponsored), isNull(s.courses.deletedAt))),
+        .where(and(inList(s.enrollments.learnerId, ids), eq(s.enrollments.status, 'active'), or(inList(s.enrollments.orderId, sponsored), inList(s.enrollments.contractId, contracts)), isNull(s.courses.deletedAt))),
       db.select().from(s.certificates).where(and(inList(s.certificates.learnerId, ids), eq(s.certificates.status, 'issued'))),
     ])
     : [[], []]
