@@ -18,6 +18,7 @@ export async function submitReview(courseId: string, raw: unknown): Promise<{ ok
   const p = input.safeParse(raw)
   if (!p.success) return { ok: false, error: 'اختر تقييماً من 1 إلى 5' }
   const [en] = await db.select().from(s.enrollments).where(and(eq(s.enrollments.learnerId, me.id), eq(s.enrollments.courseId, courseId), eq(s.enrollments.status, 'active')))
+  /* المنتهي وصوله يقيّم ما درسه — التقييم عن تجربة سابقة لا عن وصول قائم */
   if (!en) return { ok: false, error: 'التقييم للمسجّلين' }
   const pct = (await progressOf([{ learnerId: me.id, courseId }])).get(`${me.id}:${courseId}`)?.pct ?? 0
   if (pct < REVIEW_MIN_PCT) return { ok: false, error: `يُتاح التقييم بعد إنجاز ${REVIEW_MIN_PCT}% من الدورة` }

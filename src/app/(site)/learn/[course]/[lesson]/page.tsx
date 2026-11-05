@@ -3,7 +3,7 @@ import { headers } from 'next/headers'
 import { notFound, redirect } from 'next/navigation'
 import QRCode from 'qrcode'
 import { currentLearner } from '@/server/learner-auth'
-import { lessonView } from '@/server/learning'
+import { learnerCourse, lessonView } from '@/server/learning'
 import { Outline } from '@/site/learn/Outline'
 import { VideoWorkspace, Notes, Questions } from '@/site/learn/Workspace'
 import { CompleteButton, QuizRunner, AssignmentPanel, JoinPanel } from '@/site/learn/LessonParts'
@@ -12,7 +12,7 @@ import { formatDay, formatHijri, formatTime } from '@/lib/dates'
 import { plain } from '@/motion/kashida'
 import st from '@/site/learn/lesson.module.css'
 import { fileSize } from '@/lib/files'
-import { dripOpensAt } from '@/lib/learning'
+import { dripBase, dripOpensAt } from '@/lib/learning'
 
 export const dynamic = 'force-dynamic'
 export const metadata: Metadata = { robots: { index: false } }
@@ -24,6 +24,8 @@ export default async function LessonPage({ params }: { params: Promise<{ course:
   const v = await lessonView(slug, id, me)
   if (!v) {
     if (!me) redirect(`/login?next=/learn/${slug}/${id}`)
+    /* المنتهي وصوله: صفحة الدورة تعرض «انتهى وصولك» مع التجديد — لا 404 (روابط البريد القديمة) */
+    if ((await learnerCourse(slug, me))?.expired) redirect(`/learn/${slug}`)
     notFound()
   }
   const { ctx, lesson: l, access, enrolled } = v
@@ -34,7 +36,7 @@ export default async function LessonPage({ params }: { params: Promise<{ course:
   const canAct = enrolled && !!me && access.state === 'open'
   /* موعد تسليم الواجب: بعد «dueDays» من إتاحة الدرس لهذا المتدرب (الفتح المتدرّج أو تاريخ تسجيله) */
   const dueAt = l.type === 'assignment' && l.assignment?.dueDays && ctx.enrollment
-    ? new Date(Date.parse(dripOpensAt(l.drip, ctx.enrollment.createdAt) ?? ctx.enrollment.createdAt) + l.assignment.dueDays * 864e5).toISOString()
+    ? new Date(Date.parse(dripOpensAt(l.drip, dripBase(ctx.enrollment.createdAt, ctx.cohort?.startsAt)) ?? ctx.enrollment.createdAt) + l.assignment.dueDays * 864e5).toISOString()
     : null
 
   let ticketSvg = ''

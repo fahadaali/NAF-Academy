@@ -5,10 +5,11 @@ import { revalidatePath } from 'next/cache'
 import { and, asc, eq, isNull } from 'drizzle-orm'
 import { z } from 'zod'
 import { db, schema as s } from '@/server/db'
-import { requirePermission } from '@/server/auth'
+import { courseScope, inScope, requirePermission } from '@/server/auth'
 import { audit } from '@/server/audit'
 import { chunksOf, inList } from '@/server/db/limits'
 import { cohortSeatsUsed } from '@/server/cohorts'
+import { accessUntilOf } from '@/server/sales'
 import { cohortInput, type CohortInput } from '@/admin/schemas'
 import { zoomMeetingId } from '@/lib/zoom'
 import type { VideoSource } from '@/lib/learning-types'
@@ -35,24 +36,30 @@ export async function saveCohort(courseId: string, id: string | null, raw: Cohor
   if (!z.string().uuid().safeParse(courseId).success || (id && !z.string().uuid().safeParse(id).success)) return { ok: false, error: 'طلب غير صالح' }
   const p = cohortInput.safeParse(raw)
   if (!p.success) return { ok: false, error: p.error.issues[0]?.message ?? 'بيانات غير صالحة' }
+  if (!inScope(await courseScope(st), courseId)) return { ok: false, error: 'الدورة خارج دوراتك' }
   const [course] = await db.select({ id: s.courses.id }).from(s.courses).where(and(eq(s.courses.id, courseId), isNull(s.courses.deletedAt)))
   if (!course) return { ok: false, error: 'الدورة غير موجودة' }
   const allowed = await sessionLessonIds(courseId)
   const { sessions, ...v } = p.data
   if (sessions.some((x) => !allowed.has(x.lessonId))) return { ok: false, error: 'جلسة لا تخصّ هذه الدورة — احفظ المنهج أولاً' }
+  /* كل التحقق قبل أي كتابة — فلا تُحفظ دفعة نصف حفظ، ولا تتكرر عند إعادة الضغط */
+  /* التسجيل اليدوي: معرّف Stream (32 حرفاً) أو رابط https */
+  const rec = (x: string): VideoSource | null => (/^[a-f0-9]{32}$/.test(x) ? { provider: 'stream', uid: x } : /^https:\/\//.test(x) ? { provider: 'url', url: x } : null)
+  if (sessions.some((x) => x.recording && !rec(x.recording))) return { ok: false, error: 'التسجيل: معرّف Stream من 32 حرفاً أو رابط https' }
   const cid = id ?? randomUUID()
   if (id) {
-    const [old] = await db.select().from(s.cohorts).where(and(eq(s.cohorts.id, id), eq(s.cohorts.courseId, courseId)))
+    const [old] = await db.select().from(s.cohorts).where(and(eq(s.cohorts.id, id), eq(s.cohorts.courseId, courseId), isNull(s.cohorts.deletedAt)))
     if (!old) return { ok: false, error: 'الدفعة غير موجودة' }
+    if (v.seatsTotal !== null) {
+      const used = (await cohortSeatsUsed({ id, seatsTaken: 0 }))
+      if (v.seatsTaken + used > v.seatsTotal) return { ok: false, error: `السعة أقل من المشغول فعلاً (${used + v.seatsTaken})` }
+    }
     await db.update(s.cohorts).set({ ...v, updatedAt: new Date().toISOString() }).where(eq(s.cohorts.id, id))
   } else {
     const n = (await db.select({ id: s.cohorts.id }).from(s.cohorts).where(eq(s.cohorts.courseId, courseId))).length
     await db.insert(s.cohorts).values({ ...v, id: cid, courseId, sortOrder: n })
   }
   /* المواعيد تُحدَّث بمفتاح (الدفعة، الدرس) فيبقى التسجيل المرفوع للجلسة، ويُحذف ما أُفرغ موعده */
-  /* التسجيل اليدوي: معرّف Stream (32 حرفاً) أو رابط https */
-  const rec = (x: string): VideoSource | null => (/^[a-f0-9]{32}$/.test(x) ? { provider: 'stream', uid: x } : /^https:\/\//.test(x) ? { provider: 'url', url: x } : null)
-  if (sessions.some((x) => x.recording && !rec(x.recording))) return { ok: false, error: 'التسجيل: معرّف Stream من 32 حرفاً أو رابط https' }
   const keep = sessions.filter((x) => x.startsAt || x.joinUrl || x.location || x.recording)
   const old = await db.select().from(s.cohortSessions).where(eq(s.cohortSessions.cohortId, cid))
   const drop = old.filter((o) => !keep.some((k) => k.lessonId === o.lessonId)).map((o) => o.lessonId)
@@ -83,8 +90,9 @@ export async function cloneCohort(fromId: string, title: string, startsAt: strin
   if (!z.string().uuid().safeParse(fromId).success || !z.string().datetime({ offset: true }).safeParse(startsAt).success) return { ok: false, error: 'طلب غير صالح' }
   const t = z.string().trim().min(2).max(120).safeParse(title)
   if (!t.success) return { ok: false, error: 'اسم الدفعة مطلوب' }
-  const [src] = await db.select().from(s.cohorts).where(eq(s.cohorts.id, fromId))
+  const [src] = await db.select().from(s.cohorts).where(and(eq(s.cohorts.id, fromId), isNull(s.cohorts.deletedAt)))
   if (!src) return { ok: false, error: 'الدفعة غير موجودة' }
+  if (!inScope(await courseScope(st), src.courseId)) return { ok: false, error: 'الدورة خارج دوراتك' }
   const shift = src.startsAt ? Date.parse(startsAt) - Date.parse(src.startsAt) : 0
   const move = (x: string | null) => (x ? new Date(Date.parse(x) + shift).toISOString() : null)
   const id = randomUUID()
@@ -94,10 +102,12 @@ export async function cloneCohort(fromId: string, title: string, startsAt: strin
     seatsTotal: src.seatsTotal, seatsTaken: 0, city: src.city, venue: src.venue, sortOrder: n,
   })
   const sess = await db.select().from(s.cohortSessions).where(eq(s.cohortSessions.cohortId, fromId))
-  for (const part of chunksOf(s.cohortSessions, sess.map((x) => ({ cohortId: id, lessonId: x.lessonId, startsAt: move(x.startsAt), endsAt: move(x.endsAt), joinUrl: '', location: x.location }))))
-    await db.insert(s.cohortSessions).values(part)
-  /* من طلب إبلاغه بالدفعة القادمة يُبلَّغ بهذه حين تُفتح */
-  await audit(st.name, 'create', 'cohort', id, `${t.data} — من «${src.title}»`)
+  /* المواعيد تُزاح، والمكان يبقى؛ ورابط الانضمام والتسجيل لا يُورثان — الدفعة الجديدة اجتماعاتها وتسجيلاتها لها
+     (والرابط الفارغ لا يرجع إلى رابط الدرس: انظر withSession) */
+  const rows = sess.map((x) => ({ cohortId: id, lessonId: x.lessonId, startsAt: move(x.startsAt), endsAt: move(x.endsAt), joinUrl: '', location: x.location, recording: null }))
+  for (const part of chunksOf(s.cohortSessions, rows)) await db.insert(s.cohortSessions).values(part)
+  /* من طلب إبلاغه بالدفعة القادمة يُبلَّغ بهذه حين تُفتح (المحرّك: next_cohort) */
+  await audit(st.name, 'create', 'cohort', id, `${t.data} — من «${src.title}»`, { from: fromId, title: t.data, startsAt, sessions: rows })
   refresh(src.courseId)
   return { ok: true, id }
 }
@@ -110,17 +120,21 @@ export async function transferEnrollment(enrollmentId: string, toCohortId: strin
   const [to] = await db.select().from(s.cohorts).where(and(eq(s.cohorts.id, toCohortId), isNull(s.cohorts.deletedAt)))
   if (!en || en.status !== 'active') return { ok: false, error: 'التسجيل غير نشط' }
   if (!to || to.courseId !== en.courseId) return { ok: false, error: 'الدفعة ليست من دورة هذا التسجيل' }
+  if (!inScope(await courseScope(st), en.courseId)) return { ok: false, error: 'الدورة خارج دوراتك' }
   if (en.cohortId === to.id) return { ok: false, error: 'المتدرب في هذه الدفعة بالفعل' }
   if (to.status === 'closed') return { ok: false, error: 'الدفعة مغلقة' }
   const from = en.cohortId
-  await db.update(s.enrollments).set({ cohortId: to.id, updatedAt: new Date().toISOString() }).where(eq(s.enrollments.id, enrollmentId))
+  /* نهاية الوصول تُحسب من الدفعة الجديدة — ولا تُقصَّر عمّا كان (تمديد يدوي سابق أو وصول دائم) */
+  const fresh = await accessUntilOf(en.courseId, to.id)
+  const accessUntil = en.accessUntil === null ? null : fresh && fresh > en.accessUntil ? fresh : en.accessUntil
+  await db.update(s.enrollments).set({ cohortId: to.id, accessUntil, updatedAt: new Date().toISOString() }).where(eq(s.enrollments.id, enrollmentId))
   if (to.seatsTotal !== null && (await cohortSeatsUsed(to)) > to.seatsTotal) {
-    await db.update(s.enrollments).set({ cohortId: from }).where(eq(s.enrollments.id, enrollmentId))
+    await db.update(s.enrollments).set({ cohortId: from, accessUntil: en.accessUntil }).where(eq(s.enrollments.id, enrollmentId))
     return { ok: false, error: `اكتملت مقاعد «${to.title}»` }
   }
   /* مقعد المؤسسة المخصّص ينتقل مع صاحبه */
   await db.update(s.seatGrants).set({ cohortId: to.id }).where(eq(s.seatGrants.enrollmentId, enrollmentId))
-  await audit(st.name, 'transfer', 'enrollment', enrollmentId, `نقل إلى «${to.title}»`)
+  await audit(st.name, 'transfer', 'enrollment', enrollmentId, `نقل إلى «${to.title}»`, { from, to: to.id, accessUntil })
   const { onCohortTransfer } = await import('@/server/notify/engine')
   await onCohortTransfer(enrollmentId)
   refresh(en.courseId)
@@ -133,15 +147,19 @@ export async function setAccessUntil(enrollmentId: string, until: string | null)
   if (!z.string().uuid().safeParse(enrollmentId).success || !iso.safeParse(until).success) return { ok: false, error: 'طلب غير صالح' }
   const [en] = await db.select().from(s.enrollments).where(eq(s.enrollments.id, enrollmentId))
   if (!en) return { ok: false, error: 'التسجيل غير موجود' }
-  await db.update(s.enrollments).set({ accessUntil: until, updatedAt: new Date().toISOString() }).where(eq(s.enrollments.id, enrollmentId))
-  await audit(st.name, 'access', 'enrollment', enrollmentId, until ? `الوصول حتى ${until.slice(0, 10)}` : 'وصول دائم')
+  if (!inScope(await courseScope(st), en.courseId)) return { ok: false, error: 'الدورة خارج دوراتك' }
+  /* بصيغة UTC الموحّدة — المقارنة النصية في فحص المقاعد تعتمد عليها */
+  const at = until ? new Date(until).toISOString() : null
+  await db.update(s.enrollments).set({ accessUntil: at, updatedAt: new Date().toISOString() }).where(eq(s.enrollments.id, enrollmentId))
+  await audit(st.name, 'access', 'enrollment', enrollmentId, at ? `الوصول حتى ${at.slice(0, 10)}` : 'وصول دائم', { before: en.accessUntil, accessUntil: at })
   refresh(en.courseId)
   return { ok: true }
 }
 
 /** الدفعات مع مواعيدها — لتبويب «الدفعات» في محرّر الدورة */
 export async function cohortsForEdit(courseId: string) {
-  await requirePermission('content.read')
+  const st = await requirePermission('content.read')
+  if (!z.string().uuid().safeParse(courseId).success || !inScope(await courseScope(st), courseId)) return []
   const rows = await db.select().from(s.cohorts).where(and(eq(s.cohorts.courseId, courseId), isNull(s.cohorts.deletedAt))).orderBy(asc(s.cohorts.sortOrder))
   const sess = rows.length ? await db.select().from(s.cohortSessions).where(inList(s.cohortSessions.cohortId, rows.map((r) => r.id))) : []
   const used = await Promise.all(rows.map((r) => cohortSeatsUsed(r)))

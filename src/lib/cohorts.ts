@@ -59,11 +59,13 @@ export function accessUntilFor(accessDays: number | null | undefined, cohortEnds
 export const hasAccess = (e: { status: string; accessUntil?: string | null } | null | undefined, now = new Date()) =>
   !!e && e.status === 'active' && (!e.accessUntil || Date.parse(e.accessUntil) > now.getTime())
 
-/** يُبقي الدرس بمواعيد دفعته إن وُجدت (الموعد، الرابط، المكان، التسجيل) */
+/** يُبقي الدرس بمواعيد دفعته إن وُجدت (الموعد، الرابط، المكان، التسجيل).
+    الرابط والمكان يرجعان إلى الدرس إن فرغا (غرفة ثابتة للدورة)؛ أما التسجيل فلكل جلسة دفعة تسجيلها —
+    لا يرث تسجيل الدرس (جلسة أخرى في موعد آخر). ومن لا صفّ لدرسه في دفعته يأخذ الدرس كما هو. */
 export function withSession<L extends { id: string; startsAt: string | null; endsAt: string | null; joinUrl: string; location: string; recording: unknown }>(
   l: L, sessions: Map<string, { startsAt: string | null; endsAt: string | null; joinUrl: string; location: string; recording: unknown }> | null,
 ): L {
   const x = sessions?.get(l.id)
   if (!x) return l
-  return { ...l, startsAt: x.startsAt, endsAt: x.endsAt, joinUrl: x.joinUrl || l.joinUrl, location: x.location || l.location, recording: x.recording ?? l.recording }
+  return { ...l, startsAt: x.startsAt, endsAt: x.endsAt, joinUrl: x.joinUrl || l.joinUrl, location: x.location || l.location, recording: (x.recording ?? { provider: 'none' }) as L['recording'] }
 }

@@ -4,7 +4,10 @@ import type { Drip, PublicQuiz, Quiz } from './learning-types'
 export type LessonLite = { id: string; type: string; drip: Drip; preview: boolean; startsAt?: string | null }
 export type Availability = { state: 'open' } | { state: 'drip'; opensAt: string } | { state: 'sequence'; after: string } | { state: 'enroll' }
 
-/** متى يُفتح الدرس بالجدولة: تاريخ ثابت، أو بعد أيام من التسجيل */
+/** بداية العدّ للفتح بالأيام: بداية الدفعة لمن في دفعة (الدفعة تسير معاً)، وإلا تاريخ التسجيل */
+export const dripBase = (enrolledAt: string, cohortStartsAt?: string | null) => (cohortStartsAt && !Number.isNaN(Date.parse(cohortStartsAt)) ? cohortStartsAt : enrolledAt)
+
+/** متى يُفتح الدرس بالجدولة: تاريخ ثابت، أو بعد أيام من بداية العدّ (dripBase) */
 export function dripOpensAt(drip: Drip, enrolledAt: string): string | null {
   if (drip.mode === 'date' && drip.date) return drip.date
   if (drip.mode === 'days' && drip.days !== null) return new Date(Date.parse(enrolledAt) + drip.days * 864e5).toISOString()

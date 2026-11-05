@@ -48,15 +48,17 @@ export default async function MyCourses() {
           {c.startsAt && Date.parse(c.startsAt) > now && (
             <div className={`${st.next} num`}>تبدأ بعد {Math.ceil((Date.parse(c.startsAt) - now) / 864e5)} يوماً — ستصلك التذكيرات قبلها</div>
           )}
-          {!open && <div className={`${st.next} num`}>انتهى الوصول في {formatDay(e.accessUntil!)} — جدّده من صفحة الدورة</div>}
+          {!open && <div className={`${st.next} num`}>انتهى الوصول في {formatDay(e.accessUntil!)} — تقدّمك محفوظ</div>}
           {open && next && jw && (next.type === 'live'
             ? <JoinPanel compact lessonId={next.id} title={`${next.title} — ${formatDay(next.startsAt!)} · ${formatTime(next.startsAt!)}`} startsAt={next.startsAt} opensAt={jw.state === 'upcoming' ? jw.opensAt : null} state={jw.state} />
             : <div className={`${st.next} num`}>الجلسة الحضورية القادمة: {next.title} — {formatDay(next.startsAt!)} · {formatTime(next.startsAt!)}</div>)}
           {open && e.accessUntil && <div className={`${st.meta} num`}><span>الوصول حتى {formatDay(e.accessUntil)}</span></div>}
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-            <a className="btn" href={p.resume ? `/learn/${c.slug}/${p.resume}` : `/learn/${c.slug}`}>{p.pct ? 'تابع التعلّم' : 'ابدأ'}</a>
+            {open
+              ? <a className="btn" href={p.resume ? `/learn/${c.slug}/${p.resume}` : `/learn/${c.slug}`}>{p.pct ? 'تابع التعلّم' : 'ابدأ'}</a>
+              : <a className="btn" href={`/courses/${c.slug}/enroll`}>جدّد الوصول</a>}
             <a className="btn ghost" href={`/learn/${c.slug}`}>المنهج</a>
-            {c.startsAt && <a className="btn ghost" href={`/courses/${c.slug}/calendar`}>أضف إلى التقويم</a>}
+            {open && c.startsAt && <a className="btn ghost" href={`/courses/${c.slug}/calendar${e.cohortId ? `?cohort=${e.cohortId}` : ''}`}>أضف إلى التقويم</a>}
           </div>
         </article>
         )

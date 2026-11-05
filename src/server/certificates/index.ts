@@ -54,6 +54,7 @@ export async function evaluate(learnerId: string, courseId: string) {
 
 /** يفحص المتدرب ويُنشئ طلب الشهادة إن استوفى — أو يصدرها فوراً إن كان الاعتماد تلقائياً */
 export async function checkCertificate(learnerId: string, courseId: string, by = 'system') {
+  /* status لا hasAccess: الإنجاز السابق لا يسقط بانتهاء الوصول — من استوفى الشروط تصدر له شهادته */
   const [en] = await db.select().from(s.enrollments).where(and(eq(s.enrollments.learnerId, learnerId), eq(s.enrollments.courseId, courseId), eq(s.enrollments.status, 'active')))
   if (!en) return null
   const ev = await evaluate(learnerId, courseId)

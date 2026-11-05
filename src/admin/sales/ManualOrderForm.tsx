@@ -4,11 +4,12 @@ import { useRouter } from 'next/navigation'
 import { manualOrder, type ManualInput } from './actions'
 import { Field, Grid, Input, PageHead, Section, Segmented, Select, Switch, Textarea } from '@/admin/ui/kit'
 
-type CourseOpt = { slug: string; title: string; tiers: { id: string; name: string }[] }
+/** cohorts: null للدورة بلا دفعات، وقائمة (قد تكون فارغة) لدورة بدفعات */
+type CourseOpt = { slug: string; title: string; tiers: { id: string; name: string }[]; cohorts: { id: string; title: string }[] | null }
 
 export function ManualOrderForm({ courses }: { courses: CourseOpt[] }) {
   const router = useRouter()
-  const [v, setV] = useState<ManualInput>({ courseSlug: courses[0]?.slug ?? '', tierId: courses[0]?.tiers[0]?.id ?? null, quantity: 1, code: '', method: 'bank_transfer', note: '', attendSelf: true, buyer: { name: '', email: '', phone: '', org: '', vatNumber: '' } })
+  const [v, setV] = useState<ManualInput>({ courseSlug: courses[0]?.slug ?? '', tierId: courses[0]?.tiers[0]?.id ?? null, cohortId: courses[0]?.cohorts?.[0]?.id ?? null, quantity: 1, code: '', method: 'bank_transfer', note: '', attendSelf: true, buyer: { name: '', email: '', phone: '', org: '', vatNumber: '' } })
   const [err, setErr] = useState<Record<string, string>>({})
   const [msg, setMsg] = useState('')
   const [busy, setBusy] = useState(false)
@@ -19,7 +20,10 @@ export function ManualOrderForm({ courses }: { courses: CourseOpt[] }) {
       <PageHead title="طلب يدوي" sub="للتحويل البنكي والنقد والمنح — يُسجَّل المتدرب فوراً وتصدر الفاتورة، والدفع الإلكتروني ليس شرطاً" />
       <Section title="الدورة">
         <Grid>
-          <Field label="الدورة"><Select value={v.courseSlug} onChange={(x) => setV((o) => ({ ...o, courseSlug: x, tierId: courses.find((c) => c.slug === x)?.tiers[0]?.id ?? null }))} options={courses.map((c) => ({ value: c.slug, label: c.title.replace(/~\d?/g, '') }))} /></Field>
+          <Field label="الدورة"><Select value={v.courseSlug} onChange={(x) => setV((o) => { const c = courses.find((y) => y.slug === x); return { ...o, courseSlug: x, tierId: c?.tiers[0]?.id ?? null, cohortId: c?.cohorts?.[0]?.id ?? null } })} options={courses.map((c) => ({ value: c.slug, label: c.title.replace(/~\d?/g, '') }))} /></Field>
+          {course?.cohorts && (course.cohorts.length
+            ? <Field label="الدفعة"><Select value={v.cohortId ?? ''} onChange={(x) => setV((o) => ({ ...o, cohortId: x }))} options={course.cohorts.map((k) => ({ value: k.id, label: k.title }))} /></Field>
+            : <Field label="الدفعة" hint="كل دفعات هذه الدورة منتهية أو مغلقة — افتح دفعة من محرّر الدورة"><Input disabled value="لا دفعة متاحة" /></Field>)}
           {course && course.tiers.length > 0 && <Field label="الباقة"><Select value={v.tierId ?? ''} onChange={(x) => setV((o) => ({ ...o, tierId: x }))} options={course.tiers.map((t) => ({ value: t.id, label: t.name }))} /></Field>}
           <Field label="عدد المقاعد"><Input type="number" dir="ltr" min={1} max={50} value={v.quantity} onChange={(e) => setV((o) => ({ ...o, quantity: Number(e.target.value) }))} /></Field>
           <Field label="كوبون (اختياري)"><Input dir="ltr" value={v.code} onChange={(e) => setV((o) => ({ ...o, code: e.target.value.toUpperCase() }))} /></Field>

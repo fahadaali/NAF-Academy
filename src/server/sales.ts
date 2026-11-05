@@ -13,7 +13,7 @@ import { resolveStatus } from '@/lib/course-meta'
 import type { CourseRow, CouponRow, OrderRow, TierRow } from './db/schema'
 import { chunksOf } from './db/limits'
 import { livePromotions, promosFor } from './promotions'
-import { cohortSeatsUsed } from './cohorts'
+import { cohortSeatsUsed, holdsSeat } from './cohorts'
 import { accessUntilFor, cohortState, hasAccess } from '@/lib/cohorts'
 import type { CohortRow } from './db/schema'
 
@@ -34,7 +34,7 @@ export async function nextNumber(key: string, prefix: string) {
 export async function seatsUsed(course: Pick<CourseRow, 'id' | 'seatsTaken'>, tierId?: string | null) {
   const now = nowIso()
   const [e] = await db.select({ n: count() }).from(s.enrollments)
-    .where(and(eq(s.enrollments.courseId, course.id), eq(s.enrollments.status, 'active'), tierId ? eq(s.enrollments.tierId, tierId) : undefined))
+    .where(and(eq(s.enrollments.courseId, course.id), holdsSeat(now), tierId ? eq(s.enrollments.tierId, tierId) : undefined))
   const [g] = await db.select({ n: count() }).from(s.seatGrants)
     .innerJoin(s.orders, eq(s.orders.id, s.seatGrants.orderId))
     .innerJoin(s.orderItems, and(eq(s.orderItems.orderId, s.orders.id), eq(s.orderItems.courseId, s.seatGrants.courseId)))
@@ -43,6 +43,20 @@ export async function seatsUsed(course: Pick<CourseRow, 'id' | 'seatsTaken'>, ti
     .innerJoin(s.orders, eq(s.orders.id, s.orderItems.orderId))
     .where(and(eq(s.orderItems.courseId, course.id), eq(s.orders.status, 'pending'), gt(s.orders.expiresAt, now), tierId ? eq(s.orderItems.tierId, tierId) : undefined))
   return (tierId ? 0 : course.seatsTaken) + e.n + g.n + Number(p.n ?? 0)
+}
+
+/** هل في الدورة (أو دفعتها) متّسع لـ n مقعداً إضافياً؟ يعيد رسالة الرفض أو null */
+export async function noRoom(course: Pick<CourseRow, 'id' | 'seatsTaken' | 'seatsTotal'>, cohort: Pick<CohortRow, 'id' | 'seatsTaken' | 'seatsTotal'> | null, n = 1): Promise<string | null> {
+  if (n <= 0) return null
+  const full = n === 1 ? 'اكتملت المقاعد' : 'لم تعد المقاعد المتبقية تكفي هذا العدد'
+  if (cohort) return cohort.seatsTotal !== null && (await cohortSeatsUsed(cohort)) + n > cohort.seatsTotal ? full : null
+  return course.seatsTotal !== null && (await seatsUsed(course)) + n > course.seatsTotal ? full : null
+}
+
+/** بعد الحجز: هل تجاوز المشغول السعة؟ (يتراجع المتأخر في سباق على آخر مقعد) */
+export async function overCapacity(course: Pick<CourseRow, 'id' | 'seatsTaken' | 'seatsTotal'>, cohort: Pick<CohortRow, 'id' | 'seatsTaken' | 'seatsTotal'> | null, own = 0) {
+  if (cohort) return cohort.seatsTotal !== null && (await cohortSeatsUsed(cohort)) - own > cohort.seatsTotal
+  return course.seatsTotal !== null && (await seatsUsed(course)) - own > course.seatsTotal
 }
 
 /* ───────── الكوبون ───────── */
@@ -156,18 +170,31 @@ export async function placeOrder(p: { slug: string; tierId?: string | null; coho
   const priced = await priceFor(p.slug, { tierId: p.tierId, quantity: p.quantity, code: p.code, email: p.buyer.email })
   if (!priced) return { ok: false, error: 'الدورة غير موجودة' }
   const { course, tier, coupon, q } = priced
+  const email = p.buyer.email.trim().toLowerCase()
+  const [known] = await db.select().from(s.learners).where(eq(s.learners.email, email))
+  /* مسجّل في الدورة؟ لا يُشترى المقعد مرتين (إلا طلب مقاعد لفريق لا يحضر صاحبه).
+     والمنتهي وصوله يجدّد دائماً — ولو أُغلق التسجيل أو امتلأ — فيمتدّ تسجيله نفسه ولا يأخذ مقعداً جديداً */
+  const [mine] = known && (q.quantity === 1 || p.attendSelf)
+    ? await db.select().from(s.enrollments).where(and(eq(s.enrollments.learnerId, known.id), eq(s.enrollments.courseId, course.id), eq(s.enrollments.status, 'active')))
+    : []
+  if (mine && hasAccess(mine)) return { ok: false, error: p.by ? 'هذا المتدرب مسجّل في الدورة من قبل' : 'أنت مسجّل في هذه الدورة بالفعل — تجدها في «دوراتي»' }
+  const renewing = !!mine
   const status = resolveStatus(course.status, course.publishAt)
-  if (!p.by && status !== 'open') return { ok: false, error: 'التسجيل غير متاح في هذه الدورة الآن' }
+  if (!p.by && !renewing && status !== 'open') return { ok: false, error: 'التسجيل غير متاح في هذه الدورة الآن' }
   if (p.code && q.couponError) return { ok: false, error: q.couponError }
-  /* الدورة ذات الدفعات: دفعة من دفعاتها، مفتوحة للزائر (والموظف يسجّل في أي دفعة غير منتهية) */
+  /* الدورة ذات الدفعات: دفعة من دفعاتها، مفتوحة للزائر (والموظف يسجّل في أي دفعة غير منتهية).
+     المجدِّد يبقى في دفعته إن لم يختر غيرها */
   const cohortRows = await courseCohortRows(course.id)
   let cohort: CohortRow | null = null
   if (cohortRows.length) {
-    cohort = cohortRows.find((k) => k.id === p.cohortId) ?? null
+    cohort = cohortRows.find((k) => k.id === (p.cohortId ?? (renewing ? mine.cohortId : null))) ?? null
     if (!cohort) return { ok: false, error: 'اختر الدفعة' }
     const st = cohortState({ ...cohort, taken: 0 })
-    if (st === 'closed' || (!p.by && st !== 'open')) return { ok: false, error: `التسجيل في «${cohort.title}» غير متاح الآن` }
+    const stays = renewing && cohort.id === mine.cohortId
+    if (!stays && (st === 'closed' || (!p.by && st !== 'open'))) return { ok: false, error: `التسجيل في «${cohort.title}» غير متاح الآن` }
   }
+  /* مقعد المجدِّد قائم إن بقي في دفعته (أو في دورة بلا دفعات) — فلا يُحسب من السعة */
+  const ownSeat = renewing && (!cohortRows.length || cohort?.id === mine.cohortId) ? 1 : 0
 
   const settings = await paymentSettings()
   const method = p.method ?? (q.free ? (q.couponApplied ? 'grant' : 'free') : 'gateway')
@@ -176,16 +203,6 @@ export async function placeOrder(p: { slug: string; tierId?: string | null; coho
     if (!settings.enabled || !g) return { ok: false, error: 'الدفع الإلكتروني غير مفعّل بعد' }
   }
 
-  const email = p.buyer.email.trim().toLowerCase()
-  const [known] = await db.select().from(s.learners).where(eq(s.learners.email, email))
-  /* مسجّل في الدورة؟ لا يُشترى المقعد مرتين (إلا طلب مقاعد لفريق لا يحضر صاحبه) */
-  if (known && (q.quantity === 1 || p.attendSelf)) {
-    const [mine] = await db.select({ id: s.enrollments.id }).from(s.enrollments)
-      .where(and(eq(s.enrollments.learnerId, known.id), eq(s.enrollments.courseId, course.id), eq(s.enrollments.status, 'active')))
-    const [row] = mine ? await db.select().from(s.enrollments).where(eq(s.enrollments.id, mine.id)) : []
-    /* المنتهي وصوله يشتري التجديد */
-    if (mine && hasAccess(row)) return { ok: false, error: p.by ? 'هذا المتدرب مسجّل في الدورة من قبل' : 'أنت مسجّل في هذه الدورة بالفعل — تجدها في «دوراتي»' }
-  }
   /* طلب معلّق سابق للمشتري نفسه في الدورة نفسها يُلغى قبل حساب المقاعد — حجز واحد لكل مشترٍ، ولا يحجب حجزُه طلبَه الجديد */
   if (known && !p.by) {
     await db.update(s.orders).set({ status: 'canceled', note: 'استُبدل بطلب أحدث', updatedAt: nowIso() })
@@ -194,9 +211,10 @@ export async function placeOrder(p: { slug: string; tierId?: string | null; coho
   }
 
   const full = 'لم تعد المقاعد المتبقية تكفي هذا العدد'
-  if (cohort) { if (cohort.seatsTotal !== null && (await cohortSeatsUsed(cohort)) + q.quantity > cohort.seatsTotal) return { ok: false, error: full } }
-  else if (course.seatsTotal !== null && (await seatsUsed(course)) + q.quantity > course.seatsTotal) return { ok: false, error: full }
-  if (tier?.capacity != null && (await seatsUsed(course, tier.id)) + q.quantity > tier.capacity) return { ok: false, error: `اكتملت مقاعد باقة «${tier.name}»` }
+  const need = q.quantity - ownSeat
+  const room = await noRoom(course, cohort, need)
+  if (room) return { ok: false, error: room }
+  if (need > 0 && tier?.capacity != null && (await seatsUsed(course, tier.id)) + need > tier.capacity) return { ok: false, error: `اكتملت مقاعد باقة «${tier.name}»` }
 
   const learner = await upsertLearner(p.buyer, { trusted: p.trusted || !!p.by })
   const grant = p.method === 'grant'
@@ -217,8 +235,9 @@ export async function placeOrder(p: { slug: string; tierId?: string | null; coho
   })
 
   /* تحقق بعد الإدراج: إن تسابق طلبان على آخر مقعد أو آخر استخدام للكوبون، يتراجع المتأخر */
-  if (cohort ? cohort.seatsTotal !== null && (await cohortSeatsUsed(cohort)) > cohort.seatsTotal : course.seatsTotal !== null && (await seatsUsed(course)) > course.seatsTotal!) { await cancelOwn(id, full); return { ok: false, error: full } }
-  if (tier?.capacity != null && (await seatsUsed(course, tier.id)) > tier.capacity) { await cancelOwn(id, 'سعة الباقة'); return { ok: false, error: `اكتملت مقاعد باقة «${tier.name}»` } }
+  /* الطلب المعلّق نفسه محسوب الآن في المشغول؛ مقعد المجدِّد القائم يُطرح منه */
+  if (need > 0 && (await overCapacity(course, cohort, ownSeat))) { await cancelOwn(id, full); return { ok: false, error: full } }
+  if (need > 0 && tier?.capacity != null && (await seatsUsed(course, tier.id)) - ownSeat > tier.capacity) { await cancelOwn(id, 'سعة الباقة'); return { ok: false, error: `اكتملت مقاعد باقة «${tier.name}»` } }
   if (order.couponId && coupon) {
     const u = await couponUses(coupon.id, learner.email)
     if ((coupon.maxUses !== null && u.total > coupon.maxUses) || (coupon.maxPerLearner !== null && u.byLearner > coupon.maxPerLearner)) {
@@ -283,14 +302,24 @@ async function fulfill(order: OrderRow) {
       }
       const grants = Array.from({ length: it.quantity }, () => ({ id: randomUUID(), orderId: order.id, courseId: it.courseId, cohortId: it.cohortId, email: null as string | null, enrollmentId: null as string | null }))
       if (order.attendSelf) {
-        const eid = randomUUID()
+        /* المشتري يحضر بنفسه: تسجيل جديد، أو تجديد تسجيله المنتهي (لا تسجيل ثانٍ يكسر الفهرس الفريد) */
+        const [cur] = await db.select().from(s.enrollments).where(and(eq(s.enrollments.learnerId, order.learnerId), eq(s.enrollments.courseId, it.courseId), eq(s.enrollments.status, 'active')))
+        const eid = cur ? cur.id : randomUUID()
         grants[0].email = order.buyer.email
         grants[0].enrollmentId = eid
-        await db.batch([
-          db.insert(s.enrollments).values({ id: eid, learnerId: order.learnerId, courseId: it.courseId, tierId: it.tierId, cohortId: it.cohortId, orderId: order.id, source: 'seat', accessUntil }),
-          ...chunksOf(s.seatGrants, grants).map((part) => db.insert(s.seatGrants).values(part)),
-        ])
-        created.push(eid)
+        if (cur) {
+          await db.batch([
+            db.update(s.enrollments).set({ accessUntil, orderId: order.id, cohortId: it.cohortId ?? cur.cohortId, updatedAt: nowIso() }).where(eq(s.enrollments.id, cur.id)),
+            ...chunksOf(s.seatGrants, grants).map((part) => db.insert(s.seatGrants).values(part)),
+          ])
+          await audit('system', 'renew', 'enrollment', cur.id, `${order.number}: تجديد الوصول`)
+        } else {
+          await db.batch([
+            db.insert(s.enrollments).values({ id: eid, learnerId: order.learnerId, courseId: it.courseId, tierId: it.tierId, cohortId: it.cohortId, orderId: order.id, source: 'seat', accessUntil }),
+            ...chunksOf(s.seatGrants, grants).map((part) => db.insert(s.seatGrants).values(part)),
+          ])
+          created.push(eid)
+        }
       } else for (const part of chunksOf(s.seatGrants, grants)) await db.insert(s.seatGrants).values(part)
     }
   }

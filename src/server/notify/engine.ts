@@ -16,7 +16,7 @@ import { renderEmail } from './templates'
 import { isOptedOut, optoutToken } from './optout'
 import { siteUrl } from '../site'
 import { BACKOFF_MIN, EVENT_META, fill, leftLabel, mergeNotify, reminderDue, type EventKey, type NotifySettings } from '@/lib/notify'
-import { dripOpensAt } from '@/lib/learning'
+import { dripBase, dripOpensAt } from '@/lib/learning'
 import { formatDay, formatHijri, formatTime, formatWeekday } from '@/lib/dates'
 import { formatAmount, priceView } from '@/lib/pricing'
 import { resolveStatus } from '@/lib/course-meta'
@@ -24,7 +24,7 @@ import { linkedinUrl } from '@/lib/certificate'
 import { REVIEW_MIN_PCT } from '@/lib/reviews'
 import { chunksOf, inList } from '@/server/db/limits'
 import { hasAccess, withSession } from '@/lib/cohorts'
-import { sessionsOf } from '../cohorts'
+import { holdsSeat, sessionsOf } from '../cohorts'
 import { livePromotions, promosFor } from '../promotions'
 
 /** مفتوحة الآن؟ «المجدولة» تُفتح بنفسها عند موعد نشرها — كما تراها الواجهة */
@@ -207,7 +207,8 @@ export async function progressOf(pairs: { learnerId: string; courseId: string }[
 async function activeEnrollments(courseIds: string[]) {
   if (!courseIds.length) return []
   return db.select({ e: s.enrollments, l: s.learners }).from(s.enrollments).innerJoin(s.learners, eq(s.learners.id, s.enrollments.learnerId))
-    .where(and(inList(s.enrollments.courseId, courseIds), eq(s.enrollments.status, 'active')))
+    /* ساري الوصول وحده: المنتهي لا تصله تذكيرات الجلسات ولا الدروس الجديدة */
+    .where(and(inList(s.enrollments.courseId, courseIds), holdsSeat()))
 }
 
 /** الجلسات في النافذة: مواعيد الدروس نفسها (لمن ليس في دفعة) ومواعيد جلسات كل دفعة (لمسجّليها) */
@@ -273,8 +274,10 @@ export async function planScan(now: Date, cfg: NotifySettings) {
       .innerJoin(s.modules, eq(s.modules.id, s.lessons.moduleId)).innerJoin(s.courses, eq(s.courses.id, s.modules.courseId))
       .where(and(sql`json_extract(${s.lessons.drip}, '$.mode') <> 'none'`, isNull(s.courses.deletedAt)))
     const enr = await activeEnrollments([...new Set(lessons.map((x) => x.courseId))])
+    const ks = [...new Set(enr.map((x) => x.e.cohortId).filter((x): x is string => !!x))]
+    const starts = new Map((ks.length ? await db.select({ id: s.cohorts.id, startsAt: s.cohorts.startsAt }).from(s.cohorts).where(inList(s.cohorts.id, ks)) : []).map((k) => [k.id, k.startsAt]))
     for (const { l, courseId } of lessons) for (const { e, l: who } of enr.filter((x) => x.e.courseId === courseId)) {
-      const opens = dripOpensAt(l.drip, e.createdAt)
+      const opens = dripOpensAt(l.drip, dripBase(e.createdAt, e.cohortId ? starts.get(e.cohortId) : null))
       if (!opens) continue
       const at = Date.parse(opens)
       if (at <= Date.parse(e.createdAt) + MIN || at > t || t - at > 864e5) continue

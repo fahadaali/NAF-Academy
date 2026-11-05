@@ -10,7 +10,8 @@ import { requirePermission } from '@/server/auth'
 import { audit } from '@/server/audit'
 import { gatewayStatus } from '@/server/payments/gateway'
 import { paymentSettings, setSetting, type PaymentSettings } from '@/server/settings'
-import { placeOrder, refundOrder } from '@/server/sales'
+import { noRoom, placeOrder, refundOrder } from '@/server/sales'
+import { contractState, contractUsed } from '@/server/contracts'
 import { normalizeCode } from '@/lib/quote'
 import { COUPON_KIND, COUPON_SCOPE } from '@/server/db/schema'
 import { errorsOf, type Result } from '@/admin/schemas'
@@ -155,6 +156,7 @@ export async function cancelPending(orderId: string) {
 const manualInput = z.object({
   courseSlug: z.string().min(1, 'اختر الدورة'),
   tierId: z.string().nullable(),
+  cohortId: z.string().uuid().nullable(),
   quantity: z.number().int().min(1).max(50),
   code: z.string().max(40),
   method: z.enum(['bank_transfer', 'cash', 'grant']),
@@ -172,7 +174,7 @@ export async function manualOrder(raw: ManualInput): Promise<{ ok: boolean; id?:
   const admin = await requirePermission('sales.orders')
   const p = manualInput.safeParse(raw)
   if (!p.success) return { ok: false, error: 'راجع الحقول', fields: errorsOf(p.error) }
-  const r = await placeOrder({ slug: p.data.courseSlug, tierId: p.data.tierId, quantity: p.data.quantity, code: p.data.code || undefined, buyer: p.data.buyer, attendSelf: p.data.attendSelf, method: p.data.method, by: admin.name, note: p.data.note })
+  const r = await placeOrder({ slug: p.data.courseSlug, tierId: p.data.tierId, cohortId: p.data.cohortId, quantity: p.data.quantity, code: p.data.code || undefined, buyer: p.data.buyer, attendSelf: p.data.attendSelf, method: p.data.method, by: admin.name, note: p.data.note })
   if (!r.ok) return { ok: false, error: r.error }
   revalidatePath('/', 'layout')
   return { ok: true, id: r.order.id }
@@ -189,13 +191,25 @@ export async function assignSeat(grantId: string, email: string, name: string): 
 /** إلغاء تسجيل أو إضافته يدوياً من صفحة المسجّلين */
 export async function setEnrollment(enrollmentId: string, status: 'active' | 'canceled'): Promise<{ ok: boolean; error?: string }> {
   const admin = await requirePermission('sales.orders')
-  if (status !== 'active' && status !== 'canceled') return { ok: false, error: 'حالة غير صالحة' }
+  if ((status !== 'active' && status !== 'canceled') || !z.string().uuid().safeParse(enrollmentId).success) return { ok: false, error: 'حالة غير صالحة' }
   const [en] = await db.select().from(s.enrollments).where(eq(s.enrollments.id, enrollmentId))
   if (!en) return { ok: false, error: 'التسجيل غير موجود' }
   if (status === 'canceled') {
     /* مقعد الطلب الجماعي يعود شاغراً فيُخصَّص لغيره */
     await db.update(s.seatGrants).set({ enrollmentId: null, email: null }).where(eq(s.seatGrants.enrollmentId, enrollmentId))
-  } else if (en.source === 'seat' && en.orderId) {
+  } else if (en.status !== 'active' && en.contractId) {
+    /* مقعد عقد: العقد ساري وفيه متّسع */
+    const [c] = await db.select().from(s.orgContracts).where(and(eq(s.orgContracts.id, en.contractId), isNull(s.orgContracts.deletedAt)))
+    if (!c || contractState(c) !== 'active') return { ok: false, error: 'عقد هذا المقعد غير ساري — خصّص المقعد من عقد ساري' }
+    if ((await contractUsed(c.id)) >= c.seats) return { ok: false, error: 'استُنفدت مقاعد العقد' }
+  } else if (en.status !== 'active' && !(en.source === 'seat' && en.orderId)) {
+    /* إحياء تسجيل ملغى يأخذ مقعداً: الدفعة أو الدورة فيها متّسع */
+    const [course] = await db.select().from(s.courses).where(eq(s.courses.id, en.courseId))
+    const [cohort] = en.cohortId ? await db.select().from(s.cohorts).where(eq(s.cohorts.id, en.cohortId)) : []
+    const room = course && (await noRoom(course, cohort ?? null, 1))
+    if (room) return { ok: false, error: `${room} — لا يمكن إعادة التفعيل` }
+  }
+  if (status === 'active' && en.source === 'seat' && en.orderId) {
     const [free] = await db.select({ id: s.seatGrants.id }).from(s.seatGrants).where(and(eq(s.seatGrants.orderId, en.orderId), eq(s.seatGrants.courseId, en.courseId), isNull(s.seatGrants.enrollmentId)))
     if (!free) return { ok: false, error: 'لا مقعد شاغر في طلب المؤسسة — خُصّصت مقاعده كلها' }
     const [learner] = await db.select({ email: s.learners.email }).from(s.learners).where(eq(s.learners.id, en.learnerId))
@@ -207,7 +221,7 @@ export async function setEnrollment(enrollmentId: string, status: 'active' | 'ca
   } catch {
     return { ok: false, error: 'للمتدرب تسجيل نشط آخر في الدورة' }
   }
-  await audit(admin.name, status === 'active' ? 'restore' : 'cancel', 'enrollment', enrollmentId, status === 'active' ? 'تفعيل تسجيل' : 'إلغاء تسجيل')
+  await audit(admin.name, status === 'active' ? 'restore' : 'cancel', 'enrollment', enrollmentId, status === 'active' ? 'تفعيل تسجيل' : 'إلغاء تسجيل', { before: en.status, status })
   revalidatePath('/', 'layout')
   return { ok: true }
 }

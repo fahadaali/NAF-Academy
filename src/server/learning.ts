@@ -3,7 +3,7 @@ import 'server-only'
    رابط الجلسة لا يظهر إلا للمسجّل في نافذتها، وإجابات الاختبار لا تخرج قبل التسليم. */
 import { and, asc, desc, eq, isNull } from 'drizzle-orm'
 import { db, schema as s } from './db'
-import { availability, joinWindow, progressPct, publicQuiz, type Availability, type JoinState } from '@/lib/learning'
+import { availability, dripBase, joinWindow, progressPct, publicQuiz, type Availability, type JoinState } from '@/lib/learning'
 import type { LessonFull, LearnerRow } from './db/schema'
 import type { PublicQuiz } from '@/lib/learning-types'
 import { playbackUrl } from './stream'
@@ -35,8 +35,9 @@ export async function learnerCourse(slug: string, learner: LearnerRow | null) {
   const prog = learner ? await db.select().from(s.lessonProgress).where(and(eq(s.lessonProgress.learnerId, learner.id), eq(s.lessonProgress.courseId, course.id))) : []
   const att = learner ? await db.select().from(s.attendance).where(and(eq(s.attendance.learnerId, learner.id), eq(s.attendance.courseId, course.id))) : []
   const done = new Set([...prog.filter((p) => p.completedAt).map((p) => p.lessonId), ...att.map((a) => a.lessonId)])
+  const [cohort] = row?.cohortId ? await db.select().from(s.cohorts).where(eq(s.cohorts.id, row.cohortId)) : []
   const acc = availability(ordered.map((l) => ({ id: l.id, type: l.type, drip: l.drip, preview: l.preview, startsAt: l.startsAt })), {
-    enrolledAt: enrollment?.createdAt ?? null, sequential: course.sequential, completed: done,
+    enrolledAt: enrollment ? dripBase(enrollment.createdAt, cohort?.startsAt) : null, sequential: course.sequential, completed: done,
   })
   const modules: ModuleState[] = mods.map((m) => ({
     id: m.id, title: m.title,
@@ -48,7 +49,6 @@ export async function learnerCourse(slug: string, learner: LearnerRow | null) {
   const last = prog.filter((p) => !p.completedAt).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0]
   const nextUp = ordered.find((l) => acc.get(l.id)?.state === 'open' && !done.has(l.id) && completable(l))
   const upcoming = ordered.filter((l) => (l.type === 'live' || l.type === 'onsite') && l.startsAt && joinWindow(l.startsAt, l.endsAt).state !== 'ended')
-  const [cohort] = row?.cohortId ? await db.select().from(s.cohorts).where(eq(s.cohorts.id, row.cohortId)) : []
   return { course, enrollment: enrollment ?? null, expired, cohort: cohort ?? null, modules, ordered, pct, done, resumeId: last?.lessonId ?? nextUp?.id ?? ordered[0]?.id ?? null, upcoming }
 }
 

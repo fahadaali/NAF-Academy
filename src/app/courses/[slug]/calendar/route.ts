@@ -6,7 +6,7 @@ import { currentLearner } from '@/server/learner-auth'
 import { isPublic, liveStatus } from '@/lib/course-meta'
 import { plain } from '@/motion/kashida'
 import { inList } from '@/server/db/limits'
-import { withSession } from '@/lib/cohorts'
+import { hasAccess, withSession } from '@/lib/cohorts'
 import { sessionsOf } from '@/server/cohorts'
 
 const fmt = (d: Date) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d+Z$/, 'Z')
@@ -18,8 +18,8 @@ export async function GET(req: Request, ctx: { params: Promise<{ slug: string }>
   if (!c) return new Response('Not found', { status: 404 })
   if (!isPublic(liveStatus(c.status, c.publishAt))) {
     const me = await currentLearner()
-    const [en] = me ? await db.select({ id: s.enrollments.id }).from(s.enrollments).where(and(eq(s.enrollments.courseId, c.id), eq(s.enrollments.learnerId, me.id), eq(s.enrollments.status, 'active'))) : []
-    if (!en) return new Response('Not found', { status: 404 })
+    const [en] = me ? await db.select().from(s.enrollments).where(and(eq(s.enrollments.courseId, c.id), eq(s.enrollments.learnerId, me.id), eq(s.enrollments.status, 'active'))) : []
+    if (!hasAccess(en)) return new Response('Not found', { status: 404 })
   }
   const mods = await db.select({ id: s.modules.id }).from(s.modules).where(eq(s.modules.courseId, c.id))
   /* مواعيد الدفعة: دفعة المسجّل، أو المطلوبة في الرابط (?cohort=) لزائر صفحة الدورة */

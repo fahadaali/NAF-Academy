@@ -87,12 +87,13 @@ test('الوصول: من الآن أو من نهاية الدفعة اللاحق
   assert.equal(hasAccess({ status: 'canceled', accessUntil: null }, now), false)
 })
 
-test('موعد الدرس من جلسة الدفعة إن وُجدت، والتسجيل والمكان يرجعان للدرس إن فرغا', () => {
-  const l = { id: 'l1', startsAt: 'A', endsAt: 'B', joinUrl: 'https://x', location: 'قاعة 1', recording: null as unknown }
+test('موعد الدرس من جلسة الدفعة إن وُجدت، والرابط والمكان يرجعان للدرس إن فرغا، والتسجيل لا يُورث', () => {
+  const l = { id: 'l1', startsAt: 'A', endsAt: 'B', joinUrl: 'https://x', location: 'قاعة 1', recording: { provider: 'url', url: 'https://old' } as unknown }
   assert.deepEqual(withSession(l, null), l)
   const m = new Map([['l1', { startsAt: 'C', endsAt: 'D', joinUrl: '', location: '', recording: null }]])
   const x = withSession(l, m)
   assert.equal(x.startsAt, 'C')
   assert.equal(x.joinUrl, 'https://x')
   assert.equal(x.location, 'قاعة 1')
+  assert.deepEqual(x.recording, { provider: 'none' })
 })

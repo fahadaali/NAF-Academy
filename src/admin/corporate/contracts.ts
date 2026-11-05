@@ -2,7 +2,7 @@
 /* عقود المؤسسات من اللوحة — الحفظ، ورفع الملف الموقّع (تخزين خاص)، وتخصيص المقاعد وإلغاؤها. */
 import { randomUUID } from 'node:crypto'
 import { revalidatePath } from 'next/cache'
-import { and, count, eq } from 'drizzle-orm'
+import { and, count, eq, gt, isNull, or } from 'drizzle-orm'
 import { z } from 'zod'
 import { db, schema as s } from '@/server/db'
 import { requirePermission } from '@/server/auth'
@@ -20,10 +20,21 @@ export async function saveContract(orgId: string, id: string | null, raw: Contra
   if (!p.success) return { ok: false, errors: errorsOf(p.error), message: 'راجع الحقول' }
   const v = { ...p.data, courseIds: p.data.scope === 'courses' ? p.data.courseIds : [] }
   if (id) {
+    const [old] = await db.select().from(s.orgContracts).where(and(eq(s.orgContracts.id, id), eq(s.orgContracts.orgId, orgId), isNull(s.orgContracts.deletedAt)))
+    if (!old) return { ok: false, errors: {}, message: 'العقد غير موجود' }
     /* لا تُخفَّض السعة تحت المخصّص فعلاً */
     const [u] = await db.select({ n: count() }).from(s.enrollments).where(and(eq(s.enrollments.contractId, id), eq(s.enrollments.status, 'active')))
     if (v.seats < u.n) return { ok: false, errors: { seats: `خُصّص ${u.n} مقعد — لا تقلّ السعة عنه` } }
-    await db.update(s.orgContracts).set({ ...v, updatedAt: new Date().toISOString() }).where(and(eq(s.orgContracts.id, id), eq(s.orgContracts.orgId, orgId)))
+    await db.update(s.orgContracts).set({ ...v, updatedAt: new Date().toISOString() }).where(eq(s.orgContracts.id, id))
+    /* وصول مقاعد العقد يتبعه: نهاية جديدة تمتدّ إليها، والإلغاء ينهي الوصول الآن، والإعادة تُرجعه إلى نهاية العقد */
+    const now = new Date().toISOString()
+    const end = v.endsAt ? new Date(v.endsAt).toISOString() : null
+    const seatsOf = and(eq(s.enrollments.contractId, id), eq(s.enrollments.status, 'active'))
+    if (v.status === 'cancelled' && old.status !== 'cancelled') {
+      await db.update(s.enrollments).set({ accessUntil: now, updatedAt: now }).where(and(seatsOf, or(isNull(s.enrollments.accessUntil), gt(s.enrollments.accessUntil, now))))
+    } else if (v.status !== 'cancelled' && (old.status === 'cancelled' || old.endsAt !== v.endsAt) && end) {
+      await db.update(s.enrollments).set({ accessUntil: end, updatedAt: now }).where(seatsOf)
+    }
   }
   const cid = id ?? randomUUID()
   if (!id) await db.insert(s.orgContracts).values({ ...v, id: cid, orgId })
@@ -67,7 +78,7 @@ export async function releaseContractSeat(enrollmentId: string): Promise<{ ok: b
   const [e] = await db.select().from(s.enrollments).where(eq(s.enrollments.id, enrollmentId))
   if (!e?.contractId) return { ok: false, error: 'ليس مقعد عقد' }
   await db.update(s.enrollments).set({ status: 'canceled', updatedAt: new Date().toISOString() }).where(eq(s.enrollments.id, enrollmentId))
-  await audit(st.name, 'release', 'contract', e.contractId, `تحرير مقعد ${enrollmentId}`)
+  await audit(st.name, 'release', 'contract', e.contractId, `تحرير مقعد ${enrollmentId}`, { enrollmentId, learnerId: e.learnerId, courseId: e.courseId })
   const [c] = await db.select({ orgId: s.orgContracts.orgId }).from(s.orgContracts).where(eq(s.orgContracts.id, e.contractId))
   if (c) refresh(c.orgId)
   return { ok: true }
