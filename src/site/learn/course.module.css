@@ -23,3 +23,15 @@
 .certDone { font-weight: 700; color: var(--success); }
 .certDone a { text-decoration: underline; text-underline-offset: 3px; }
 .certWait { color: var(--accent-strong); font-weight: 600; }
+.review { display: grid; gap: 12px; }
+.starsIn { display: flex; gap: 4px; border: 0; padding: 0; flex-direction: row-reverse; justify-content: flex-end; }
+.starsIn legend { font-weight: 700; margin-block-end: 6px; inline-size: 100%; }
+.starsIn label { cursor: pointer; font-size: 30px; line-height: 1; color: var(--line-strong); transition: color var(--t-base), transform var(--t-base); }
+.starsIn label[data-on='1'] { color: var(--chart-1); }
+.starsIn label:hover { transform: scale(1.12); }
+.starsIn input { position: absolute; opacity: 0; inline-size: 1px; block-size: 1px; }
+.starsIn label:has(input:focus-visible) { outline: 2px solid var(--gold-3); outline-offset: 2px; border-radius: 6px; }
+.review textarea { padding: 12px 14px; border-radius: var(--radius-m); border: 1px solid var(--line-strong); background: var(--bg); color: var(--text); font-size: 15px; line-height: 1.8; resize: vertical; }
+.anon { display: inline-flex; gap: 8px; align-items: center; font-size: 14px; color: var(--muted); }
+.reviewFoot { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.reviewFoot span { font-size: 14px; color: var(--muted); }

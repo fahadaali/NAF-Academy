@@ -1,6 +1,6 @@
 import 'server-only'
 /* طبقة القراءة للواجهة العامة — تحوّل صفوف القاعدة إلى نماذج العرض في content/types. */
-import { and, asc, count, eq, inArray, isNull } from 'drizzle-orm'
+import { and, asc, count, desc, eq, inArray, isNull } from 'drizzle-orm'
 import { db, schema as s } from './db'
 import type { Course, Instructor, MediaView, Track } from '@/content/types'
 import { DEFAULT_HOME, type HomeContent } from '@/content/home-defaults'
@@ -93,6 +93,7 @@ export type CourseDetail = {
   instructors: Instructor[]
   curriculum: (ModuleRow & { lessons: LessonRow[] })[]
   related: Course[]
+  reviews: { avg: number; count: number; dist: number[]; items: { id: string; rating: number; comment: string; display: string; at: string }[] }
 }
 
 /** صفحة الدورة — المسودة والمؤرشفة لا تظهر إلا برمز المعاينة */
@@ -108,6 +109,9 @@ export async function courseDetail(slug: string, preview?: string): Promise<Cour
     : []
   const tiers = await db.select().from(s.priceTiers).where(eq(s.priceTiers.courseId, hit.row.id)).orderBy(asc(s.priceTiers.sortOrder))
   const rules = await db.select().from(s.groupRules).where(eq(s.groupRules.courseId, hit.row.id))
+  /* التقييمات المعتمدة فقط — الاسم كما اختاره المتدرب */
+  const revs = await db.select().from(s.reviews).where(and(eq(s.reviews.courseId, hit.row.id), eq(s.reviews.status, 'approved'))).orderBy(desc(s.reviews.createdAt))
+  const dist = [1, 2, 3, 4, 5].map((n) => revs.filter((r) => r.rating === n).length)
   return {
     course: hit.view,
     row: hit.row,
@@ -117,6 +121,10 @@ export async function courseDetail(slug: string, preview?: string): Promise<Cour
     instructors: (hit.view.instructors ?? []).map((sl) => instructors.find((i) => i.slug === sl)).filter((x): x is Instructor => !!x),
     curriculum: mods.map((md) => ({ ...md, lessons: les.filter((l) => l.moduleId === md.id) })),
     related: courses.filter((c) => c.track === hit.view.track && c.slug !== slug).slice(0, 3),
+    reviews: {
+      avg: revs.length ? Math.round((revs.reduce((x, r) => x + r.rating, 0) / revs.length) * 10) / 10 : 0, count: revs.length, dist,
+      items: revs.filter((r) => r.comment).slice(0, 12).map((r) => ({ id: r.id, rating: r.rating, comment: r.comment, display: r.display, at: r.createdAt })),
+    },
   }
 }
 

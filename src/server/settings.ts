@@ -39,3 +39,7 @@ export async function setSetting(key: string, value: unknown) {
 }
 
 export const paymentSettings = () => getSetting<PaymentSettings>('payments', DEFAULT_PAYMENTS)
+
+/** من يُبلَّغ بطلبات المؤسسات */
+export type CorporateSettings = { notify: string[] }
+export const corporateSettings = () => getSetting<CorporateSettings>('corporate', { notify: [] })

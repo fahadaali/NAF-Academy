@@ -1,5 +1,5 @@
 'use server'
-import { onEnrolled } from '@/server/notify/engine'
+import { assignSeatCore } from '@/server/seats'
 /* إجراءات المبيعات في اللوحة — الإعدادات، والكوبونات، والاسترداد، والطلب اليدوي، وتخصيص المقاعد. */
 import { randomBytes, randomUUID } from 'node:crypto'
 import { revalidatePath } from 'next/cache'
@@ -172,23 +172,9 @@ export async function manualOrder(raw: ManualInput): Promise<{ ok: boolean; id?:
 /** تخصيص مقعد من طلب جماعي لبريد مشارك */
 export async function assignSeat(grantId: string, email: string, name: string): Promise<{ ok: boolean; error?: string }> {
   const admin = await requirePermission('sales.orders')
-  const e = z.string().trim().email().safeParse(email)
-  if (!e.success) return { ok: false, error: 'بريد غير صالح' }
-  const [g] = await db.select().from(s.seatGrants).where(and(eq(s.seatGrants.id, grantId), isNull(s.seatGrants.enrollmentId)))
-  if (!g) return { ok: false, error: 'المقعد مخصّص من قبل' }
-  const [ord] = await db.select({ status: s.orders.status }).from(s.orders).where(eq(s.orders.id, g.orderId))
-  if (!ord || !['paid', 'partially_refunded'].includes(ord.status)) return { ok: false, error: 'لا يمكن تخصيص مقاعد طلب غير مدفوع أو مسترد' }
-  const learner = await upsertLearner({ name: name.trim() || e.data.split('@')[0], email: e.data, phone: '', org: '', vatNumber: '' })
-  const [dup] = await db.select().from(s.enrollments).where(and(eq(s.enrollments.learnerId, learner.id), eq(s.enrollments.courseId, g.courseId), eq(s.enrollments.status, 'active')))
-  if (dup) return { ok: false, error: 'هذا المشارك مسجّل في الدورة من قبل' }
-  const [item] = await db.select().from(s.orderItems).where(and(eq(s.orderItems.orderId, g.orderId), eq(s.orderItems.courseId, g.courseId)))
-  const eid = randomUUID()
-  await db.insert(s.enrollments).values({ id: eid, learnerId: learner.id, courseId: g.courseId, tierId: item?.tierId ?? null, orderId: g.orderId, source: 'seat' })
-  await db.update(s.seatGrants).set({ email: learner.email, enrollmentId: eid }).where(eq(s.seatGrants.id, grantId))
-  await audit(admin.name, 'assign', 'order', g.orderId, `مقعد ← ${learner.email}`)
-  revalidatePath(`/admin/orders/${g.orderId}`)
-  await onEnrolled(eid)
-  return { ok: true }
+  const r = await assignSeatCore(grantId, email, name, admin.name)
+  if (r.orderId) revalidatePath(`/admin/orders/${r.orderId}`)
+  return { ok: r.ok, error: r.error }
 }
 
 /** إلغاء تسجيل أو إضافته يدوياً من صفحة المسجّلين */

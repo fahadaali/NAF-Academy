@@ -12,6 +12,10 @@ import { levelLabel, modeLabel, statusView } from '@/lib/course-meta'
 import { formatDay, formatHijri, formatTime, formatWeekday } from '@/lib/dates'
 import s from './course.module.css'
 
+function Stars({ value }: { value: number }) {
+  return <span className={s.stars} role="img" aria-label={`${value} من 5`}><span style={{ inlineSize: `${(value / 5) * 100}%` }}>★★★★★</span>★★★★★</span>
+}
+
 const LESSON: Record<string, string> = { video: 'فيديو', article: 'مقال', file: 'ملف', quiz: 'اختبار', live: 'مباشر', onsite: 'حضوري', assignment: 'واجب' }
 
 export function CourseView({ data, preview }: { data: CourseDetail; preview?: boolean }) {
@@ -142,6 +146,32 @@ export function CourseView({ data, preview }: { data: CourseDetail; preview?: bo
             <section className={`${s.block} ${s.two}`}>
               {row.audience.length > 0 && <div><h2 className={s.h2}>لمن هذه الدورة</h2><ul className={s.ticks}>{row.audience.map((x, i) => <li key={i}>{x}</li>)}</ul></div>}
               {row.requirements.length > 0 && <div><h2 className={s.h2}>المتطلبات</h2><ul className={s.ticks}>{row.requirements.map((x, i) => <li key={i}>{x}</li>)}</ul></div>}
+            </section>
+          )}
+
+          {data.reviews.count > 0 && (
+            <section className={s.block} aria-labelledby="reviews-h">
+              <h2 className={s.h2} id="reviews-h">آراء المتدربين</h2>
+              <div className={s.reviews}>
+                <div className={s.score}>
+                  <strong className="num">{data.reviews.avg.toFixed(1)}</strong>
+                  <Stars value={data.reviews.avg} />
+                  <span className="num">{data.reviews.count} تقييم</span>
+                </div>
+                <ol className={s.dist} role="list" aria-label="توزيع التقييمات">
+                  {[5, 4, 3, 2, 1].map((n) => {
+                    const k = data.reviews.dist[n - 1]
+                    return <li key={n} className="num"><span>{n} ★</span><i><b style={{ transform: `scaleX(${data.reviews.count ? k / data.reviews.count : 0})` }} /></i><span>{k}</span></li>
+                  })}
+                </ol>
+              </div>
+              {data.reviews.items.length > 0 && (
+                <ul className={s.quotes} role="list">
+                  {data.reviews.items.map((r) => (
+                    <li key={r.id}><Stars value={r.rating} /><p>{r.comment}</p><small>{r.display}</small></li>
+                  ))}
+                </ul>
+              )}
             </section>
           )}
 

@@ -15,3 +15,26 @@
 .table a { color: var(--accent); font-weight: 600; }
 .form { display: grid; gap: 14px; max-inline-size: 560px; padding: 26px; border-radius: var(--radius-l); background: var(--surface); border: 1px solid var(--line); }
 .courseHead { display: flex; justify-content: space-between; align-items: start; gap: 14px; }
+.orgStats { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; }
+.orgStats div { display: grid; padding: 12px 14px; border-radius: var(--radius-m); background: var(--surface-2); }
+.orgStats strong { font-size: 26px; font-weight: 900; color: var(--accent); }
+.orgStats span { font-size: 13px; color: var(--muted); }
+.table small { display: block; color: var(--muted); font-size: 12.5px; }
+.mini { display: inline-block; inline-size: 80px; block-size: 6px; border-radius: 999px; background: var(--line-strong); overflow: hidden; vertical-align: middle; margin-inline-end: 8px; }
+.mini i { display: block; block-size: 100%; background: var(--gold-3); transform-origin: right; }
+.h3 { font-size: 18px; font-weight: 800; }
+.h3 small { color: var(--muted); font-weight: 400; font-size: 14px; }
+.seats { display: grid; gap: 8px; }
+.seats li { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; padding: 10px 14px; border-radius: var(--radius-m); background: var(--surface-2); }
+.seats li > span:first-child { display: grid; }
+.seats small { color: var(--muted); font-size: 12.5px; }
+.seat { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.seat input { min-block-size: 40px; padding-inline: 12px; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--bg); color: var(--text); }
+.seat span { color: var(--danger); font-size: 13px; font-weight: 600; }
+@media (max-width: 720px) { .table { display: block; overflow-x: auto; } }
+.install { display: flex; gap: 14px; align-items: center; padding: 14px 16px; border-radius: var(--radius-l); background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow-1); margin-block-end: 18px; }
+.install img { border-radius: 10px; flex: none; }
+.install div { display: grid; flex: 1; }
+.install span { font-size: 13.5px; color: var(--muted); }
+.close { inline-size: 32px; block-size: 32px; border-radius: 50%; color: var(--muted); font-size: 18px; flex: none; }
+.close:hover { background: var(--surface-2); color: var(--text); }

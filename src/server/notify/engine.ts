@@ -10,7 +10,7 @@ import { randomUUID } from 'node:crypto'
 import { and, asc, count, desc, eq, gte, inArray, isNotNull, isNull, lt, lte, max, sql } from 'drizzle-orm'
 import { db, schema as s } from '../db'
 import { getSetting } from '../settings'
-import { channelOpen, send, type Channel } from './channels'
+import { channelOpen, send, sendPushTo, type Channel } from './channels'
 import { renderEmail } from './templates'
 import { isOptedOut, optoutToken } from './optout'
 import { siteUrl } from '../site'
@@ -49,6 +49,7 @@ export async function onEnrolled(enrollmentId: string) {
     const base = { event: 'enrolled', learnerId: r.l.id, courseId: r.e.courseId, ref: { enrollmentId }, sendAt: now }
     const rows: Omit<Row, 'id'>[] = [{ ...base, key: `enrolled:${enrollmentId}:email`, channel: 'email', to: r.l.email }]
     if (r.l.phone) rows.push({ ...base, key: `enrolled:${enrollmentId}:sms`, channel: 'sms', to: r.l.phone })
+    rows.push({ ...base, key: `enrolled:${enrollmentId}:push`, channel: 'push', to: r.l.id })
     await enqueue(rows)
     await dispatch(new Date(), { keys: rows.map((x) => x.key) })
   } catch (e) {
@@ -88,12 +89,13 @@ export async function onCertificate(certificateId: string) {
   const base = { event: 'certificate_issued', learnerId: c.l.id, courseId: c.c.courseId, ref: { certificateId }, sendAt: iso(new Date()) }
   const rows: Omit<Row, 'id'>[] = [{ ...base, key: `cert:${certificateId}:email`, channel: 'email', to: c.l.email }]
   if (c.l.phone) rows.push({ ...base, key: `cert:${certificateId}:sms`, channel: 'sms', to: c.l.phone })
+  rows.push({ ...base, key: `cert:${certificateId}:push`, channel: 'push', to: c.l.id })
   await enqueue(rows)
   await dispatch(new Date(), { keys: rows.map((x) => x.key) })
 }
 
 /** نسبة الإنجاز لمجموعة (متدرب، دورة): الدروس المكتملة والجلسات المحضورة من كل الدروس */
-async function progressOf(pairs: { learnerId: string; courseId: string }[]) {
+export async function progressOf(pairs: { learnerId: string; courseId: string }[]) {
   const out = new Map<string, { pct: number; last: string | null }>()
   if (!pairs.length) return out
   const courseIds = [...new Set(pairs.map((p) => p.courseId))]
@@ -141,6 +143,7 @@ export async function planScan(now: Date, cfg: NotifySettings) {
     const maxOff = Math.max(...cfg.sessionOffsets.map((o) => o.minutes))
     const lessons = await sessionLessons(now, new Date(t + maxOff * MIN))
     const enr = await activeEnrollments([...new Set(lessons.map((x) => x.courseId))])
+    const pushers = new Set((enr.length ? await db.selectDistinct({ id: s.pushSubscriptions.learnerId }).from(s.pushSubscriptions).where(inArray(s.pushSubscriptions.learnerId, enr.map((x) => x.l.id))) : []).map((x) => x.id))
     for (const { l, courseId } of lessons) for (const { e, l: who } of enr.filter((x) => x.e.courseId === courseId)) for (const o of cfg.sessionOffsets) {
       const d = reminderDue(l.startsAt!, o.minutes, now, e.createdAt)
       if (!d.due) continue
@@ -148,6 +151,7 @@ export async function planScan(now: Date, cfg: NotifySettings) {
       const k = `rem:${l.id}:${l.startsAt}:${o.minutes}:${who.id}`
       if (o.email) rows.push({ ...base, key: `${k}:email`, channel: 'email', to: who.email })
       if (o.sms && who.phone) rows.push({ ...base, key: `${k}:sms`, channel: 'sms', to: who.phone })
+      if (o.sms && pushers.has(who.id)) rows.push({ ...base, key: `${k}:push`, channel: 'push', to: who.id })
     }
   }
 
@@ -372,6 +376,11 @@ export async function dispatch(now: Date, opt: { limit?: number; keys?: string[]
     if (!tpl || !meta) { await finish('cancelled', { error: 'حدث غير معروف' }); out.skipped++; continue }
     if (!tpl.enabled) { await finish('skipped', { error: 'الرسالة موقوفة من اللوحة' }); out.skipped++; continue }
     if (n.channel === 'sms' && (!meta.sms || !tpl.sms.trim())) { await finish('skipped', { error: 'لا نص جوال لهذه الرسالة' }); out.skipped++; continue }
+    if (n.channel === 'push') {
+      if (!meta.sms) { await finish('skipped', { error: 'لا إشعار لهذه الرسالة' }); out.skipped++; continue }
+      const [sub] = n.learnerId ? await db.select({ id: s.pushSubscriptions.id }).from(s.pushSubscriptions).where(eq(s.pushSubscriptions.learnerId, n.learnerId)).limit(1) : []
+      if (!sub) { await finish('skipped', { error: 'لم يفعّل التنبيهات' }); out.skipped++; continue }
+    }
     if (!(await channelOpen(n.channel as Channel))) { await finish('skipped', { error: 'القناة مقفلة' }); out.skipped++; continue }
     let email = n.channel === 'email' ? n.to : ''
     if (!email && n.learnerId) email = (await db.select({ e: s.learners.email }).from(s.learners).where(eq(s.learners.id, n.learnerId)))[0]?.e ?? ''
@@ -391,6 +400,8 @@ export async function dispatch(now: Date, opt: { limit?: number; keys?: string[]
         cta: tpl.cta && v.link ? { label: fill(tpl.cta, v), href: v.link } : undefined, unsubscribe: unsub,
       })
       r = await send({ channel: 'email', to: n.to, subject: fill(tpl.subject, v), text, html, kind: ev, headers: unsub ? { 'List-Unsubscribe': `<${unsub.replace('/unsubscribe?', '/api/unsubscribe?')}>`, 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' } : undefined })
+    } else if (n.channel === 'push') {
+      r = await sendPushTo(n.learnerId!, { title: fill(tpl.subject, v), body: fill(tpl.sms.trim() ? tpl.sms : tpl.heading, v).replace(/\s*https?:\/\/\S+/g, '').slice(0, 200), url: v.link ?? `${site}/learn`, tag: n.key.split(':').slice(0, 2).join(':') }, ev)
     } else {
       r = await send({ channel: 'sms', to: n.to, text: fill(tpl.sms, v).slice(0, 480), kind: ev })
     }

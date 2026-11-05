@@ -1,6 +1,7 @@
 'use client'
 /* للمؤسسات — نموذج متدرّج برقائق اختيار، يتقدّم سؤالاً سؤالاً بلا صفحة جديدة. */
 import { useState } from 'react'
+import { corporateRequest } from '@/site/corporate-actions'
 import { Words } from '@/components/Words'
 import styles from './Corporate.module.css'
 
@@ -10,6 +11,8 @@ export function Corporate({ title, body, sizes, interests, eyebrow = '' }: Props
   const [size, setSize] = useState<string>('')
   const [picked, setPicked] = useState<string[]>([])
   const [sent, setSent] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState('')
   const toggle = (x: string) => setPicked((p) => (p.includes(x) ? p.filter((y) => y !== x) : [...p, x]))
   const step = sent ? 3 : !size ? 0 : picked.length === 0 ? 1 : 2
 
@@ -29,7 +32,14 @@ export function Corporate({ title, body, sizes, interests, eyebrow = '' }: Props
 
         <form
           className={`reveal ${styles.form}`}
-          onSubmit={(e) => { e.preventDefault(); setSent(true) }}
+          onSubmit={async (e) => {
+            e.preventDefault()
+            const f = new FormData(e.currentTarget)
+            setBusy(true); setErr('')
+            const r = await corporateRequest({ name: f.get('name'), org: f.get('org'), contact: f.get('contact'), size, interests: picked, website: f.get('website') ?? '' }).catch(() => ({ ok: false, error: 'تعذّر الإرسال — حاول مجدداً' }))
+            setBusy(false)
+            if (r.ok) setSent(true); else setErr(r.error ?? 'تعذّر الإرسال')
+          }}
           data-sent={sent ? '1' : '0'}
         >
           <fieldset className={styles.field}>
@@ -63,7 +73,9 @@ export function Corporate({ title, body, sizes, interests, eyebrow = '' }: Props
               <label><span>الجهة</span><input required name="org" autoComplete="organization" /></label>
               <label><span>البريد أو الجوال</span><input required name="contact" autoComplete="email" dir="ltr" /></label>
             </div>
-            <button className="btn" type="submit">أرسل الطلب</button>
+            <input name="website" tabIndex={-1} autoComplete="off" aria-hidden="true" className={styles.trap} />
+            {err && <p className={styles.err} role="alert">{err}</p>}
+            <button className="btn" type="submit" disabled={busy}>{busy ? 'جارٍ الإرسال…' : 'أرسل الطلب'}</button>
           </fieldset>
 
           <div className={styles.done} role="status" aria-live="polite">

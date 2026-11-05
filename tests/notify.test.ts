@@ -124,7 +124,7 @@ test('الفتح المتدرّج: بعد 3 أيام من التسجيل', async
 test('التسجيل والإكمال: رسائل فورية، ومن ألغى اشتراكه لا تصله رسائل التحفيز', async () => {
   await e.onEnrolled('ea')
   const en = await rowsOf('enrolled')
-  assert.deepEqual(en.map((x) => `${x.channel}:${x.status}`).sort(), ['email:sent', 'sms:sent'])
+  assert.deepEqual(en.map((x) => `${x.channel}:${x.status}`).sort(), ['email:sent', 'push:skipped', 'sms:sent'])
   const { setOptout } = await import('../src/server/notify/optout')
   await setOptout('sara@x.sa', true)
   await db.insert(s.lessonProgress).values({ learnerId: 'a', lessonId: 'L2', courseId: 'c1', completedAt: new Date().toISOString() })

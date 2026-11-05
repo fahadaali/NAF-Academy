@@ -125,3 +125,18 @@ details[open] > summary .chev { transform: rotate(-135deg); }
 .flag { position: absolute; inset-block-start: -12px; inset-inline-end: 18px; font-size: 12px; font-weight: 700; padding: 4px 12px; border-radius: 999px; background: var(--gold-3); color: var(--night-1); }
 .from { font-size: 36px; font-weight: 900; display: flex; align-items: baseline; gap: 8px; }
 .from span { font-size: 15px; font-weight: 600; color: var(--muted); }
+.reviews { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 28px; align-items: center; }
+.score { display: grid; justify-items: center; gap: 4px; }
+.score strong { font-size: 52px; font-weight: 900; line-height: 1; font-family: var(--font-display); }
+.score span:last-child { font-size: 13px; color: var(--muted); }
+.stars { position: relative; display: inline-block; color: var(--line-strong); letter-spacing: 2px; font-size: 16px; line-height: 1; white-space: nowrap; }
+.stars > span { position: absolute; inset-block-start: 0; inset-inline-start: 0; overflow: hidden; color: var(--chart-1); }
+.dist { display: grid; gap: 6px; }
+.dist li { display: grid; grid-template-columns: 34px minmax(0, 1fr) 28px; gap: 10px; align-items: center; font-size: 13px; color: var(--muted); }
+.dist i { display: block; block-size: 8px; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
+.dist b { display: block; block-size: 100%; border-radius: 999px; background: var(--chart-1); transform-origin: right; }
+.quotes { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; margin-block-start: 22px; }
+.quotes li { display: grid; gap: 8px; padding: 18px; border-radius: var(--radius-l); background: var(--surface); border: 1px solid var(--line); }
+.quotes p { font-family: var(--font-text); line-height: 1.9; }
+.quotes small { color: var(--muted); font-size: 13px; }
+@media (max-width: 560px) { .reviews { grid-template-columns: 1fr; } }

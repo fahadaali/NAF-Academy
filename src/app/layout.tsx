@@ -1,11 +1,13 @@
 import type { Metadata, Viewport } from 'next'
 import Script from 'next/script'
 import './globals.css'
+import { SwRegister } from '@/components/SwRegister'
 
 export const metadata: Metadata = {
   title: { default: 'أكاديمية ناف — للتدريب القانوني', template: '%s · أكاديمية ناف' },
   description: 'أكاديمية متخصصة في التدريب القانوني: مسارات ودورات مباشرة وحضورية ومسجّلة، من الممارسة إلى الخبرة.',
   openGraph: { locale: 'ar_SA', type: 'website', siteName: 'أكاديمية ناف' },
+  appleWebApp: { capable: true, title: 'أكاديمية ناف', statusBarStyle: 'black-translucent' },
 }
 
 export const viewport: Viewport = {
@@ -25,6 +27,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <a href="#main" className="skip">تجاوز إلى المحتوى</a>
         {children}
+        <SwRegister />
       </body>
     </html>
   )

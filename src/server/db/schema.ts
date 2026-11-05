@@ -432,7 +432,7 @@ export const otpCodes = sqliteTable(
   'otp_codes',
   {
     id: id(),
-    channel: text('channel', { enum: ['email', 'sms'] }).notNull(),
+    channel: text('channel', { enum: ['email', 'sms', 'push'] }).notNull(),
     target: text('target').notNull(),
     codeHash: text('code_hash').notNull(),
     attempts: integer('attempts').notNull().default(0),
@@ -463,7 +463,7 @@ export const messageLog = sqliteTable(
   'message_log',
   {
     id: id(),
-    channel: text('channel', { enum: ['email', 'sms'] }).notNull(),
+    channel: text('channel', { enum: ['email', 'sms', 'push'] }).notNull(),
     to: text('to').notNull(),
     subject: text('subject').notNull().default(''),
     body: text('body').notNull(),
@@ -572,7 +572,7 @@ export const notifications = sqliteTable('notifications', {
   id: id(),
   key: text('key').notNull().unique(),
   event: text('event').notNull(),
-  channel: text('channel', { enum: ['email', 'sms'] }).notNull(),
+  channel: text('channel', { enum: ['email', 'sms', 'push'] }).notNull(),
   to: text('to').notNull(),
   learnerId: text('learner_id'),
   courseId: text('course_id'),
@@ -628,5 +628,73 @@ export const certificates = sqliteTable('certificates', {
 }, (t) => [uniqueIndex('cert_learner_course').on(t.learnerId, t.courseId), index('cert_status_idx').on(t.status)])
 
 export type CertificateRow = typeof certificates.$inferSelect
+
+/* ───────── المؤسسات ───────── */
+
+export const CORP_STATUS = ['new', 'contacted', 'proposal', 'won', 'lost'] as const
+
+/** طلبات «للمؤسسات» من الرئيسية — مسار متابعة في اللوحة */
+export const corporateRequests = sqliteTable('corporate_requests', {
+  id: id(),
+  name: text('name').notNull(),
+  org: text('org').notNull(),
+  contact: text('contact').notNull(),
+  size: text('size').notNull().default(''),
+  interests: text('interests', { mode: 'json' }).$type<string[]>().notNull().default(sql`'[]'`),
+  message: text('message').notNull().default(''),
+  status: text('status', { enum: CORP_STATUS }).notNull().default('new'),
+  notes: text('notes').notNull().default(''),
+  organizationId: text('organization_id'),
+  ...stamps,
+}, (t) => [index('corp_status_idx').on(t.status)])
+
+/** حساب مؤسسة: نطاقات بريدها تربط موظفيها تلقائياً، ومسؤولوها يتابعون ويخصّصون المقاعد */
+export const organizations = sqliteTable('organizations', {
+  id: id(),
+  name: text('name').notNull(),
+  domains: text('domains', { mode: 'json' }).$type<string[]>().notNull().default(sql`'[]'`),
+  notes: text('notes').notNull().default(''),
+  ...stamps,
+  deletedAt: text('deleted_at'),
+})
+
+export const orgMembers = sqliteTable('org_members', {
+  orgId: text('org_id').notNull().references(() => organizations.id, { onDelete: 'cascade' }),
+  learnerId: text('learner_id').notNull().references(() => learners.id, { onDelete: 'cascade' }),
+  role: text('role', { enum: ['manager', 'member'] }).notNull().default('member'),
+  createdAt: stamps.createdAt,
+}, (t) => [primaryKey({ columns: [t.orgId, t.learnerId] })])
+
+/* ───────── التقييمات والتحليلات ───────── */
+
+export const reviews = sqliteTable('reviews', {
+  id: id(),
+  learnerId: text('learner_id').notNull().references(() => learners.id, { onDelete: 'cascade' }),
+  courseId: text('course_id').notNull().references(() => courses.id, { onDelete: 'cascade' }),
+  rating: integer('rating').notNull(),
+  comment: text('comment').notNull().default(''),
+  status: text('status', { enum: ['pending', 'approved', 'hidden'] }).notNull().default('pending'),
+  /** الاسم كما يظهر (اختيار المتدرب: الاسم الأول أو مجهول) */
+  display: text('display').notNull().default(''),
+  ...stamps,
+}, (t) => [uniqueIndex('review_learner_course').on(t.learnerId, t.courseId), index('review_course_idx').on(t.courseId, t.status)])
+
+/** عدّاد يومي مجمّع بلا ملفات تعريف ولا هوية: (اليوم، المقياس، المفتاح) ← العدد */
+export const statsDaily = sqliteTable('stats_daily', {
+  day: text('day').notNull(),
+  metric: text('metric').notNull(),
+  key: text('key').notNull(),
+  n: integer('n').notNull().default(0),
+}, (t) => [primaryKey({ columns: [t.day, t.metric, t.key] })])
+
+/** اشتراكات إشعارات المتصفح */
+export const pushSubscriptions = sqliteTable('push_subscriptions', {
+  id: id(),
+  learnerId: text('learner_id').notNull().references(() => learners.id, { onDelete: 'cascade' }),
+  endpoint: text('endpoint').notNull().unique(),
+  p256dh: text('p256dh').notNull(),
+  auth: text('auth').notNull(),
+  ...stamps,
+})
 
 export type LessonFull = typeof lessons.$inferSelect

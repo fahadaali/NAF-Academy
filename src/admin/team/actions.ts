@@ -67,8 +67,9 @@ export async function saveChannels(v: ChannelSettings): Promise<{ ok: boolean; e
   const me = await requirePermission('channels.manage')
   if (v.emailEnabled && !channelState('email').configured) return { ok: false, error: channelState('email').problem }
   if (v.smsEnabled && !channelState('sms').configured) return { ok: false, error: channelState('sms').problem }
-  await saveChannelSettings({ emailEnabled: !!v.emailEnabled, smsEnabled: !!v.smsEnabled })
-  await audit(me.name, 'update', 'channels', 'settings', `البريد ${v.emailEnabled ? 'مفعّل' : 'مقفل'} · الجوال ${v.smsEnabled ? 'مفعّل' : 'مقفل'}`)
+  if (v.pushEnabled && !channelState('push').configured) return { ok: false, error: channelState('push').problem }
+  await saveChannelSettings({ emailEnabled: !!v.emailEnabled, smsEnabled: !!v.smsEnabled, pushEnabled: !!v.pushEnabled })
+  await audit(me.name, 'update', 'channels', 'settings', `البريد ${v.emailEnabled ? 'مفعّل' : 'مقفل'} · الجوال ${v.smsEnabled ? 'مفعّل' : 'مقفل'} · المتصفح ${v.pushEnabled ? 'مفعّل' : 'مقفل'}`)
   revalidatePath('/', 'layout')
   return { ok: true }
 }

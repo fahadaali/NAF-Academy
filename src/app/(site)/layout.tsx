@@ -2,6 +2,7 @@
 import { Header } from '@/components/Header'
 import { Footer } from '@/components/Footer'
 import { MotionRoot } from '@/components/MotionRoot'
+import { Beacon } from '@/components/Beacon'
 import { nav } from '@/content/seed'
 import { homeContent } from '@/server/queries'
 
@@ -10,6 +11,7 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
   return (
     <>
       <MotionRoot />
+      <Beacon />
       <Header nav={nav} />
       <main id="main">{children}</main>
       <Footer title={home.footer.title} cta={home.footer.cta} />

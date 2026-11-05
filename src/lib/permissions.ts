@@ -23,16 +23,16 @@ export const PERMS = [
   'sales.read', 'sales.orders', 'sales.refund', 'sales.coupons', 'payments.manage',
   'channels.manage', 'messages.read', 'learners.read',
   'trash.purge', 'team.manage', 'audit.read',
-  'learning.review', 'attendance.mark', 'notify.manage', 'certificates.manage',
+  'learning.review', 'attendance.mark', 'notify.manage', 'certificates.manage', 'corporate.manage', 'analytics.read',
 ] as const
 export type Perm = (typeof PERMS)[number]
 
 const MATRIX: Record<Role, Perm[]> = {
   owner: [...PERMS],
-  content: ['content.read', 'content.write', 'site.write', 'learners.read', 'audit.read', 'learning.review', 'attendance.mark', 'notify.manage', 'certificates.manage'],
-  finance: ['content.read', 'sales.read', 'sales.orders', 'sales.refund', 'sales.coupons', 'learners.read', 'messages.read', 'audit.read'],
+  content: ['content.read', 'content.write', 'site.write', 'learners.read', 'audit.read', 'learning.review', 'attendance.mark', 'notify.manage', 'certificates.manage', 'analytics.read'],
+  finance: ['content.read', 'sales.read', 'sales.orders', 'sales.refund', 'sales.coupons', 'learners.read', 'messages.read', 'audit.read', 'corporate.manage', 'analytics.read'],
   instructor: ['content.read', 'learners.read', 'learning.review', 'attendance.mark', 'certificates.manage'],
-  support: ['content.read', 'sales.read', 'sales.orders', 'learners.read', 'messages.read', 'attendance.mark'],
+  support: ['content.read', 'sales.read', 'sales.orders', 'learners.read', 'messages.read', 'attendance.mark', 'corporate.manage'],
 }
 
 export const isRole = (r: string): r is Role => (ROLES as readonly string[]).includes(r)

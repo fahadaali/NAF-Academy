@@ -50,6 +50,13 @@
       "when": 1793898155961,
       "tag": "0006_certificates",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1793899396086,
+      "tag": "0007_org_analytics_pwa",
+      "breakpoints": true
     }
   ]
 }
