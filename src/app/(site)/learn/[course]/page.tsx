@@ -14,6 +14,7 @@ import { evaluate } from '@/server/certificates'
 import { ReviewBox } from '@/site/learn/ReviewBox'
 import { REVIEW_MIN_PCT } from '@/lib/reviews'
 import st from '@/site/learn/course.module.css'
+import { ANON_DISPLAY } from '@/lib/reviews'
 
 export const dynamic = 'force-dynamic'
 export const metadata: Metadata = { robots: { index: false } }
@@ -65,7 +66,7 @@ export default async function CourseHome({ params }: { params: Promise<{ course:
           {pct >= REVIEW_MIN_PCT && (
             <section className={st.box} aria-labelledby="rev-h">
               <h2 id="rev-h">قيّم الدورة</h2>
-              <ReviewBox courseId={course.id} initial={myReview ? { rating: myReview.rating, comment: myReview.comment, status: myReview.status } : null} />
+              <ReviewBox courseId={course.id} initial={myReview ? { rating: myReview.rating, comment: myReview.comment, status: myReview.status, anonymous: myReview.display === ANON_DISPLAY } : null} />
             </section>
           )}
           {upcoming.length > 0 && (

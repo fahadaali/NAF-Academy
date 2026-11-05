@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { brandView } from '@/server/brand'
 import { notFound } from 'next/navigation'
-import { certificateByCode, verifyUrl, viewData } from '@/server/certificates'
+import { certImages, certificateByCode, verifyUrl, viewData } from '@/server/certificates'
 import { CertificateView } from '@/components/CertificateView'
 import { DEFAULT_DESIGN, linkedinUrl } from '@/lib/certificate'
 import { CopyLink } from '@/site/CopyLink'
@@ -34,7 +34,7 @@ export default async function Certificate({ params }: P) {
         </div>
       </div>
       <div className={`${st.sheet} wipe`} style={{ ['--d' as string]: 2 }} data-revoked={valid ? '0' : '1'}>
-        <CertificateView design={c.design ?? DEFAULT_DESIGN} data={data} brand={brand} />
+        <CertificateView design={c.design ?? DEFAULT_DESIGN} data={data} brand={brand} images={await certImages(c.design ?? DEFAULT_DESIGN)} />
       </div>
       <dl className={`${st.facts} num stagger reveal`}>
         <div><dt>الاسم</dt><dd>{c.name}</dd></div>

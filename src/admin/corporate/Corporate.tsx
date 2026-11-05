@@ -9,7 +9,7 @@ import c from './corporate.module.css'
 
 export const STATUS: Record<string, string> = { new: 'جديد', contacted: 'تواصلنا', proposal: 'عرض مُرسل', won: 'تم التعاقد', lost: 'لم يتم' }
 
-export function RequestCard({ r }: { r: { id: string; name: string; org: string; contact: string; size: string; interests: string[]; status: string; notes: string; when: string; orgId: string | null } }) {
+export function RequestCard({ r }: { r: { id: string; name: string; org: string; contact: string; size: string; interests: string[]; status: string; notes: string; when: string; orgId: string | null; message: string } }) {
   const router = useRouter()
   const [status, setStatus] = useState(r.status)
   const [notes, setNotes] = useState(r.notes)
@@ -28,6 +28,7 @@ export function RequestCard({ r }: { r: { id: string; name: string; org: string;
         {r.interests.map((x) => <span key={x} className={c.tag}>{x}</span>)}
         <span className={`${p.muted} num`}>{r.when}</span>
       </div>
+      {r.message && <p className={c.message}>«{r.message}»</p>}
       <textarea className={c.notes} value={notes} onChange={(e) => setNotes(e.target.value)} onBlur={() => notes !== r.notes && save()} placeholder="ملاحظات المتابعة (تُحفظ عند الخروج من الحقل)" aria-label="ملاحظات" />
       <div className={c.actions}>
         {r.orgId ? <a className={p.iconBtn} href={`/admin/organizations/${r.orgId}`}>حساب المؤسسة ←</a>

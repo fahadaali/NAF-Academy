@@ -3,6 +3,7 @@ import 'server-only'
 import { asc, desc, eq, isNotNull, isNull } from 'drizzle-orm'
 import { db, schema as s } from '@/server/db'
 import { requirePermission } from '@/server/auth'
+import { inList } from '@/server/db/limits'
 
 export async function adminLists() {
   await requirePermission('content.read')
@@ -21,7 +22,8 @@ export async function courseForEdit(id: string) {
   const [course] = await db.select().from(s.courses).where(eq(s.courses.id, id))
   if (!course) return null
   const mods = await db.select().from(s.modules).where(eq(s.modules.courseId, id)).orderBy(asc(s.modules.sortOrder))
-  const lessons = await db.select().from(s.lessons).orderBy(asc(s.lessons.sortOrder))
+  /* دروس هذه الدورة وحدها — لا كل دروس المنصة */
+  const lessons = mods.length ? await db.select().from(s.lessons).where(inList(s.lessons.moduleId, mods.map((m) => m.id))).orderBy(asc(s.lessons.sortOrder)) : []
   const links = await db.select().from(s.courseInstructors).where(eq(s.courseInstructors.courseId, id)).orderBy(asc(s.courseInstructors.sortOrder))
   const tiers = await db.select().from(s.priceTiers).where(eq(s.priceTiers.courseId, id)).orderBy(asc(s.priceTiers.sortOrder))
   const rules = await db.select().from(s.groupRules).where(eq(s.groupRules.courseId, id))

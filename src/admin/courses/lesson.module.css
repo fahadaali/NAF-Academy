@@ -19,3 +19,5 @@
 .options { display: grid; gap: 6px; padding-inline-start: 8px; }
 .options input[type='radio'], .options input[type='checkbox'] { inline-size: 18px; block-size: 18px; accent-color: var(--gold-3); flex: none; }
 .question input[data-err='1'] { border-color: var(--danger); }
+.points { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
+.points input { inline-size: 64px; min-block-size: 34px; text-align: center; }

@@ -18,9 +18,14 @@ const refresh = () => { revalidatePath('/admin/certificates', 'layout'); revalid
 export async function approveCertificates(ids: string[]): Promise<{ ok: boolean; n: number }> {
   const st = await requirePermission('certificates.manage')
   let n = 0
-  for (const id of z.array(z.string().uuid()).max(200).parse(ids)) {
-    const r = await issueCertificate(id, st.name)
-    if (r?.status === 'issued') n++
+  const list = z.array(z.string().uuid()).max(200).safeParse(ids)
+  if (!list.success) return { ok: false, n: 0 }
+  /* خطأ في شهادة لا يوقف بقية الدفعة */
+  for (const id of list.data) {
+    try {
+      const r = await issueCertificate(id, st.name)
+      if (r?.status === 'issued') n++
+    } catch (e) { console.error('approve certificate', id, e) }
   }
   refresh()
   return { ok: true, n }

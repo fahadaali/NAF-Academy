@@ -11,8 +11,10 @@ export type CertViewData = { name: string; course: string; hours: number; date: 
 
 const cq = (pt: number) => `${(pt / PAGE.w) * 100}cqw`
 
-export function CertificateView({ design, data, brand, onPick, active, dragRef }: {
+export function CertificateView({ design, data, brand, onPick, active, dragRef, images = {} }: {
   design: CertDesign; data: CertViewData; brand: BrandView
+  /** روابط الصور بمعرّفاتها (الخلفية والتوقيعات) — كما يرسمها ملف PDF */
+  images?: Record<string, string>
   /** للمحرّر: بدء سحب عنصر */
   onPick?: (k: BlockKey, e: React.PointerEvent) => void
   active?: BlockKey | null
@@ -45,13 +47,18 @@ export function CertificateView({ design, data, brand, onPick, active, dragRef }
     course: at('course', <div className={c.course} style={{ fontSize: cq(B.course.size) }}><span>{design.courseLead}</span><strong>{data.course}</strong></div>),
     hours: at('hours', data.hours > 0 && <div className={c.soft} style={{ fontSize: cq(B.hours.size) }}>{design.hoursText.replace(/\{\{\s*hours\s*\}\}/g, String(data.hours))}</div>),
     date: at('date', <div className={c.date} style={{ fontSize: cq(B.date.size) }}><span>صدرت في {data.date}</span><small>الموافق {data.hijri}</small></div>),
-    signatures: at('signatures', <div className={c.signs} style={{ fontSize: cq(B.signatures.size) }}>{design.signatories.map((s, i) => <div key={i}><i /><strong>{s.name}</strong><small>{s.title}</small></div>)}</div>),
+    signatures: at('signatures', <div className={c.signs} style={{ fontSize: cq(B.signatures.size) }}>{design.signatories.map((s, i) => (
+      // eslint-disable-next-line @next/next/no-img-element
+      <div key={i}>{s.signatureId && images[s.signatureId] ? <img className={c.sig} src={images[s.signatureId]} alt="" /> : <span className={c.sigGap} />}<i /><strong>{s.name}</strong><small>{s.title}</small></div>
+    ))}</div>),
     qr: at('qr', <div className={c.qr} style={{ inlineSize: cq(B.qr.size) }}>
       {data.qrSvg ? <span className={c.qrBox} dangerouslySetInnerHTML={{ __html: data.qrSvg }} /> : <span className={c.qrBox} data-ph="1" />}
       <small dir="ltr">{data.code}</small></div>),
   }
   return (
     <div className={c.page} style={vars} ref={dragRef} role="img" aria-label={`شهادة إتمام ${data.course} — ${data.name}`}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      {design.backgroundId && images[design.backgroundId] && <img className={c.bg} src={images[design.backgroundId]} alt="" />}
       <div className={c.frame} />
       {BLOCKS.map((k) => nodes[k])}
     </div>

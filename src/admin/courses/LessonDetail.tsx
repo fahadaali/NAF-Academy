@@ -129,7 +129,8 @@ function Chapters({ value, onChange }: { value: Chapter[]; onChange: (v: Chapter
       <div className={d.list}>
         {value.map((c, i) => (
           <div key={i} className={d.row}>
-            <Input className={d.time} dir="ltr" defaultValue={mmss(c.at)} aria-label="الوقت" onBlur={(e) => { const t = parseMmss(e.target.value); if (t !== null) set(i, { ...c, at: t }) }} />
+            {/* المفتاح بالوقت نفسه: بعد الحذف أو إعادة الترتيب يُعاد رسم الحقل بقيمته الصحيحة لا بقيمة صف آخر */}
+            <Input key={`${i}:${c.at}`} className={d.time} dir="ltr" defaultValue={mmss(c.at)} aria-label="الوقت" onBlur={(e) => { const t = parseMmss(e.target.value); if (t !== null && t !== c.at) set(i, { ...c, at: t }) }} />
             <Input value={c.title} placeholder="عنوان الفصل" onChange={(e) => set(i, { ...c, title: e.target.value })} />
             <button type="button" className={d.x} aria-label="حذف الفصل" onClick={() => onChange(value.filter((_, k) => k !== i))}>×</button>
           </div>
@@ -214,6 +215,8 @@ function QuizBuilder({ value: q, onChange, err }: { value: Quiz; onChange: (q: Q
               {KIND.map((k) => <option key={k.value} value={k.value}>{k.label}</option>)}
             </select>
             <span style={{ flex: 1 }} />
+            {/* وزن السؤال في الدرجة (يحسبه التصحيح منذ البداية) */}
+            <label className={d.points}><Input type="number" dir="ltr" min={1} max={100} value={x.points ?? 1} aria-label="نقاط السؤال" onChange={(e) => setQ(i, { points: Math.max(1, Math.min(100, Number(e.target.value) || 1)) })} /> نقطة</label>
             <RowTools i={i} n={q.questions.length} move={move} onRemove={() => set({ questions: q.questions.filter((_, k) => k !== i) })} />
           </div>
           {x.kind === 'case' && <Textarea value={x.caseText ?? ''} placeholder="نص الحالة العملية" onChange={(e) => setQ(i, { caseText: e.target.value })} />}

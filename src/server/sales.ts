@@ -21,7 +21,8 @@ export async function nextNumber(key: string, prefix: string) {
   const [r] = await db.insert(s.counters).values({ key, value: 1 })
     .onConflictDoUpdate({ target: s.counters.key, set: { value: sql`${s.counters.value} + 1` } })
     .returning({ value: s.counters.value })
-  return `${prefix}-${new Date().getFullYear()}-${String(r.value).padStart(6, '0')}`
+  /* السنة بتوقيت الرياض: طلب 1 يناير قبل الثالثة فجراً بتوقيت غرينتش يحمل السنة الجديدة */
+  return `${prefix}-${new Date(Date.now() + 3 * 3600e3).getUTCFullYear()}-${String(r.value).padStart(6, '0')}`
 }
 
 /* ───────── المقاعد ───────── */

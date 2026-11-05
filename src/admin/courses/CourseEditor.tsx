@@ -75,10 +75,8 @@ export function CourseEditor({ id, initial, previewToken, tracks, instructors, m
     if (!r.ok) {
       setErrors(r.errors)
       setMsg({ ok: false, text: r.message ?? 'راجع الحقول' })
-      const first = Object.keys(r.errors)[0] ?? ''
-      const where: Tab = /price|compare|sale|free|tiers|groupRules/.test(first) ? 'pricing' : /starts|ends|seats|city|venue|hours/.test(first) ? 'schedule'
-        : /curriculum/.test(first) ? 'curriculum' : /publish|seo/.test(first) ? 'publish' : 'basics'
-      setTab(where)
+      /* يُفتح تبويب أول حقل معلّم — بالقاعدة نفسها التي تعلّم التبويبات */
+      setTab(tabOf(Object.keys(r.errors)[0] ?? ''))
       return
     }
     setErrors({})
@@ -322,10 +320,11 @@ export function CourseEditor({ id, initial, previewToken, tracks, instructors, m
 }
 
 function tabOf(key: string): Tab {
+  /* المنهج أولاً: «curriculum.0.lessons.1.startsAt» حقل درس لا موعد الدورة */
+  if (/^curriculum|completeAt/.test(key)) return 'curriculum'
+  if (/^certificate/.test(key)) return 'certificate'
   if (/price|compare|sale|free|tiers|groupRules/.test(key)) return 'pricing'
   if (/starts|ends|seats|city|venue|hours/.test(key)) return 'schedule'
-  if (/curriculum/.test(key)) return 'curriculum'
-  if (/certificate/.test(key)) return 'certificate'
   if (/publish|seo/.test(key)) return 'publish'
   if (/outcomes|audience|requirements|faq|description/.test(key)) return 'content'
   return 'basics'

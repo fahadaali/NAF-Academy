@@ -31,7 +31,7 @@ export default async function CorporateRequests({ searchParams }: { searchParams
       </div></div>
       {rows.length === 0 ? <div className={p.empty}>لا طلبات بعد.</div> : (
         <div className={c.list}>
-          {rows.map((r) => <RequestCard key={r.id} r={{ id: r.id, name: r.name, org: r.org, contact: r.contact, size: r.size, interests: r.interests, status: r.status, notes: r.notes, when: when(r.createdAt), orgId: r.organizationId && liveOrgs.has(r.organizationId) ? r.organizationId : null }} />)}
+          {rows.map((r) => <RequestCard key={r.id} r={{ id: r.id, name: r.name, org: r.org, contact: r.contact, size: r.size, interests: r.interests, status: r.status, notes: r.notes, when: when(r.createdAt), orgId: r.organizationId && liveOrgs.has(r.organizationId) ? r.organizationId : null, message: r.message }} />)}
         </div>
       )}
     </>

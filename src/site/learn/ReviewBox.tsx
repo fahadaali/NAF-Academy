@@ -4,10 +4,10 @@ import { useState } from 'react'
 import { submitReview } from '@/site/review-actions'
 import st from './course.module.css'
 
-export function ReviewBox({ courseId, initial }: { courseId: string; initial: { rating: number; comment: string; status: string } | null }) {
+export function ReviewBox({ courseId, initial }: { courseId: string; initial: { rating: number; comment: string; status: string; anonymous: boolean } | null }) {
   const [rating, setRating] = useState(initial?.rating ?? 0)
   const [comment, setComment] = useState(initial?.comment ?? '')
-  const [anon, setAnon] = useState(false)
+  const [anon, setAnon] = useState(initial?.anonymous ?? false)
   const [msg, setMsg] = useState(initial ? (initial.status === 'approved' ? 'نُشر تقييمك — شكراً لك' : 'تقييمك قيد المراجعة') : '')
   const [busy, setBusy] = useState(false)
   return (

@@ -1,6 +1,6 @@
 'use client'
 /* أدوات اللوحة — حقول ومحرّرات قوائم وترتيب بالسحب، بهوية الأكاديمية. */
-import { useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Words } from '@/components/Words'
 import styles from './kit.module.css'
 
@@ -82,6 +82,11 @@ export function Switch({ checked, onChange, label }: { checked: boolean; onChang
 
 /** مبلغ بالريال ↔ هللات */
 export function Money({ value, onChange, placeholder }: { value: number | null; onChange: (v: number | null) => void; placeholder?: string }) {
+  /* نص الحقل محلي: «12.» أثناء الكتابة لا يُمحى إلى «12»؛ والقيمة الآتية من الخارج (تحميل، باقة أخرى) تُعرض */
+  const show = (v: number | null) => (v === null ? '' : String(v / 100))
+  const parse = (t: string) => (t === '' || t === '.' ? null : Math.round(Number(t) * 100))
+  const [text, setText] = useState(() => show(value))
+  useEffect(() => { if (parse(text) !== value) setText(show(value)) }, [value]) // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <div className={styles.money}>
       <input
@@ -89,10 +94,11 @@ export function Money({ value, onChange, placeholder }: { value: number | null; 
         inputMode="decimal"
         dir="ltr"
         placeholder={placeholder}
-        value={value === null ? '' : String(value / 100)}
+        value={text}
         onChange={(e) => {
-          const t = e.target.value.replace(/[^\d.]/g, '')
-          onChange(t === '' ? null : Math.round(Number(t) * 100))
+          const t = e.target.value.replace(/[^\d.]/g, '').replace(/^(\d*\.\d{0,2}).*$/, '$1')
+          setText(t)
+          onChange(parse(t))
         }}
       />
       <span className={styles.unit}>{'⃁'}</span>

@@ -23,8 +23,10 @@ export async function salesOverview() {
     .groupBy(s.orders.couponCode).orderBy(desc(count())).limit(5)
   const recent = await db.select().from(s.orders).orderBy(desc(s.orders.createdAt)).limit(8)
   /* الإيراد اليومي آخر 30 يوماً */
-  const daily = await db.select({ day: sql<string>`substr(${s.orders.paidAt}, 1, 10)`, net: sql<number>`sum(${s.orders.total} - ${s.orders.refunded})` })
-    .from(s.orders).where(and(inArray(s.orders.status, [...PAID]), gte(s.orders.paidAt, since30))).groupBy(sql`substr(${s.orders.paidAt}, 1, 10)`)
+  /* اليوم بتوقيت الرياض — كما تجمّعه التحليلات */
+  const day = sql<string>`substr(datetime(${s.orders.paidAt}, '+3 hours'), 1, 10)`
+  const daily = await db.select({ day, net: sql<number>`sum(${s.orders.total} - ${s.orders.refunded})` })
+    .from(s.orders).where(and(inArray(s.orders.status, [...PAID]), gte(s.orders.paidAt, since30))).groupBy(day)
   const n = (x: unknown) => Number(x ?? 0)
   return {
     net: n(all.gross) - n(all.refunded), orders: all.n, net30: n(d30.gross) - n(d30.refunded), orders30: d30.n,

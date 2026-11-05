@@ -50,3 +50,7 @@
 }
 .trap { position: absolute; inline-size: 1px; block-size: 1px; opacity: 0; pointer-events: none; inset-inline-start: -9999px; }
 .err { color: var(--danger); font-weight: 600; font-size: 14px; }
+/* ملاحظة الطلب: سطر كامل بأسلوب الحقول نفسها */
+.inputs .wide { grid-column: 1 / -1; }
+.inputs textarea { inline-size: 100%; min-block-size: 64px; padding: 10px 14px; border-radius: var(--radius-m); border: 1px solid var(--scene-line); background: transparent; color: inherit; font: inherit; resize: vertical; }
+.inputs textarea:focus { outline: none; border-color: var(--gold-3); box-shadow: 0 0 0 4px color-mix(in srgb, var(--gold-3) 18%, transparent); }

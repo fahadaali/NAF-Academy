@@ -78,16 +78,23 @@ export async function issueCertificate(id: string, by: string) {
   if (!c || c.status === 'issued' || c.status === 'revoked') return c ?? null
   const { id: tid, design } = await designFor(c.templateId)
   const issuedAt = nowIso()
+  /* اللقطة تؤخذ عند الإصدار لا عند الاستيفاء: إن صحّح المتدرب اسمه أو عُدّلت الدورة قبل الاعتماد يظهر الصحيح */
+  const [learner] = await db.select({ name: s.learners.name, email: s.learners.email }).from(s.learners).where(eq(s.learners.id, c.learnerId))
+  const [course] = await db.select({ title: s.courses.title, hours: s.courses.hours }).from(s.courses).where(eq(s.courses.id, c.courseId))
   let code = ''
   for (let i = 0; i < 5 && !code; i++) {
     const k = certCode(randomInt)
     const [dup] = await db.select({ id: s.certificates.id }).from(s.certificates).where(eq(s.certificates.code, k))
     if (!dup) code = k
   }
-  const [row] = await db.update(s.certificates).set({ status: 'issued', code, issuedAt, design, templateId: tid, decidedBy: by, reason: '', updatedAt: issuedAt })
+  const [row] = await db.update(s.certificates).set({
+    status: 'issued', code, issuedAt, design, templateId: tid, decidedBy: by, reason: '', updatedAt: issuedAt,
+    name: learner?.name || c.name || learner?.email || '', courseTitle: course ? course.title.replace(/~\d/g, '') : c.courseTitle, hours: course?.hours ?? c.hours,
+  })
     .where(and(eq(s.certificates.id, id), inArray(s.certificates.status, ['pending', 'rejected']))).returning()
   if (!row) return c
-  await storePdf(row)
+  /* الملف يُخزَّن بلا أن يوقف الإصدار: إن تعذّر الآن يُولَّد عند أول تنزيل — والسجل والرسالة يتمّان دائماً */
+  try { await storePdf(row) } catch (e) { console.error('certificate pdf', e) }
   await audit(by, 'issue', 'certificate', id, `${code} · ${row.name}`)
   try {
     const { onCertificate } = await import('../notify/engine')
@@ -166,3 +173,11 @@ export async function viewData(c: typeof s.certificates.$inferSelect) {
 }
 
 export { dateAr, hijriAr }
+
+/** روابط صور القالب (الخلفية والتوقيعات) بمعرّفاتها — لعرض الشهادة في الصفحة مطابقاً لملف PDF */
+export async function certImages(design: CertDesign | null | undefined): Promise<Record<string, string>> {
+  const ids = [design?.backgroundId, ...(design?.signatories ?? []).map((x) => x.signatureId)].filter((x): x is string => !!x)
+  if (!ids.length) return {}
+  const rows = await db.select({ id: s.media.id, key: s.media.key }).from(s.media).where(inList(s.media.id, ids))
+  return Object.fromEntries(rows.map((m) => [m.id, `/media/${m.key}`]))
+}

@@ -32,7 +32,7 @@ export default async function Queue({ searchParams }: { searchParams: Promise<{ 
             <tr key={n.id}>
               <td className={`${p.muted} num`}>{when(n.status === 'sent' ? n.sentAt : n.sendAt)}</td>
               <td><strong>{EVENT_META[n.event as EventKey]?.label ?? n.event}</strong><div className={p.muted}>{course}{n.ref.minutes ? ` · قبل ${Number(n.ref.minutes) >= 1440 ? `${Number(n.ref.minutes) / 1440} يوم` : `${n.ref.minutes} د`}` : ''}</div></td>
-              <td dir="ltr" style={{ textAlign: 'end' }}>{n.to}<div className={p.muted}>{n.channel === 'email' ? 'email' : 'sms'}</div></td>
+              <td dir="ltr" style={{ textAlign: 'end' }}>{n.to}<div className={p.muted}>{n.channel === 'email' ? 'بريد' : n.channel === 'sms' ? 'جوال' : 'متصفح'}</div></td>
               <td><Badge tone={TONE[n.status] ?? 'draft'}>{F.find(([k]) => k === n.status)?.[1] ?? n.status}</Badge>{n.error && <div className={p.muted} style={{ maxInlineSize: 240 }}>{n.error}</div>}{n.attempts > 1 && <div className={`${p.muted} num`}>محاولات: {n.attempts}</div>}</td>
               <td><RowAction id={n.id} status={n.status} /></td>
             </tr>

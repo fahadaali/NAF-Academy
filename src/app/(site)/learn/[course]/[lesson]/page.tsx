@@ -12,6 +12,7 @@ import { formatDay, formatHijri, formatTime } from '@/lib/dates'
 import { plain } from '@/motion/kashida'
 import st from '@/site/learn/lesson.module.css'
 import { fileSize } from '@/lib/files'
+import { dripOpensAt } from '@/lib/learning'
 
 export const dynamic = 'force-dynamic'
 export const metadata: Metadata = { robots: { index: false } }
@@ -31,6 +32,10 @@ export default async function LessonPage({ params }: { params: Promise<{ course:
   const prev = flat.slice(0, i).reverse().find((x) => x.access.state === 'open')
   const next = flat.slice(i + 1).find((x) => x.access.state === 'open')
   const canAct = enrolled && !!me && access.state === 'open'
+  /* موعد تسليم الواجب: بعد «dueDays» من إتاحة الدرس لهذا المتدرب (الفتح المتدرّج أو تاريخ تسجيله) */
+  const dueAt = l.type === 'assignment' && l.assignment?.dueDays && ctx.enrollment
+    ? new Date(Date.parse(dripOpensAt(l.drip, ctx.enrollment.createdAt) ?? ctx.enrollment.createdAt) + l.assignment.dueDays * 864e5).toISOString()
+    : null
 
   let ticketSvg = ''
   if (v.ticket) {
@@ -72,7 +77,15 @@ export default async function LessonPage({ params }: { params: Promise<{ course:
 
             {l.type === 'assignment' && l.assignment && (
               <>
-                <section className={st.box}><h2>المطلوب</h2><Prose text={l.assignment.instructions} /></section>
+                <section className={st.box}>
+                  <h2>المطلوب</h2><Prose text={l.assignment.instructions} />
+                  {dueAt && (
+                    <p className="num" data-late={Date.parse(dueAt) < Date.now() ? '1' : '0'}>
+                      <strong>آخر موعد للتسليم:</strong> {formatDay(dueAt)} · {formatTime(dueAt)} · {formatHijri(dueAt)}
+                      {Date.parse(dueAt) < Date.now() && ' — انقضى الموعد، وما زال التسليم ممكناً ويُراجَع متأخراً'}
+                    </p>
+                  )}
+                </section>
                 {canAct && <AssignmentPanel slug={slug} lessonId={l.id} accept={l.assignment.accept} maxMb={l.assignment.maxSizeMb} />}
               </>
             )}

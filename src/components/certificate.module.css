@@ -36,3 +36,7 @@
 .logo { block-size: 2.4em !important; inline-size: auto !important; max-inline-size: 12em; }
 .brandName { display: grid; justify-items: center; font-family: var(--font-display); font-weight: 700; font-size: 0.9em; line-height: 1.2; }
 .brandName small { font-family: var(--font); font-weight: 400; font-size: 0.66em; color: var(--c-gold); }
+/* الخلفية والتوقيعات كما في ملف PDF */
+.bg { position: absolute; inset: 0; inline-size: 100%; block-size: 100%; object-fit: cover; pointer-events: none; }
+.sig { display: block; block-size: 2.6em; inline-size: auto; max-inline-size: 9em; object-fit: contain; margin-block-end: -0.3em; }
+.sigGap { display: block; block-size: 2.6em; }

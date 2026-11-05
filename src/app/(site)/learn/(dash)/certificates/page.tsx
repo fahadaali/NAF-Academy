@@ -2,7 +2,7 @@ import { desc, eq } from 'drizzle-orm'
 import { brandView } from '@/server/brand'
 import { db, schema as s } from '@/server/db'
 import { currentLearner } from '@/server/learner-auth'
-import { verifyUrl, viewData } from '@/server/certificates'
+import { certImages, verifyUrl, viewData } from '@/server/certificates'
 import { CertificateView } from '@/components/CertificateView'
 import { DEFAULT_DESIGN, linkedinUrl } from '@/lib/certificate'
 import { CopyLink } from '@/site/CopyLink'
@@ -16,12 +16,12 @@ export default async function MyCertificates() {
   if (!rows.length)
     return <div className={st.empty}><strong>لا شهادات بعد.</strong><span>تصدر الشهادة بعد استيفاء متطلبات الدورة واعتمادها — تابع تقدّمك من صفحة كل دورة.</span><a className="btn" href="/learn">دوراتي</a></div>
   const brand = await brandView()
-  const views = await Promise.all(rows.map(async (c) => ({ c, v: c.status === 'issued' ? await viewData(c) : null })))
+  const views = await Promise.all(rows.map(async (c) => ({ c, v: c.status === 'issued' ? await viewData(c) : null, img: c.status === 'issued' ? await certImages(c.design ?? DEFAULT_DESIGN) : {} })))
   return (
     <div className={st.grid}>
-      {views.map(({ c, v }) => (
+      {views.map(({ c, v, img }) => (
         <article key={c.id} className={st.course}>
-          {v && <a href={`/certificates/${c.code}`} aria-label={`صفحة شهادة ${c.courseTitle}`}><CertificateView design={c.design ?? DEFAULT_DESIGN} data={v} brand={brand} /></a>}
+          {v && <a href={`/certificates/${c.code}`} aria-label={`صفحة شهادة ${c.courseTitle}`}><CertificateView design={c.design ?? DEFAULT_DESIGN} data={v} brand={brand} images={img} /></a>}
           <h2>{c.courseTitle}</h2>
           {c.status === 'issued' ? (
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>

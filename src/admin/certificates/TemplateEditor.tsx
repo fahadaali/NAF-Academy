@@ -80,7 +80,7 @@ export function TemplateEditor({ id, initial, media, brand }: { id: string | nul
       <div className={t.layout} onKeyDown={onKey}>
         <div className={t.stageCol}>
           <div className={t.stage} tabIndex={0} aria-label="معاينة القالب — اسحب العناصر أو حرّك المحدد بالأسهم">
-            <CertificateView design={d} data={SAMPLE} brand={brand} onPick={onPick} active={active} dragRef={stage} />
+            <CertificateView design={d} data={SAMPLE} brand={brand} onPick={onPick} active={active} dragRef={stage} images={Object.fromEntries(media.map((m) => [m.id, `/media/${m.key}`]))} />
           </div>
           <div className={t.tools}>
             <span className={t.hint}>اسحب أي عنصر لتحريكه، أو حدّده وحرّكه بالأسهم (Shift للخطوة الكبيرة).</span>

@@ -163,7 +163,8 @@ export async function planScan(now: Date, cfg: NotifySettings) {
 
   /* ٢) ما بعد الجلسة */
   if (on('session_followup')) {
-    const lessons = await sessionLessons(new Date(t - 3 * 864e5), now)
+    /* الجلسة قد تنتهي بعد بدئها بساعات، والمهلة من اللوحة حتى أسبوع: النافذة تتسع لهما مع يوم السماح */
+    const lessons = await sessionLessons(new Date(t - cfg.followupDelay * MIN - 2 * 864e5), now)
     const enr = await activeEnrollments([...new Set(lessons.map((x) => x.courseId))])
     for (const { l, courseId } of lessons) {
       const end = l.endsAt ? Date.parse(l.endsAt) : Date.parse(l.startsAt!) + 2 * 3600e3
@@ -220,7 +221,7 @@ export async function planScan(now: Date, cfg: NotifySettings) {
       if (!sellable && !c.free && (c.price > 0 || tiered.has(c.id))) continue
       if (!room.has(c.id)) room.set(c.id, !c.seatsTotal || (await seatsUsed(c)) < c.seatsTotal)
       if (!room.get(c.id)) continue
-      const base = { event: 'registration_open', courseId: c.id, ref: { interestId: i.id }, sendAt: iso(now), learnerId: null }
+      const base = { event: 'registration_open', courseId: c.id, ref: { interestId: i.id, email: i.email }, sendAt: iso(now), learnerId: null }
       rows.push({ ...base, key: `open:${i.id}:email`, channel: 'email', to: i.email })
       if (i.phone) rows.push({ ...base, key: `open:${i.id}:sms`, channel: 'sms', to: i.phone })
     }
@@ -398,12 +399,18 @@ export async function dispatch(now: Date, opt: { limit?: number; keys?: string[]
       if (!sub) { await finish('skipped', { error: 'لم يفعّل التنبيهات' }); out.skipped++; continue }
     }
     if (!(await channelOpen(n.channel as Channel))) { await finish('skipped', { error: 'القناة مقفلة' }); out.skipped++; continue }
-    let email = n.channel === 'email' ? n.to : ''
+    let email = n.channel === 'email' ? n.to : typeof n.ref?.email === 'string' ? n.ref.email : ''
     if (!email && n.learnerId) email = (await db.select({ e: s.learners.email }).from(s.learners).where(eq(s.learners.id, n.learnerId)))[0]?.e ?? ''
     if (meta.category !== 'transactional' && email && (await isOptedOut(email))) { await finish('skipped', { error: 'ألغى الاشتراك' }); out.skipped++; continue }
 
     let ctx: Ctx
-    try { ctx = await contextFor(n, site, cfg, now) } catch (e) { ctx = { ok: false, reason: String((e as Error).message).slice(0, 200) } }
+    try { ctx = await contextFor(n, site, cfg, now) } catch (e) {
+      /* خطأ عابر (قاعدة، شبكة) لا يلغي الرسالة: يُعاد بالتراجع الزمني نفسه، ثم يفشل بعد آخر محاولة */
+      const error = String((e as Error).message).slice(0, 200)
+      if (n.attempts < BACKOFF_MIN.length) { await finish('pending', { attempts: n.attempts + 1, error, sendAt: iso(new Date(now.getTime() + BACKOFF_MIN[n.attempts] * MIN)) }); out.retry++ }
+      else { await finish('failed', { attempts: n.attempts + 1, error }); out.failed++ }
+      continue
+    }
     if (!ctx.ok) { await finish('cancelled', { error: ctx.reason }); out.skipped++; continue }
 
     const v = ctx.vars

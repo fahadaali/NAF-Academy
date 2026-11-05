@@ -26,7 +26,8 @@ const settingsInput = z.object({
   holdMinutes: z.number().int().min(10).max(120),
   vatRate: z.number().min(0).max(30),
   seller: z.object({
-    name: z.string().trim().min(3).max(200),
+    /* رمز QR الضريبي (TLV) يقبل 255 بايتاً للحقل — والحرف العربي بايتان: الحد بالبايت لا بالحرف */
+    name: z.string().trim().min(3).max(200).refine((v) => new TextEncoder().encode(v).length <= 255, 'الاسم أطول مما يقبله رمز الفاتورة (255 بايتاً)'),
     vatNumber: z.union([z.literal(''), z.string().regex(/^3\d{13}3$/, 'الرقم الضريبي 15 رقماً يبدأ وينتهي بـ 3')]),
     crNumber: z.string().trim().max(20),
     address: z.string().trim().max(300),

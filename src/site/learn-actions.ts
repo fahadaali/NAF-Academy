@@ -38,14 +38,21 @@ async function complete(learnerId: string, lessonId: string, courseId: string) {
 export async function saveProgress(slug: string, lessonId: string, position: number, delta: number, duration: number) {
   const { me, ctx, lesson } = await gate(slug, lessonId)
   const pos = Math.max(0, Math.floor(position))
-  const [prev] = await db.select().from(s.lessonProgress).where(and(eq(s.lessonProgress.learnerId, me.id), eq(s.lessonProgress.lessonId, lessonId)))
-  const elapsed = prev ? (Date.now() - Date.parse(prev.updatedAt)) / 1000 : 12
-  const add = Math.max(0, Math.min(30, Math.floor(delta), Math.floor(elapsed * 2 + 2)))
+  /* الحساب داخل الكتابة نفسها (ذرّياً): ما يُضاف لا يتجاوز ضعف الوقت الفعلي منذ آخر نبضة محفوظة —
+     فالنبضات المتوازية أو المتلاحقة لا تقرأ الطابع نفسه ولا تكسب ثواني لم تمضِ */
+  const add = Math.max(0, Math.min(30, Math.floor(Number(delta) || 0)))
   const m = lesson.minutes * 60
   const dur = m ? Math.min(m * 1.5, Math.max(m * 0.5, Math.floor(duration) || m)) : Math.max(60, Math.min(6 * 3600, Math.floor(duration) || 60))
   const now = new Date().toISOString()
-  const [row] = await db.insert(s.lessonProgress).values({ learnerId: me.id, lessonId, courseId: ctx.course.id, positionSec: pos, watchedSec: add })
-    .onConflictDoUpdate({ target: [s.lessonProgress.learnerId, s.lessonProgress.lessonId], set: { positionSec: pos, watchedSec: sql`${s.lessonProgress.watchedSec} + ${add}`, updatedAt: now } })
+  const [row] = await db.insert(s.lessonProgress).values({ learnerId: me.id, lessonId, courseId: ctx.course.id, positionSec: pos, watchedSec: Math.min(add, 24) })
+    .onConflictDoUpdate({
+      target: [s.lessonProgress.learnerId, s.lessonProgress.lessonId],
+      set: {
+        positionSec: pos,
+        watchedSec: sql`${s.lessonProgress.watchedSec} + max(0, min(${add}, cast((julianday(${now}) - julianday(${s.lessonProgress.updatedAt})) * 172800 as integer)))`,
+        updatedAt: now,
+      },
+    })
     .returning()
   if (!row.completedAt && lesson.type === 'video' && row.watchedSec >= (dur * ctx.course.completeAt) / 100) {
     await complete(me.id, lessonId, ctx.course.id)

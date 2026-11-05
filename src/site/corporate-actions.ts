@@ -34,7 +34,7 @@ export async function corporateRequest(raw: unknown): Promise<{ ok: boolean; err
       const { html, text } = renderEmail({
         site, brand: await emailBrand(site), heading: `طلب مؤسسة: ${v.org}`, body: v.message || 'طلب جديد من نموذج «للمؤسسات» في الرئيسية.',
         facts: [['الاسم', v.name], ['الجهة', v.org], ['التواصل', v.contact], ['حجم الفريق', v.size], ['الاهتمامات', v.interests.join('، ')]],
-        cta: { label: 'فتح الطلب', href: `${site}/admin/corporate?id=${id}` },
+        cta: { label: 'فتح الطلبات', href: `${site}/admin/corporate?s=new#r-${id}` },
       })
       await send({ channel: 'email', to, subject: `طلب مؤسسة جديد — ${v.org}`, text, html, kind: 'corporate' }).catch(() => {})
     }

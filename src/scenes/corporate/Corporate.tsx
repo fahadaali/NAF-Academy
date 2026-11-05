@@ -36,7 +36,7 @@ export function Corporate({ title, body, sizes, interests, eyebrow = '' }: Props
             e.preventDefault()
             const f = new FormData(e.currentTarget)
             setBusy(true); setErr('')
-            const r = await corporateRequest({ name: f.get('name'), org: f.get('org'), contact: f.get('contact'), size, interests: picked, website: f.get('website') ?? '' }).catch(() => ({ ok: false, error: 'تعذّر الإرسال — حاول مجدداً' }))
+            const r = await corporateRequest({ name: f.get('name'), org: f.get('org'), contact: f.get('contact'), message: f.get('message') ?? '', size, interests: picked, website: f.get('website') ?? '' }).catch(() => ({ ok: false, error: 'تعذّر الإرسال — حاول مجدداً' }))
             setBusy(false)
             if (r.ok) setSent(true); else setErr(r.error ?? 'تعذّر الإرسال')
           }}
@@ -72,6 +72,7 @@ export function Corporate({ title, body, sizes, interests, eyebrow = '' }: Props
               <label><span>الاسم</span><input required name="name" autoComplete="name" /></label>
               <label><span>الجهة</span><input required name="org" autoComplete="organization" /></label>
               <label><span>البريد أو الجوال</span><input required name="contact" autoComplete="email" dir="ltr" /></label>
+              <label className={styles.wide}><span>ما الذي تحتاجه؟ (اختياري)</span><textarea name="message" rows={2} maxLength={2000} /></label>
             </div>
             <input name="website" tabIndex={-1} autoComplete="off" aria-hidden="true" className={styles.trap} />
             {err && <p className={styles.err} role="alert">{err}</p>}
