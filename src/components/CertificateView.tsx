@@ -4,7 +4,7 @@ import { BLOCKS, PAGE, TONES, type BlockKey, type CertDesign } from '@/lib/certi
 import { parse, render } from '@/motion/kashida'
 import { Emblem } from './Emblem'
 import { LogoMark } from './Logo'
-import { hasLogo, type BrandView } from '@/lib/brand'
+import { hasLogo, large, type BrandView } from '@/lib/brand'
 import c from './certificate.module.css'
 
 export type CertViewData = { name: string; course: string; hours: number; date: string; hijri: string; code: string; qrSvg?: string }
@@ -29,12 +29,11 @@ export function CertificateView({ design, data, brand, onPick, active, dragRef, 
       onPointerDown={onPick ? (e) => onPick(k, e) : undefined}>{children}</div>
   )
   const nodes: Record<BlockKey, React.ReactNode> = {
-    /* الشعاران متجاوران بالارتفاع نفسه: الأكاديمية ثم شركة ناف — من اللوحة */
-    brand: at('brand', hasLogo(brand.academy) || hasLogo(brand.naf) ? (
+    /* شعار الأكاديمية وحده — الكامل إن رُفع، وإلا صيغة الشريط — كما في ملف PDF */
+    brand: at('brand', hasLogo(large(brand)) ? (
       <div className={c.logos} style={{ fontSize: cq(B.brand.size) }}>
-        <div className={c.pair}>
-          <LogoMark pair={brand.academy} alt={brand.name} height={0} tone={tone} className={c.logo} />
-          {hasLogo(brand.naf) && <><i aria-hidden="true" /><LogoMark pair={brand.naf} alt={brand.companyName} height={0} tone={tone} fallback={false} className={c.logo} /></>}
+        <div className={c.pair} data-full={hasLogo(brand.lockup) ? '1' : '0'}>
+          <LogoMark pair={large(brand)} alt={brand.name} height={0} tone={tone} className={c.logo} />
         </div>
         {brand.showName && <span className={c.brandName}>{brand.name}{brand.tagline && <small>{brand.tagline}</small>}</span>}
       </div>

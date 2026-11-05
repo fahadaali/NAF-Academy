@@ -11,7 +11,7 @@ const C = {
 export const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!)
 
 /** الهوية في البريد — روابط مطلقة للشعارات (PNG) من اللوحة */
-export type EmailBrand = { name: string; tagline: string; companyName: string; showName: boolean; logo: string | null; naf: string | null }
+export type EmailBrand = { name: string; tagline: string; companyName: string; showName: boolean; logo: string | null }
 
 export type EmailParts = {
   site: string
@@ -73,7 +73,7 @@ ${p.preheader ? `<div style="display:none;max-height:0;overflow:hidden;opacity:0
 ${blocks(p.body)}${code}${factsHtml}${cta}
 ${p.note ? `<p class="muted" style="margin:18px 0 0;font-size:13px;line-height:1.7;color:${C.muted}">${esc(p.note)}</p>` : ''}
 </td></tr>
-<tr><td class="line muted" style="padding:16px 32px;border-top:1px solid ${C.line};font-size:12px;line-height:1.8;color:${C.muted};text-align:right">${p.brand.naf ? `<img src="${esc(p.brand.naf)}" alt="${esc(p.brand.companyName)}" height="22" style="height:22px;width:auto;border:0;vertical-align:middle;display:inline-block;margin-inline-start:6px"> ` : ''}${esc(p.brand.name)} — إحدى مبادرات ${esc(p.brand.companyName)} · <a href="${esc(p.site)}" style="color:${C.goldText}">الموقع</a>${unsub}</td></tr>
+<tr><td class="line muted" style="padding:16px 32px;border-top:1px solid ${C.line};font-size:12px;line-height:1.8;color:${C.muted};text-align:right">${esc(p.brand.name)} — إحدى مبادرات ${esc(p.brand.companyName)} · <a href="${esc(p.site)}" style="color:${C.goldText}">الموقع</a>${unsub}</td></tr>
 </table></td></tr></table></body></html>`
 
   const text = [

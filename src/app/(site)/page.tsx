@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { Curtain } from '@/components/Curtain'
 import { brandView } from '@/server/brand'
+import { pick } from '@/lib/brand'
 import { ldJson, organization, website } from '@/lib/seo'
 import { siteUrl } from '@/server/site'
 import { CourseCard } from '@/components/CourseCard'
@@ -58,7 +59,7 @@ export default async function Home() {
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: ldJson([organization(siteUrl() ?? '', { name: brand.name, companyName: brand.companyName, logo: (brand.academy.light ?? brand.academy.dark)?.url }), website(siteUrl() ?? '', brand.name)]) }} />
       <Curtain />
-      <Opening {...home.hero} logo={brand.academy.dark ?? brand.academy.light} logoAlt={brand.name} />
+      <Opening {...home.hero} logo={pick(brand.mark, 'dark')} logoAlt={brand.name} />
       {home.sections.filter((x) => x.visible).map((x) => (
         <div key={x.key} style={{ display: 'contents' }}>{scenes[x.key]}</div>
       ))}

@@ -10,6 +10,8 @@ import { requirePermission } from '@/server/auth'
 import type { Perm } from '@/lib/permissions'
 import { TRASH_OWNER } from './trash-perms'
 import { audit } from '@/server/audit'
+import { sanitizeSvg } from '@/server/svg'
+import { LOGO_SLOTS, mergeBrand, type BrandSettings, type LogoSlotKey } from '@/lib/brand'
 import { deleteObject, putObject } from '@/server/storage'
 import type { HomeContent } from '@/content/home-defaults'
 import type { PagesContent } from '@/content/pages-defaults'
@@ -263,7 +265,7 @@ export async function purge(entity: Entity, id: string, confirm: string): Promis
 
 /* ───────── الوسائط ───────── */
 
-const MIME: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/avif': 'avif' }
+const MIME: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/avif': 'avif', 'image/svg+xml': 'svg' }
 const MAX = 8 * 1024 * 1024
 
 export async function uploadMedia(form: FormData): Promise<{ ok: boolean; id?: string; error?: string }> {
@@ -271,11 +273,18 @@ export async function uploadMedia(form: FormData): Promise<{ ok: boolean; id?: s
   const file = form.get('file')
   if (!(file instanceof File)) return { ok: false, error: 'لم يُرفق ملف' }
   const ext = MIME[file.type]
-  if (!ext) return { ok: false, error: 'الصيغ المقبولة: JPG وPNG وWebP وAVIF' }
+  if (!ext) return { ok: false, error: 'الصيغ المقبولة: JPG وPNG وWebP وAVIF وSVG (للشعارات)' }
   if (file.size > MAX) return { ok: false, error: 'الحد الأقصى 8 ميغابايت' }
-  const bytes = new Uint8Array(await file.arrayBuffer())
+  let bytes = new Uint8Array(await file.arrayBuffer())
   let width = 0, height = 0
-  try {
+  if (file.type === 'image/svg+xml') {
+    /* يُخزَّن الملف المنقّى لا الأصل: عناصر الرسم وخصائصها فقط — الهندسة والألوان كما هي */
+    const clean = sanitizeSvg(new TextDecoder().decode(bytes))
+    if (!clean) return { ok: false, error: 'ملف SVG غير صالح أو يتضمن عناصر غير مسموحة (نصوص برمجية، روابط، أنماط، صور مضمّنة)' }
+    bytes = new TextEncoder().encode(clean.svg)
+    width = Math.round(clean.w)
+    height = Math.round(clean.h)
+  } else try {
     const d = imageSize(bytes)
     width = d.width ?? 0
     height = d.height ?? 0
@@ -286,7 +295,7 @@ export async function uploadMedia(form: FormData): Promise<{ ok: boolean; id?: s
   const key = `${id.slice(0, 8)}${Date.now().toString(36)}.${ext}`
   await putObject(key, bytes, file.type)
   const alt = String(form.get('alt') ?? '').slice(0, 200) || file.name.replace(/\.[^.]+$/, '').slice(0, 200)
-  await db.insert(s.media).values({ id, key, mime: file.type, width, height, size: file.size, alt })
+  await db.insert(s.media).values({ id, key, mime: file.type, width, height, size: bytes.length, alt })
   await audit(admin.name, 'upload', 'media', id, alt)
   revalidatePath('/admin/media')
   return { ok: true, id }
@@ -334,9 +343,9 @@ export async function savePages(value: PagesContent): Promise<{ ok: boolean; mes
 async function mediaInUse(id: string): Promise<string[]> {
   const out: string[] = []
   const [brand] = await db.select().from(s.settings).where(eq(s.settings.key, 'brand'))
-  const b = (brand?.value ?? {}) as { academy?: { light?: string | null; dark?: string | null }; naf?: { light?: string | null; dark?: string | null }; icon?: string | null }
-  if (b.academy?.light === id || b.academy?.dark === id) out.push('شعار الأكاديمية')
-  if (b.naf?.light === id || b.naf?.dark === id) out.push('شعار شركة ناف')
+  const b = mergeBrand(brand?.value as Partial<BrandSettings> | null)
+  const names: Record<LogoSlotKey, string> = { academy: 'شعار الأكاديمية (صيغة الشريط)', lockup: 'الشعار الكامل', mark: 'رمز الأكاديمية' }
+  for (const k of LOGO_SLOTS) if (Object.values(b[k]).includes(id)) out.push(names[k])
   if (b.icon === id) out.push('أيقونة التطبيق')
   const [home] = await db.select().from(s.settings).where(eq(s.settings.key, 'home'))
   if (JSON.stringify(home?.value ?? {}).includes(`"${id}"`)) out.push('الصفحة الرئيسية (الآراء أو الشركاء)')

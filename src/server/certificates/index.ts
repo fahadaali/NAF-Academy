@@ -11,7 +11,7 @@ import { certCode, DEFAULT_DESIGN, evaluateRules, mergeDesign, mergeRules, type 
 import { formatHijri } from '@/lib/dates'
 import { certificatePdf, type CertBrand } from './pdf'
 import { brandView, logoBytes } from '../brand'
-import { pick } from '@/lib/brand'
+import { hasLogo, pick } from '@/lib/brand'
 import { inList } from '@/server/db/limits'
 
 const nowIso = () => new Date().toISOString()
@@ -110,12 +110,14 @@ const hijriAr = (iso: string) => `${formatHijri(iso)} ${new Intl.DateTimeFormat(
 
 export const verifyUrl = (code: string) => `${siteUrl() ?? ''}/certificates/${code}`
 
-/** الهوية للشهادة — النسخة الفاتحة للقالب العاجي والداكنة للكحلي */
+/** الهوية للشهادة — شعار الأكاديمية بالنسخة الفاتحة للقالب العاجي والداكنة للكحلي */
 export async function certBrand(tone: CertDesign['tone']): Promise<CertBrand> {
   const b = await brandView()
   const t = tone === 'night' ? 'dark' : 'light'
-  const [academy, naf] = await Promise.all([logoBytes(pick(b.academy, t)), logoBytes(pick(b.naf, t))])
-  return { name: b.name, tagline: b.tagline, companyName: b.companyName, showName: b.showName, academy, naf }
+  /* شعار الأكاديمية وحده — الكامل إن رُفع، وإلا صيغة الشريط */
+  const full = hasLogo(b.lockup)
+  const logo = await logoBytes(pick(full ? b.lockup : b.academy, t))
+  return { name: b.name, tagline: b.tagline, companyName: b.companyName, showName: b.showName, logo, full }
 }
 
 export async function renderPdf(c: typeof s.certificates.$inferSelect, design?: CertDesign) {

@@ -13,6 +13,8 @@ export async function GET(_req: Request, ctx: { params: Promise<{ key: string }>
       'content-type': row.mime,
       'cache-control': 'public, max-age=31536000, immutable',
       'x-content-type-options': 'nosniff',
+      /* SVG نُقّي عند الرفع؛ ومع ذلك لا يُنفَّذ فيه شيء لو فُتح مباشرة */
+      ...(row.mime === 'image/svg+xml' ? { 'content-security-policy': "default-src 'none'; style-src 'unsafe-inline'; sandbox" } : {}),
     },
   })
 }

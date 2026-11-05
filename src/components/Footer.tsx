@@ -1,9 +1,9 @@
-import { LogoMark, Wordmark } from './Logo'
+import { LiveWordmark } from './LiveLogo'
 import type { BrandView } from '@/lib/brand'
 import { Words } from './Words'
 import styles from './Footer.module.css'
 
-export function Footer({ title, cta, brand }: { title: string; cta: string; brand: BrandView }) {
+export async function Footer({ title, cta, brand }: { title: string; cta: string; brand: BrandView }) {
   return (
     <footer data-surface="night" className={styles.footer}>
       <div className={`wrap ${styles.cta}`}>
@@ -11,7 +11,7 @@ export function Footer({ title, cta, brand }: { title: string; cta: string; bran
         <a href="/courses" className="btn reveal" style={{ ['--d' as string]: 1 }}>{cta}</a>
       </div>
       <div className={`wrap ${styles.bottom}`}>
-        <Wordmark brand={brand} className={styles.mark} tone="dark" />
+        <LiveWordmark brand={brand} className={`${styles.mark} reveal`} tone="dark" />
         <nav aria-label="روابط" className={styles.links}>
           <a href="/courses">الدورات</a>
           <a href="/tracks">المسارات</a>
@@ -19,8 +19,7 @@ export function Footer({ title, cta, brand }: { title: string; cta: string; bran
           <a href="/policies">السياسات</a>
         </nav>
         <p className={`${styles.copy} num`}>
-          <span>© {new Date().getFullYear()} {brand.name} — إحدى مبادرات</span>
-          {brand.naf.light || brand.naf.dark ? <LogoMark pair={brand.naf} alt={brand.companyName} height={22} tone="dark" fallback={false} className={styles.naf} /> : <span>{brand.companyName}</span>}
+          <span>© {new Date().getFullYear()} {brand.name} — إحدى مبادرات {brand.companyName}</span>
         </p>
       </div>
     </footer>

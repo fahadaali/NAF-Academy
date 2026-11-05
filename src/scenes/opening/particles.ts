@@ -122,40 +122,45 @@ export function layoutField(f: Field, { w, h }: Layout, mask?: Float32Array | nu
     f.ladder[i * 2 + 1] = y
   }
 
-  /* العلامة: الحلقة والدرجات والنقطة بالهندسة نفسها لمكوّن Emblem */
+  /* العلامة: الكتاب المفتوح بالهندسة نفسها لمكوّن Emblem — مركزه البصري في وسط المشهد */
   const S = Math.min(w, h) * 0.5
-  const ox = cx - S / 2
-  const oy = cy - S / 2
   const u = S / 100
-  const { ring, bars, dot } = EMBLEM
+  const ox = cx - EMBLEM.center.x * u
+  const oy = cy - EMBLEM.center.y * u
   if (mask && mask.length >= 2) {
     const m = mask.length / 2
     for (let i = 0; i < n; i++) {
       const j = Math.floor(rand() * m)
-      f.emblem[i * 2] = ox + (mask[j * 2] + (rand() - 0.5) * 0.008) * S
-      f.emblem[i * 2 + 1] = oy + (mask[j * 2 + 1] + (rand() - 0.5) * 0.008) * S
+      f.emblem[i * 2] = cx - S / 2 + (mask[j * 2] + (rand() - 0.5) * 0.008) * S
+      f.emblem[i * 2 + 1] = cy - S / 2 + (mask[j * 2 + 1] + (rand() - 0.5) * 0.008) * S
     }
     return
   }
+  const { edge, fold, line } = EMBLEM.curves
+  const bez = (c: readonly (readonly number[])[], t: number, k: 0 | 1) => {
+    const v = 1 - t
+    return v * v * v * c[0][k] + 3 * v * v * t * c[1][k] + 3 * v * t * t * c[2][k] + t * t * t * c[3][k]
+  }
   for (let i = 0; i < n; i++) {
     const r = rand()
+    const t = rand()
     let x: number, y: number
-    if (r < 0.46) {
-      const a = rand() * Math.PI * 2
-      const rr = ring.r + (rand() - 0.5) * 3
-      x = ring.cx + Math.cos(a) * rr
-      y = ring.cy + Math.sin(a) * rr
-    } else if (r < 0.92) {
-      const b = bars[Math.floor(rand() * 3)]
-      x = b.x + rand() * b.w
-      y = b.y + rand() * b.h
+    if (r < 0.7) {
+      /* داخل الصفحة: بين حافتها العليا وطيّها السفلي */
+      const s2 = rand()
+      x = bez(edge, t, 0) + (bez(fold, t, 0) - bez(edge, t, 0)) * s2
+      y = bez(edge, t, 1) + (bez(fold, t, 1) - bez(edge, t, 1)) * s2
+    } else if (r < 0.9) {
+      x = bez(line, t, 0) + (rand() - 0.5) * 1.6
+      y = bez(line, t, 1) + (rand() - 0.5) * 1.6
     } else {
-      const a = rand() * dot.r
-      const bq = (rand() - 0.5) * 2 * (dot.r - a)
-      const flip = rand() < 0.5 ? -1 : 1
-      x = dot.x + bq
-      y = dot.y + a * flip
+      /* المعيّن: نصف قطره 9 حول (50، 30) */
+      const a = rand() * 2 - 1, q = rand() * 2 - 1
+      x = 50 + (a + q) * 4.5
+      y = 30 + (a - q) * 4.5
     }
+    /* المعيّن على المحور؛ ونصف الصفحات والخطوط مرآة للصفحة اليسرى */
+    if (r < 0.9 && rand() < 0.5) x = 100 - x
     f.emblem[i * 2] = ox + x * u
     f.emblem[i * 2 + 1] = oy + y * u
   }

@@ -11,6 +11,7 @@ import { corporate, courses, hero, instructors, ladder, stats, tracks } from '..
 import { DEFAULT_HOME } from '../src/content/home-defaults'
 import { EMPTY_ASSIGNMENT, EMPTY_QUIZ, type Quiz } from '../src/lib/learning-types'
 import { DEFAULT_DESIGN } from '../src/lib/certificate'
+import { applyBrandKit } from './brand-kit'
 
 const url = process.env.DATABASE_URL ?? 'file:.data/academy.db'
 if (url.startsWith('file:')) {
@@ -20,6 +21,8 @@ if (url.startsWith('file:')) {
 
 const db = drizzle(createClient({ url }), { schema: s })
 await migrate(db, { migrationsFolder: './migrations' })
+/* حزمة الهوية المعتمدة — مرة لكل إصدار منها، قبل البذر وبعده */
+await applyBrandKit(db, { local: url.startsWith('file:') })
 
 const [{ n }] = await db.select({ n: count() }).from(s.tracks)
 if (n > 0) {

@@ -9,4 +9,3 @@
 .links { display: flex; flex-wrap: wrap; gap: 6px 22px; font-size: 15px; color: var(--scene-muted); }
 .links a:hover { color: var(--gold-4); }
 .copy { inline-size: 100%; font-size: 13px; color: var(--scene-muted); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.naf { opacity: 0.9; }

@@ -121,6 +121,26 @@
   @keyframes wipe { from { clip-path: inset(0 0 100% 0 round var(--radius-l)); } to { clip-path: inset(0 0 0 0 round var(--radius-l)); } }
   .wipe { animation: wipe calc(var(--t-gentle) * 4) var(--ease-travel) backwards; animation-delay: calc(var(--d, 0) * 70ms); }
 
+  /* — الشعار المتحرك (LiveLogo) ورمز الكتاب (Emblem draw): عناصر ملف SVG تتتابع صعوداً وظهوراً (--n ترتيبها في الملف)،
+     وملف PNG يُكشف بستارة من اليمين. داخل `.reveal` تنتظر دخول الشاشة. لا تغيير لهندسة الشعار ولا ألوانه — حركة فقط. — */
+  @keyframes logo-part { from { opacity: 0; transform: translate3d(0, 35%, 0) scale(0.92); } }
+  @keyframes logo-wipe { from { clip-path: inset(0 0 0 100%); } to { clip-path: inset(0); } }
+  .logo-motion > svg :is(path, rect, circle, ellipse, line, polyline, polygon) {
+    transform-box: fill-box; transform-origin: center;
+    animation: logo-part calc(var(--t-gentle) * 2) var(--ease-glide) backwards;
+    animation-delay: calc(var(--logo-delay, 0ms) + min(var(--n, 0), 24) * var(--t-fast) / 5);
+  }
+  img.logo-motion { animation: logo-wipe calc(var(--t-gentle) * 3) var(--ease-travel) var(--logo-delay, 0ms) backwards; }
+  @keyframes book-unfold { from { transform: scaleX(0); } }
+  @keyframes book-pop { from { opacity: 0; transform: translate3d(0, -60%, 0) scale(0.4); } }
+  .emblem-draw :is(.emblem-page, .emblem-line, .emblem-dot) { transform-box: fill-box; }
+  .emblem-draw .emblem-page { animation: book-unfold calc(var(--t-gentle) * 3) var(--ease-glide) var(--logo-delay, 0ms) backwards; }
+  .emblem-draw .emblem-page[data-side='r'] { transform-origin: left center; }
+  .emblem-draw .emblem-page[data-side='l'] { transform-origin: right center; }
+  .emblem-draw .emblem-line { transform-origin: center bottom; animation: logo-part calc(var(--t-gentle) * 2) var(--ease-glide) backwards; animation-delay: calc(var(--logo-delay, 0ms) + var(--t-gentle) * 1.6 + var(--i, 0) * var(--t-fast)); }
+  .emblem-draw .emblem-dot { transform-origin: center; animation: book-pop var(--t-gentle) var(--ease-in) calc(var(--logo-delay, 0ms) + var(--t-gentle) * 3) backwards; }
+  .js .reveal:not(.in) :is(.logo-motion, .logo-motion *, .emblem-draw *) { animation-play-state: paused; }
+
   /* — الانتقال بين الصفحات (View Transitions بين المستندات): الشريط واللوحة الجانبية ثابتان،
      والمحتوى يخرج سريعاً ويدخل صاعداً؛ وغلاف الدورة يطير من بطاقتها إلى صفحتها.
      الأسماء تُعطى لحظة التنقّل فقط (boot.js) فلا تتدخل في دائرة تبديل الوضع. — */
@@ -149,7 +169,7 @@
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
     .js .reveal, .js .words .w > span { opacity: 1 !important; transform: none !important; }
-    :where(.stagger > *, .stagger-rows > tbody > tr), .rise, .wipe { animation: none !important; }
+    :where(.stagger > *, .stagger-rows > tbody > tr), .rise, .wipe, .logo-motion, .logo-motion *, .emblem-draw * { animation: none !important; }
     ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; }
   }
 }
@@ -178,6 +198,8 @@
 /* الشعار المرفوع: نسخة الخلفيات الفاتحة افتراضياً، والداكنة فوق المشاهد الداكنة وفي الوضع الداكن.
    الشريط المفتوح على الجوال خلفيته خلفية الصفحة، فيعود لنسخة الصفحة. */
 .logo-img { display: inline-block; max-inline-size: 100%; object-fit: contain; flex: none; }
+.logo-live { display: inline-block; flex: none; line-height: 0; max-inline-size: 100%; }
+.logo-live > svg { display: block; block-size: 100%; inline-size: 100%; overflow: visible; }
 .logo-on-dark { display: none; }
 [data-surface='night'] .logo-on-light, header[data-night='1']:not([data-open='1']) .logo-on-light { display: none; }
 [data-surface='night'] .logo-on-dark, header[data-night='1']:not([data-open='1']) .logo-on-dark { display: inline-block; }

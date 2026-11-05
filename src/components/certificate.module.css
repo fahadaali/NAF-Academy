@@ -9,7 +9,7 @@
 .brand { display: grid; justify-items: center; font-family: var(--font-display); }
 .brand strong { font-size: 1em; font-weight: 700; }
 .brand small { font-family: var(--font); font-size: 0.62em; color: var(--c-gold); }
-.emblem { inline-size: 2.2em !important; block-size: 2.2em !important; color: var(--c-ink); margin-block-end: 0.2em; }
+.emblem { inline-size: auto !important; block-size: 2em !important; aspect-ratio: 92 / 69; color: var(--c-ink); margin-block-end: 0.2em; }
 .title { display: grid; justify-items: center; font-family: var(--font-display); font-weight: 700; }
 .title small { font-family: var(--font); font-size: 0.22em; letter-spacing: 0.12em; color: var(--c-gold); margin-block-start: 0.1em; font-weight: 400; }
 .soft { font-family: var(--font); color: var(--c-soft); }
@@ -32,8 +32,8 @@
 /* رأس الشهادة بشعارين متجاورين بالارتفاع نفسه (2.4 من مقاس العنصر) */
 .logos { display: grid; justify-items: center; gap: 0.35em; padding-block-start: 1.9cqw; }
 .pair { display: flex; align-items: center; gap: 1.1em; }
-.pair i { inline-size: 0; block-size: 2em; border-inline-start: 0.07cqw solid var(--c-gold); opacity: 0.8; }
 .logo { block-size: 2.4em !important; inline-size: auto !important; max-inline-size: 12em; }
+.pair[data-full='1'] .logo { block-size: 3.6em !important; max-inline-size: 16em; }
 .brandName { display: grid; justify-items: center; font-family: var(--font-display); font-weight: 700; font-size: 0.9em; line-height: 1.2; }
 .brandName small { font-family: var(--font); font-weight: 400; font-size: 0.66em; color: var(--c-gold); }
 /* الخلفية والتوقيعات كما في ملف PDF */

@@ -3,7 +3,7 @@ import 'server-only'
    النص يُرسم مسارات متجهة من fontkit مباشرة: التشكيل العربي والوصل والحركات والكشيدة كما يرسمها الخط تماماً،
    بلا اعتماد على تضمين الخط في PDF (pdf-lib يُسقط بدائل التشكيل السياقية). والملف صغير (~10 ك.ب).
    fontkit يرتّب المقطع العربي بصرياً لكنه يقلب الأرقام واللاتينية داخله، فنقسّم السطر مقاطع ونرصّها من اليمين. */
-import { PDFDocument, degrees, rgb, type PDFPage } from 'pdf-lib'
+import { PDFDocument, LineCapStyle, rgb, type PDFPage } from 'pdf-lib'
 import QRCode from 'qrcode'
 import { PAGE, TONES, type CertDesign } from '@/lib/certificate'
 import { parse, render } from '@/motion/kashida'
@@ -45,14 +45,13 @@ const fit = (text: string, font: Font, size: number, max: number) => {
   return s
 }
 
+/** رمز الكتاب بالهندسة نفسها لمكوّن Emblem — cyTop أعلى مربّع الشبكة 100×100 */
 function emblem(page: PDFPage, cx: number, cyTop: number, size: number, ink: string, gold: string) {
   const k = size / 100
-  const X = (v: number) => cx - size / 2 + v * k
-  const Y = (v: number) => PAGE.h - (cyTop + v * k)
-  page.drawCircle({ x: X(EMBLEM.ring.cx), y: Y(EMBLEM.ring.cy), size: EMBLEM.ring.r * k, borderColor: hex(ink), borderWidth: 3 * k })
-  for (const b of EMBLEM.bars) page.drawRectangle({ x: X(b.x), y: Y(b.y + b.h), width: b.w * k, height: b.h * k, color: hex(ink) })
-  const d = EMBLEM.dot
-  page.drawRectangle({ x: X(d.x), y: Y(d.y) - d.r * k * 1.4, width: d.r * 2 * k, height: d.r * 2 * k, color: hex(gold), rotate: degrees(45) })
+  const at = { x: cx - size / 2, y: PAGE.h - cyTop, scale: k }
+  for (const d of EMBLEM.pages) page.drawSvgPath(d, { ...at, color: hex(ink) })
+  for (const d of EMBLEM.lines) page.drawSvgPath(d, { ...at, borderColor: hex(ink), borderWidth: EMBLEM.lineWidth, borderLineCap: LineCapStyle.Round })
+  page.drawSvgPath(EMBLEM.diamond, { ...at, color: hex(gold) })
 }
 
 async function image(doc: PDFDocument, id: string | null) {
@@ -70,10 +69,10 @@ async function image(doc: PDFDocument, id: string | null) {
 
 export type CertData = { name: string; course: string; hours: number; date: string; hijri: string; code: string; verifyUrl: string }
 
-/** الهوية في الشهادة: الأسماء وبايتات الشعارين بالنسخة المناسبة لخلفية القالب */
+/** الهوية في الشهادة: الأسماء وبايتات شعار الأكاديمية (PNG) بالنسخة المناسبة لخلفية القالب. full: الشعار الكامل */
 export type CertBrand = {
   name: string; tagline: string; companyName: string; showName: boolean
-  academy: Uint8Array | null; naf: Uint8Array | null
+  logo: { bytes: Uint8Array; w: number; h: number } | null; full: boolean
 }
 
 export async function certificatePdf(design: CertDesign, d: CertData, brand: CertBrand): Promise<Uint8Array> {
@@ -96,28 +95,19 @@ export async function certificatePdf(design: CertDesign, d: CertData, brand: Cer
 
   if (B.brand.show) {
     const s = B.brand.size
-    const [ac, nf] = [brand.academy ? await doc.embedPng(brand.academy).catch(() => null) : null, brand.naf ? await doc.embedPng(brand.naf).catch(() => null) : null]
-    if (ac || nf) {
-      /* الشعاران متجاوران بالارتفاع نفسه — الأكاديمية يميناً ثم شركة ناف، بينهما فاصل ذهبي */
-      const H = s * 2.4
-      const wOf = (im: typeof ac) => (im ? Math.min((im.width / im.height) * H, s * 12) : 0)
-      const wa = wOf(ac), wn = wOf(nf), gap = ac && nf ? s * 1.1 : 0
-      const total = wa + wn + gap * 2
+    const lg = brand.logo ? await doc.embedPng(brand.logo.bytes).catch(() => null) : null
+    if (lg) {
+      /* شعار الأكاديمية وحده في الأعلى — الكامل أطول من صيغة الشريط */
+      const H = s * (brand.full ? 3.6 : 2.4)
+      const w = Math.min((lg.width / lg.height) * H, s * (brand.full ? 16 : 12))
       const top = py(B.brand.y) - H * (brand.showName ? 1.05 : 0.78)
-      let right = px(B.brand.x) + total / 2
-      if (ac) { right -= wa; page.drawImage(ac, { x: right, y: PAGE.h - top - H, width: wa, height: H }) }
-      if (ac && nf) {
-        right -= gap
-        page.drawLine({ start: { x: right, y: PAGE.h - top - H * 0.1 }, end: { x: right, y: PAGE.h - top - H * 0.9 }, thickness: 0.6, color: hex(T.gold) })
-        right -= gap
-      }
-      if (nf) { right -= wn; page.drawImage(nf, { x: right, y: PAGE.h - top - H, width: wn, height: H }) }
+      page.drawImage(lg, { x: px(B.brand.x) - w / 2, y: PAGE.h - top - H, width: w, height: H })
       if (brand.showName) {
         line(page, brand.name, { x: px(B.brand.x), y: top + H + s * 1.05, size: s * 0.9, font: f.display, color: T.ink })
         if (brand.tagline) line(page, brand.tagline, { x: px(B.brand.x), y: top + H + s * 1.85, size: s * 0.6, font: f.sans, color: T.gold })
       }
     } else {
-      emblem(page, px(B.brand.x), py(B.brand.y) - s * 2.4, s * 2.2, T.ink, T.gold)
+      emblem(page, px(B.brand.x), py(B.brand.y) - s * 2.6, s * 2.6, T.ink, T.gold)
       line(page, brand.name, { x: px(B.brand.x), y: py(B.brand.y) + s * 0.4, size: s, font: f.display, color: T.ink })
       if (brand.tagline) line(page, brand.tagline, { x: px(B.brand.x), y: py(B.brand.y) + s * 1.3, size: s * 0.62, font: f.sans, color: T.gold })
     }

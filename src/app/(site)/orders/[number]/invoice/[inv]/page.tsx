@@ -30,7 +30,6 @@ export default async function Invoice({ params, searchParams }: { params: Promis
         <header className={s.head}>
           <div className={s.brand}>
             <LogoMark pair={brand.academy} alt={brand.name} height={48} tone="light" />
-            {(brand.naf.light || brand.naf.dark) && <LogoMark pair={brand.naf} alt={brand.companyName} height={48} tone="light" fallback={false} />}
             <div><strong>{brand.name}</strong><span>{invoice.seller.name}</span></div>
           </div>
           <div className={s.kind}>

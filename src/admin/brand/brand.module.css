@@ -10,7 +10,6 @@
 .bar[data-tone='dark'] { background: var(--night-1); color: var(--scene-text); }
 .with { font-size: 12.5px; opacity: 0.7; margin-inline-start: auto; }
 .cert { display: flex; align-items: center; justify-content: center; gap: 22px; min-block-size: 96px; border-radius: var(--radius-m); background: var(--ivory-0); color: var(--night-1); border: 1px solid var(--line); }
-.cert i { inline-size: 1px; block-size: 44px; background: var(--gold-3); opacity: 0.6; }
 .mail { display: flex; align-items: center; gap: 10px; min-block-size: 64px; padding: 0 22px; border-radius: var(--radius-m); background: var(--night-1); color: var(--ivory-0); border-block-end: 3px solid var(--gold-3); }
 /* الشعار يُعرض كاملاً لا مقصوصاً (المنتقي مصمم للصور) */
 .slot :global(img) { object-fit: contain !important; object-position: center !important; }
@@ -21,3 +20,5 @@
 .bar :global(.wordmark-text small) { font-size: 11px; opacity: 0.7; }
 .cert { flex-wrap: nowrap; overflow: hidden; }
 .cert { padding-inline: 16px; }
+.curtain { display: grid; place-items: center; min-block-size: 140px; border-radius: var(--radius-m); background: var(--night-0); color: var(--gold-3); }
+.replay { margin-inline-start: 8px; font-size: 12px; color: var(--accent); text-decoration: underline; text-underline-offset: 3px; }
