@@ -13,7 +13,7 @@ import { channelOpen } from '@/server/notify/channels'
 export const dynamic = 'force-dynamic'
 export const metadata: Metadata = { title: 'التسجيل', robots: { index: false } }
 
-export default async function Enroll({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<{ coupon?: string; tier?: string }> }) {
+export default async function Enroll({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<{ coupon?: string; tier?: string; cohort?: string }> }) {
   const { slug } = await params
   const sp = await searchParams
   const d = await courseDetail(slug)
@@ -35,7 +35,9 @@ export default async function Enroll({ params, searchParams }: { params: Promise
   const channels = [...(emailOpen ? ['email' as const] : []), ...(smsOpen ? ['sms' as const] : [])]
   const learner = me ? { name: me.name, email: me.email, phone: me.phone, org: me.org, vatNumber: me.vatNumber } : null
   if (!priced) notFound()
-  const left = d.row.seatsTotal !== null ? Math.max(0, d.row.seatsTotal - (await seatsUsed(d.row))) : 50
+  /* بدفعات: المقاعد لكل دفعة (يقيّدها الاختيار)، وإلا سعة الدورة */
+  const cohorts = d.course.cohorts ?? []
+  const left = cohorts.length ? 50 : d.row.seatsTotal !== null ? Math.max(0, d.row.seatsTotal - (await seatsUsed(d.row))) : 50
   const initial = { ...priced.q, couponCode: priced.q.couponApplied ? priced.coupon!.code : undefined, couponLabel: priced.coupon?.label, tierId: priced.tier?.id ?? null }
   const paidAndLocked = !open && priced.q.total > 0
 
@@ -48,7 +50,7 @@ export default async function Enroll({ params, searchParams }: { params: Promise
         ) : (
           <>
             <Checkout
-              slug={slug} title={title} tiers={d.tiers} groupRules={d.groupRules} maxQty={Math.min(50, left)}
+              slug={slug} title={title} tiers={d.tiers} cohorts={cohorts} initialCohort={sp.cohort ?? null} groupRules={d.groupRules} maxQty={Math.min(50, left)}
               initial={initial} initialCode={sp.coupon ?? ''} salesOpen={open} terms={settings.terms} refundPolicy={settings.refundPolicy}
               learner={learner} channels={channels} methods={settings.methods}
             />

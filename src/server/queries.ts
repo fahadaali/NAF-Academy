@@ -2,12 +2,15 @@ import 'server-only'
 /* طبقة القراءة للواجهة العامة — تحوّل صفوف القاعدة إلى نماذج العرض في content/types. */
 import { and, asc, count, desc, eq, inArray, isNull } from 'drizzle-orm'
 import { db, schema as s } from './db'
-import type { Course, Instructor, MediaView, Pricing, Track } from '@/content/types'
+import type { CohortView, Course, Instructor, MediaView, Pricing, Promo, Track } from '@/content/types'
 import { DEFAULT_HOME, DEFAULT_MENU, SCENES, type HomeContent } from '@/content/home-defaults'
 import { mergePages, type PagesContent } from '@/content/pages-defaults'
 import { corporate as seedCorporate, hero as seedHero, ladder as seedLadder, stats as seedStats } from '@/content/seed'
 import { isPublic, liveStatus, publicOrder } from '@/lib/course-meta'
 import { priceView } from '@/lib/pricing'
+import { cohortState, leadCohort, statusWithCohorts, type CohortLite } from '@/lib/cohorts'
+import { cohortsOf } from './cohorts'
+import { livePromotions, promosFor } from './promotions'
 import type { CourseRow, InstructorRow, LessonRow, Media, ModuleRow, TierRow, TrackRow } from './db/schema'
 import { inList } from '@/server/db/limits'
 
@@ -35,24 +38,39 @@ const toInstructor = (p: InstructorRow, m: Map<string, Media>): Instructor => ({
   bio: p.bio, links: p.links, photo: mediaView(m.get(p.photoId ?? '')),
 })
 
-function toCourse(c: CourseRow, trackSlug: string, inst: string[], m: Map<string, Media>, now: Date, booked = 0, tiers: TierRow[] = []): Course {
-  const seats = c.seatsTotal ? { total: c.seatsTotal, taken: Math.min(c.seatsTaken + booked, c.seatsTotal) } : undefined
+const seatsOf = (total: number | null, taken: number) => (total ? { total, taken: Math.min(taken, total) } : undefined)
+
+const cohortView = (k: CohortLite, now: Date): CohortView => ({
+  id: k.id, title: k.title, state: cohortState(k, now), startsAt: k.startsAt ?? undefined, endsAt: k.endsAt ?? undefined,
+  seats: seatsOf(k.seatsTotal, k.taken), city: k.city || undefined,
+})
+
+function toCourse(c: CourseRow, trackSlug: string, inst: string[], m: Map<string, Media>, now: Date, booked = 0, tiers: TierRow[] = [], promos: Promo[] = [], cohorts: CohortLite[] = []): Course {
+  /* بدفعات: المقاعد والموعد والمدينة من الدفعة الممثّلة، والحالة من أفضل الدفعات */
+  const lead = cohorts.length ? leadCohort(cohorts, now) : undefined
+  const seats = cohorts.length ? (lead ? seatsOf(lead.seatsTotal, lead.taken) : undefined) : seatsOf(c.seatsTotal, c.seatsTaken + booked)
+  const base = liveStatus(c.status, c.publishAt, cohorts.length ? undefined : seats, now)
   return {
     slug: c.slug, title: c.title, subtitle: c.subtitle, track: trackSlug, level: c.level, mode: c.mode,
-    status: liveStatus(c.status, c.publishAt, seats, now),
-    startsAt: c.startsAt ?? undefined, hours: c.hours, city: c.city || undefined, seats, featured: c.featured, order: c.sortOrder,
-    pricing: tiers.length ? cheapestTier(tiers, c, now) : { amount: c.price, compareAt: c.compareAt ?? undefined, saleEndsAt: c.saleEndsAt ?? undefined, free: c.free },
+    status: statusWithCohorts(base, cohorts, now),
+    startsAt: (lead ? lead.startsAt : c.startsAt) ?? undefined, hours: c.hours, city: (lead?.city || c.city) || undefined, seats, featured: c.featured, order: c.sortOrder,
+    pricing: tiers.length ? cheapestTier(tiers, c, now, promos) : coursePricing(c, promos),
     instructor: inst[0] ?? '', instructors: inst, cover: mediaView(m.get(c.coverId ?? '')),
+    cohorts: cohorts.length ? cohorts.map((k) => cohortView(k, now)).filter((k) => k.state !== 'closed' || !k.endsAt || Date.parse(k.endsAt) > now.getTime() - 30 * 864e5) : undefined,
   }
 }
 
-/** سعر الباقة كما يُدفع الآن — بنافذة عرض الدورة نفسها (كما يحسبه الخادم عند الدفع) */
-export const tierPricing = (t: Pick<TierRow, 'price' | 'compareAt'>, c: Pick<CourseRow, 'saleEndsAt'>): Pricing =>
-  ({ amount: t.price, compareAt: t.compareAt ?? undefined, saleEndsAt: c.saleEndsAt ?? undefined })
+/** سعر الدورة كما يُدفع الآن: عرضها في نافذته والعروض العامة المنطبقة */
+export const coursePricing = (c: Pick<CourseRow, 'price' | 'compareAt' | 'saleStartsAt' | 'saleEndsAt' | 'free'>, promos: Promo[] = []): Pricing =>
+  ({ amount: c.price, compareAt: c.compareAt ?? undefined, saleStartsAt: c.saleStartsAt ?? undefined, saleEndsAt: c.saleEndsAt ?? undefined, free: c.free, promos })
+
+/** سعر الباقة كما يُدفع الآن — بنافذة عرض الدورة نفسها والعروض العامة (كما يحسبه الخادم عند الدفع) */
+export const tierPricing = (t: Pick<TierRow, 'price' | 'compareAt'>, c: Pick<CourseRow, 'saleStartsAt' | 'saleEndsAt'>, promos: Promo[] = []): Pricing =>
+  ({ amount: t.price, compareAt: t.compareAt ?? undefined, saleStartsAt: c.saleStartsAt ?? undefined, saleEndsAt: c.saleEndsAt ?? undefined, promos })
 
 /** بطاقة دورة لها باقات: أرخص باقة الآن «من …» */
-function cheapestTier(tiers: TierRow[], c: CourseRow, now: Date): Pricing {
-  const best = tiers.map((t) => tierPricing(t, c)).sort((a, b) => priceView(a, now).current - priceView(b, now).current)[0]
+function cheapestTier(tiers: TierRow[], c: CourseRow, now: Date, promos: Promo[]): Pricing {
+  const best = tiers.map((t) => tierPricing(t, c, promos)).sort((a, b) => priceView(a, now).current - priceView(b, now).current)[0]
   return { ...best, from: tiers.length > 1 }
 }
 
@@ -76,6 +94,7 @@ export async function catalog(now = new Date()) {
       .where(and(isNull(s.seatGrants.enrollmentId), inArray(s.orders.status, ['paid', 'partially_refunded']))).groupBy(s.seatGrants.courseId),
     db.select().from(s.priceTiers).orderBy(asc(s.priceTiers.sortOrder)),
   ])
+  const [promoRows, cohortMap] = await Promise.all([livePromotions(now), cohortsOf(courseRows.map((c) => c.id))])
   const booked = new Map<string, number>()
   for (const r of [...enrolled, ...granted]) booked.set(r.courseId, (booked.get(r.courseId) ?? 0) + r.n)
   const m = await mediaMap([...trackRows.map((t) => t.coverId), ...courseRows.map((c) => c.coverId), ...instRows.map((p) => p.photoId)])
@@ -86,7 +105,10 @@ export async function catalog(now = new Date()) {
     const slug = instSlug.get(l.instructorId)
     if (slug) byCourse.set(l.courseId, [...(byCourse.get(l.courseId) ?? []), slug])
   }
-  const all = courseRows.map((c) => ({ row: c, view: toCourse(c, trackSlug.get(c.trackId ?? '') ?? '', byCourse.get(c.id) ?? [], m, now, booked.get(c.id) ?? 0, tierRows.filter((t) => t.courseId === c.id)) }))
+  const all = courseRows.map((c) => {
+    const promos = promosFor(c, promoRows)
+    return { row: c, promos, view: toCourse(c, trackSlug.get(c.trackId ?? '') ?? '', byCourse.get(c.id) ?? [], m, now, booked.get(c.id) ?? 0, tierRows.filter((t) => t.courseId === c.id), promos, cohortMap.get(c.id) ?? []) }
+  })
   const courses = all.map((x) => x.view).filter((c) => isPublic(c.status)).sort(publicOrder)
   const visibleTracks = trackRows.filter((t) => t.visible)
   const tracks = visibleTracks.map((t) => toTrack(t, courses.filter((c) => c.track === t.slug).length, m))
@@ -156,7 +178,7 @@ export async function courseDetail(slug: string, preview?: string, now = new Dat
     course: hit.view,
     row: hit.row,
     tiers: tiers.map(({ id, name, description, price, compareAt, features, highlight }) => {
-      const v = priceView(tierPricing({ price, compareAt }, hit.row), now)
+      const v = priceView(tierPricing({ price, compareAt }, hit.row, hit.promos), now)
       return { id, name, description, price: v.current, compareAt: v.original ?? null, features, highlight }
     }),
     groupRules: rules.map(({ minQty, percent }) => ({ minQty, percent })).sort((a, b) => a.minQty - b.minQty),

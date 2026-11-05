@@ -1,0 +1,8 @@
+.list { display: grid; gap: 10px; }
+.card { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--radius-m); background: var(--surface); }
+.card strong { font-size: 15px; }
+.tools { display: flex; gap: 6px; flex-wrap: wrap; }
+.editor { display: grid; gap: 14px; padding: 16px; border: 1px solid var(--line); border-radius: var(--radius-m); background: var(--surface-2); }
+.h { font-size: 15px; margin-block-start: 6px; }
+.err { color: var(--danger); font-size: 14px; }
+.actions { display: flex; gap: 10px; }

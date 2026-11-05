@@ -64,6 +64,13 @@
       "when": 1793907418167,
       "tag": "0008_integrity",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1793912577050,
+      "tag": "0009_cohorts_promotions",
+      "breakpoints": true
     }
   ]
 }

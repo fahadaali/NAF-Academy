@@ -1,4 +1,4 @@
-import type { Pricing } from '@/content/types'
+import type { Pricing, Promo } from '@/content/types'
 
 export type PriceView = {
   free: boolean
@@ -10,20 +10,39 @@ export type PriceView = {
   savePct?: number
   /** نهاية العرض إن كان محدداً بوقت وما زال سارياً */
   endsAt?: Date
+  /** اسم العرض العام إن كان هو الأفضل (مثل «عرض اليوم الوطني») */
+  label?: string
 }
 
-/** يحسب ما يُعرض من السعر في لحظة معيّنة — العرض المنتهي يعود تلقائياً للسعر الأصلي */
+const within = (t: number, start?: string | null, end?: string | null) =>
+  (!start || Date.parse(start) <= t) && (!end || Date.parse(end) > t)
+
+/** سعر العرض العام على السعر الأصلي */
+export const promoPrice = (base: number, p: Pick<Promo, 'kind' | 'value'>) =>
+  Math.max(0, p.kind === 'percent' ? Math.round(base * (1 - Math.max(0, Math.min(90, p.value)) / 100)) : base - p.value)
+
+/** يحسب ما يُعرض من السعر في لحظة معيّنة: عرض الدورة في نافذته (من البداية إلى النهاية) أو أفضل عرض عام منطبق —
+    الأفضل للمشتري بلا تراكم — وخارج النوافذ يعود السعر الأصلي تلقائياً */
 export function priceView(p: Pricing, now: Date = new Date()): PriceView {
   if (p.free || p.amount <= 0) return { free: true, current: 0 }
-  const end = p.saleEndsAt ? new Date(p.saleEndsAt) : undefined
-  const saleLive = p.compareAt !== undefined && p.compareAt > p.amount && (!end || end.getTime() > now.getTime())
-  if (!saleLive) return { free: false, current: p.compareAt && end ? p.compareAt : p.amount }
+  const t = now.getTime()
+  const hasSale = p.compareAt !== undefined && p.compareAt > p.amount
+  const base = hasSale ? p.compareAt! : p.amount
+  const saleLive = hasSale && within(t, p.saleStartsAt, p.saleEndsAt)
+  let best: { price: number; endsAt?: string | null; label?: string } = saleLive ? { price: p.amount, endsAt: p.saleEndsAt } : { price: base }
+  for (const pr of p.promos ?? []) {
+    if (!within(t, pr.startsAt, pr.endsAt)) continue
+    const price = promoPrice(base, pr)
+    if (price < best.price) best = { price, endsAt: pr.endsAt, label: pr.label }
+  }
+  if (best.price >= base) return { free: false, current: base }
   return {
     free: false,
-    current: p.amount,
-    original: p.compareAt,
-    savePct: Math.round((1 - p.amount / p.compareAt!) * 100),
-    endsAt: end,
+    current: best.price,
+    original: base,
+    savePct: Math.round((1 - best.price / base) * 100),
+    endsAt: best.endsAt ? new Date(best.endsAt) : undefined,
+    label: best.label,
   }
 }
 

@@ -7,6 +7,7 @@ import { CourseCard } from '@/components/CourseCard'
 import { Prose } from '@/components/Prose'
 import { Riyal } from '@/components/Riyal'
 import { CouponBanner } from './CouponBanner'
+import { Teaser } from './Teaser'
 import { formatAmount } from '@/lib/pricing'
 import { mergeRules } from '@/lib/certificate'
 import { levelLabel, modeLabel, statusView } from '@/lib/course-meta'
@@ -33,6 +34,8 @@ export function CourseView({ data, preview, corporate = true, vat = 0 }: { data:
   const bestRule = groupRules.reduce<(typeof groupRules)[number] | null>((b, g) => (!b || g.percent > b.percent ? g : b), null)
   const firstRule = groupRules[0]
   const isFree = fromPrice === null && (c.pricing.free || c.pricing.amount <= 0)
+  const cohorts = c.cohorts ?? []
+  const COHORT_LABEL = { open: 'التسجيل مفتوح', full: 'اكتمل العدد', soon: 'قريباً', closed: 'انتهى التسجيل' } as const
 
   return (
     <article className={s.page} data-status={st.tone}>
@@ -53,6 +56,7 @@ export function CourseView({ data, preview, corporate = true, vat = 0 }: { data:
           </div>
           <Words as="h1" text={c.title} className={s.title} />
           {c.subtitle && <p className={`reveal ${s.subtitle}`} style={{ ['--d' as string]: 2 }}>{c.subtitle}</p>}
+          {row.teaser.provider !== 'none' && <Teaser slug={c.slug} kind={row.teaser.provider} label="شاهد التعريف بالدورة" />}
           <dl className={`reveal num ${s.facts}`} style={{ ['--d' as string]: 3 }}>
             {c.startsAt ? (
               <div><dt>يبدأ</dt><dd>{formatWeekday(c.startsAt)} {formatDay(c.startsAt)}<small>{formatHijri(c.startsAt)} · {formatTime(c.startsAt)}</small></dd></div>
@@ -93,6 +97,31 @@ export function CourseView({ data, preview, corporate = true, vat = 0 }: { data:
             </section>
           )}
 
+          {cohorts.length > 0 && (
+            <section className={s.block} aria-labelledby="cohorts-h">
+              <h2 className={s.h2} id="cohorts-h">الدفعات</h2>
+              <ul role="list" className={`stagger reveal ${s.cohorts}`}>
+                {cohorts.map((k) => {
+                  const left = k.seats ? k.seats.total - k.seats.taken : undefined
+                  return (
+                    <li key={k.id} className={s.cohort} data-state={k.state}>
+                      <div>
+                        <strong>{k.title}</strong>
+                        <span className={`${s.muted} num`}>
+                          {k.startsAt ? `${formatWeekday(k.startsAt)} ${formatDay(k.startsAt)}` : 'الموعد يُعلن قريباً'}{k.endsAt ? ` ← ${formatDay(k.endsAt)}` : ''}{k.city ? ` · ${k.city}` : ''}
+                        </span>
+                      </div>
+                      <span className={`${s.cstate} num`} data-tone={k.state}>
+                        {k.state === 'open' && left !== undefined ? `بقي ${left}` : COHORT_LABEL[k.state]}
+                      </span>
+                      {k.state === 'open' && <a className="btn ghost" href={`${enroll}?cohort=${k.id}`}>سجّل في هذه الدفعة</a>}
+                    </li>
+                  )
+                })}
+              </ul>
+            </section>
+          )}
+
           {row.description && <section className={s.block}><h2 className={s.h2}>عن الدورة</h2><Prose text={row.description} /></section>}
 
           {curriculum.length > 0 && (
@@ -113,7 +142,7 @@ export function CourseView({ data, preview, corporate = true, vat = 0 }: { data:
                         <li key={l.id}>
                           <span className={s.ltype} data-type={l.type}>{LESSON[l.type]}</span>
                           <span className={s.ltitle}>{l.title}</span>
-                          {(l.type === 'live' || l.type === 'onsite') && l.startsAt && (
+                          {(l.type === 'live' || l.type === 'onsite') && l.startsAt && cohorts.length === 0 && (
                             <span className={`${s.muted} num`}>{formatWeekday(l.startsAt)} {formatDay(l.startsAt)} · {formatTime(l.startsAt)}</span>
                           )}
                           {l.preview && <a className={s.free} href={`/learn/${c.slug}/${l.id}`}>معاينة مجانية ←</a>}

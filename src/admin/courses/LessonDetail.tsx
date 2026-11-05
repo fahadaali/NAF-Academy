@@ -79,7 +79,7 @@ export function LessonDetail({ value: l, onChange, err }: { value: Lesson; onCha
   )
 }
 
-function VideoField({ label, hint, value, onChange, error }: { label: string; hint?: string; value: Video; onChange: (v: Video) => void; error?: string }) {
+export function VideoField({ label, hint, value, onChange, error }: { label: string; hint?: string; value: Video; onChange: (v: Video) => void; error?: string }) {
   const [busy, setBusy] = useState('')
   /* حالة ربط Stream — مقفل حتى تُضاف مفاتيحه، فيُقال ذلك قبل محاولة الرفع */
   const [stream, setStream] = useState<{ configured: boolean; problem?: string } | null>(null)

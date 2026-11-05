@@ -25,8 +25,20 @@ export default async function CourseHome({ params }: { params: Promise<{ course:
   if (!me) redirect(`/login?next=/learn/${slug}`)
   const ctx = await learnerCourse(slug, me)
   if (!ctx) notFound()
+  if (!ctx.enrollment && ctx.expired) {
+    /* انتهى الوصول: التقدّم محفوظ، والتجديد يفتحه من جديد */
+    return (
+      <div className={`wrap ${st.body}`}>
+        <section className={st.box} aria-labelledby="exp-h">
+          <h2 id="exp-h">انتهى وصولك إلى «{plain(ctx.course.title)}»</h2>
+          <p>انتهت مدة الوصول في <span className="num">{formatDay(ctx.expired.accessUntil!)}</span>. تقدّمك محفوظ — جدّد الوصول لتكمل من حيث توقفت.</p>
+          <p><a className="btn" href={`/courses/${slug}/enroll`}>جدّد الوصول</a> <a className="btn ghost" href="/learn">دوراتي</a></p>
+        </section>
+      </div>
+    )
+  }
   if (!ctx.enrollment) redirect(`/courses/${slug}`)
-  const { course, modules, pct, resumeId, upcoming } = ctx
+  const { course, modules, pct, resumeId, upcoming, enrollment, cohort } = ctx
   const [cert, [issued], [myReview]] = await Promise.all([
     evaluate(me.id, course.id),
     db.select().from(s.certificates).where(and(eq(s.certificates.learnerId, me.id), eq(s.certificates.courseId, course.id))),
@@ -40,6 +52,12 @@ export default async function CourseHome({ params }: { params: Promise<{ course:
             <a href="/learn" className={st.back}>← دوراتي</a>
             <span className="eyebrow" style={{ color: 'var(--gold-4)' }}>{modeLabel[course.mode]}</span>
             <Words as="h1" text={plain(course.title)} className={st.title} />
+            {(cohort || enrollment.accessUntil) && (
+              <p className={st.meta}>
+                {cohort && <span>{cohort.title}</span>}
+                {enrollment.accessUntil && <span className="num">الوصول حتى {formatDay(enrollment.accessUntil)}</span>}
+              </p>
+            )}
           </div>
           <div className={st.ringBox}>
             <Ring pct={pct} size={120} />
@@ -64,7 +82,7 @@ export default async function CourseHome({ params }: { params: Promise<{ course:
             </section>
           )}
           {pct >= REVIEW_MIN_PCT && (
-            <section className={st.box} aria-labelledby="rev-h">
+            <section className={st.box} aria-labelledby="rev-h" id="review">
               <h2 id="rev-h">قيّم الدورة</h2>
               <ReviewBox courseId={course.id} initial={myReview ? { rating: myReview.rating, comment: myReview.comment, status: myReview.status, anonymous: myReview.display === ANON_DISPLAY } : null} />
             </section>

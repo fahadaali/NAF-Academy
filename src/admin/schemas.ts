@@ -115,8 +115,11 @@ export const courseInput = z
     coverId: z.string().nullable(),
     price: halalas,
     compareAt: halalas.nullable(),
+    saleStartsAt: iso.default(null),
     saleEndsAt: iso,
     free: z.boolean(),
+    accessDays: z.number().int().min(1, 'يوم واحد على الأقل').max(3650).nullable().default(null),
+    teaser: videoInput.default({ provider: 'none' }),
     description: text(20_000),
     outcomes: lines,
     audience: lines,
@@ -136,6 +139,8 @@ export const courseInput = z
   .superRefine((v, ctx) => {
     if (v.compareAt !== null && !v.free && v.compareAt <= v.price)
       ctx.addIssue({ code: 'custom', path: ['compareAt'], message: 'السعر قبل العرض يجب أن يكون أعلى من الحالي' })
+    if (v.saleStartsAt && v.saleEndsAt && Date.parse(v.saleStartsAt) >= Date.parse(v.saleEndsAt))
+      ctx.addIssue({ code: 'custom', path: ['saleEndsAt'], message: 'نهاية العرض بعد بدايته' })
     if (v.status === 'scheduled' && !v.publishAt)
       ctx.addIssue({ code: 'custom', path: ['publishAt'], message: 'حدّد موعد النشر للدورة المجدولة' })
     if (v.endsAt && v.startsAt && v.endsAt < v.startsAt)
@@ -221,3 +226,41 @@ export const pagesInput = z.object({
   login: head,
   policies: head.extend({ terms: t(20000), privacy: t(20000) }),
 })
+
+/* ───────── الدفعات ───────── */
+const httpsUrl = z.union([z.literal(''), z.string().trim().url('رابط غير صالح').regex(/^https:\/\//, 'رابط https فقط').max(1000)])
+
+const sessionInput = z.object({ lessonId: z.string().uuid(), startsAt: iso, endsAt: iso, joinUrl: httpsUrl, location: z.string().trim().max(1000) })
+  .refine((x) => !x.startsAt || !x.endsAt || Date.parse(x.endsAt) > Date.parse(x.startsAt), { message: 'النهاية بعد البداية', path: ['endsAt'] })
+export const cohortInput = z.object({
+  title: z.string().trim().min(2, 'اسم الدفعة مطلوب').max(120),
+  status: z.enum(['soon', 'open', 'closed']),
+  startsAt: iso,
+  endsAt: iso,
+  seatsTotal: z.number().int().min(1).max(100_000).nullable(),
+  seatsTaken: z.number().int().min(0).max(100_000),
+  city: z.string().trim().max(80),
+  venue: z.string().trim().max(300),
+  sessions: z.array(sessionInput).max(300),
+}).refine((x) => !x.startsAt || !x.endsAt || Date.parse(x.endsAt) > Date.parse(x.startsAt), { message: 'نهاية الدفعة بعد بدايتها', path: ['endsAt'] })
+export type CohortInput = z.input<typeof cohortInput>
+
+/* ───────── العروض العامة ───────── */
+export const promotionInput = z.object({
+  label: z.string().trim().min(2, 'اسم العرض مطلوب — يظهر بجوار السعر').max(60),
+  scope: z.enum(['all', 'tracks', 'courses']),
+  trackIds: z.array(z.string().uuid()).max(100),
+  courseIds: z.array(z.string().uuid()).max(500),
+  kind: z.enum(['percent', 'amount']),
+  value: z.number().int().min(1),
+  startsAt: iso,
+  endsAt: iso,
+  active: z.boolean(),
+}).superRefine((v, ctx) => {
+  if (v.kind === 'percent' && v.value > 90) ctx.addIssue({ code: 'custom', path: ['value'], message: 'النسبة حتى 90%' })
+  if (v.kind === 'amount' && v.value > 100_000_000) ctx.addIssue({ code: 'custom', path: ['value'], message: 'مبلغ كبير جداً' })
+  if (v.scope === 'tracks' && !v.trackIds.length) ctx.addIssue({ code: 'custom', path: ['trackIds'], message: 'اختر مساراً واحداً على الأقل' })
+  if (v.scope === 'courses' && !v.courseIds.length) ctx.addIssue({ code: 'custom', path: ['courseIds'], message: 'اختر دورة واحدة على الأقل' })
+  if (v.startsAt && v.endsAt && Date.parse(v.startsAt) >= Date.parse(v.endsAt)) ctx.addIssue({ code: 'custom', path: ['endsAt'], message: 'النهاية بعد البداية' })
+})
+export type PromotionInput = z.input<typeof promotionInput>

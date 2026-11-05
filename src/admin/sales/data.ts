@@ -92,5 +92,7 @@ export async function courseLearners(courseId: string) {
       .where(eq(s.enrollments.courseId, courseId)).orderBy(desc(s.enrollments.createdAt)),
     db.select().from(s.interest).where(eq(s.interest.courseId, courseId)).orderBy(desc(s.interest.createdAt)),
   ])
-  return { enrolls, interest }
+  const cohorts = await db.select({ id: s.cohorts.id, title: s.cohorts.title, status: s.cohorts.status }).from(s.cohorts)
+    .where(and(eq(s.cohorts.courseId, courseId), isNull(s.cohorts.deletedAt))).orderBy(asc(s.cohorts.sortOrder))
+  return { enrolls, interest, cohorts }
 }

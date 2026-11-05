@@ -1,11 +1,13 @@
 /* ملف تقويم للدورة (Google / Outlook / Apple): حدث لكل جلسة مجدولة (مباشرة أو حضورية)،
    وإن لم تكن للدورة جلسات فحدث واحد بموعدها. يُتاح للعموم ما دامت الدورة ظاهرة، وللمسجّل فيها دائماً. */
-import { and, asc, eq, inArray, isNotNull, isNull } from 'drizzle-orm'
+import { and, eq, inArray, isNull } from 'drizzle-orm'
 import { db, schema as s } from '@/server/db'
 import { currentLearner } from '@/server/learner-auth'
 import { isPublic, liveStatus } from '@/lib/course-meta'
 import { plain } from '@/motion/kashida'
 import { inList } from '@/server/db/limits'
+import { withSession } from '@/lib/cohorts'
+import { sessionsOf } from '@/server/cohorts'
 
 const fmt = (d: Date) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d+Z$/, 'Z')
 const esc = (t: string) => t.replace(/[\\,;]/g, (m) => '\\' + m).replace(/\n/g, '\\n')
@@ -20,8 +22,16 @@ export async function GET(req: Request, ctx: { params: Promise<{ slug: string }>
     if (!en) return new Response('Not found', { status: 404 })
   }
   const mods = await db.select({ id: s.modules.id }).from(s.modules).where(eq(s.modules.courseId, c.id))
+  /* مواعيد الدفعة: دفعة المسجّل، أو المطلوبة في الرابط (?cohort=) لزائر صفحة الدورة */
+  const me = await currentLearner()
+  const [mine] = me ? await db.select({ cohortId: s.enrollments.cohortId }).from(s.enrollments).where(and(eq(s.enrollments.courseId, c.id), eq(s.enrollments.learnerId, me.id), eq(s.enrollments.status, 'active'))) : []
+  const asked = new URL(req.url).searchParams.get('cohort')
+  const [k] = asked && !mine?.cohortId ? await db.select({ id: s.cohorts.id }).from(s.cohorts).where(and(eq(s.cohorts.id, asked), eq(s.cohorts.courseId, c.id), isNull(s.cohorts.deletedAt))) : []
+  const cohortId = mine?.cohortId ?? k?.id ?? null
+  const per = await sessionsOf(cohortId)
   const sessions = mods.length
-    ? await db.select().from(s.lessons).where(and(inList(s.lessons.moduleId, mods.map((m) => m.id)), inArray(s.lessons.type, ['live', 'onsite']), isNotNull(s.lessons.startsAt))).orderBy(asc(s.lessons.startsAt))
+    ? (await db.select().from(s.lessons).where(and(inList(s.lessons.moduleId, mods.map((m) => m.id)), inArray(s.lessons.type, ['live', 'onsite']))))
+        .map((l) => withSession(l, per)).filter((l) => l.startsAt).sort((a, b) => a.startsAt!.localeCompare(b.startsAt!))
     : []
   const title = plain(c.title)
   const page = new URL(`/courses/${c.slug}`, req.url).toString()

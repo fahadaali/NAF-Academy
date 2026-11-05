@@ -4,6 +4,7 @@ import { and, eq, like } from 'drizzle-orm'
 import { db, schema as s } from '@/server/db'
 import { currentLearner } from '@/server/learner-auth'
 import { assetRow, serveAsset } from '@/server/assets'
+import { hasAccess } from '@/lib/cohorts'
 
 export const dynamic = 'force-dynamic'
 
@@ -22,7 +23,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
       if (r.preview) { ok = true; continue }
       if (!me) continue
       const [en] = await db.select().from(s.enrollments).where(and(eq(s.enrollments.learnerId, me.id), eq(s.enrollments.courseId, r.courseId), eq(s.enrollments.status, 'active')))
-      if (en) ok = true
+      if (hasAccess(en)) ok = true
     }
   }
   if (!ok) return new Response('Forbidden', { status: 403 })

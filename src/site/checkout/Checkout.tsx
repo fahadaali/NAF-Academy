@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import type { PublicTier } from '@/server/queries'
+import type { CohortView } from '@/content/types'
+import { formatDay, formatWeekday } from '@/lib/dates'
 import { placeOrderAction, quoteAction, type QuoteView } from '@/site/actions'
 import { formatAmount } from '@/lib/pricing'
 import { ease, prefersCalm, timing } from '@/motion/tokens'
@@ -41,6 +43,9 @@ type Props = {
   slug: string
   title: string
   tiers: PublicTier[]
+  /** دفعات الدورة — المفتوحة منها تُختار، وغيرها يظهر معطّلاً */
+  cohorts?: CohortView[]
+  initialCohort?: string | null
   groupRules: { minQty: number; percent: number }[]
   maxQty: number
   initial: QuoteView
@@ -54,10 +59,17 @@ type Props = {
   methods: PayMethod[]
 }
 
-export function Checkout({ slug, title, tiers, groupRules, maxQty, initial, initialCode, salesOpen, terms, refundPolicy, learner, channels, methods }: Props) {
+export function Checkout({ slug, title, tiers, cohorts = [], initialCohort = null, groupRules, maxQty, initial, initialCode, salesOpen, terms, refundPolicy, learner, channels, methods }: Props) {
   const router = useRouter()
   const [tierId, setTierId] = useState<string | null>(initial.tierId)
+  const openCohorts = cohorts.filter((k) => k.state === 'open')
+  const [cohortId, setCohortId] = useState<string | null>(openCohorts.find((k) => k.id === initialCohort)?.id ?? openCohorts[0]?.id ?? null)
+  const cohort = cohorts.find((k) => k.id === cohortId)
+  const cohortLeft = cohort?.seats ? cohort.seats.total - cohort.seats.taken : null
   const [qty, setQty] = useState(1)
+  const limit = cohortLeft !== null ? Math.max(1, Math.min(maxQty, cohortLeft)) : maxQty
+  /* خطوات مرقّمة بحسب ما يظهر منها */
+  const n0 = (cohorts.length ? 1 : 0) + (tiers.length ? 1 : 0)
   const [code, setCode] = useState(initialCode)
   const [applied, setApplied] = useState(initialCode)
   const [q, setQ] = useState<QuoteView>(initial)
@@ -92,7 +104,7 @@ export function Checkout({ slug, title, tiers, groupRules, maxQty, initial, init
   const submit = async () => {
     setBusy(true)
     setError('')
-    const r = await placeOrderAction(slug, { tierId, quantity: qty, code: q.couponApplied ? applied : '', attendSelf, agree, buyer: { ...b, vatNumber: business ? b.vatNumber : '', org: b.org } })
+    const r = await placeOrderAction(slug, { tierId, cohortId, quantity: qty, code: q.couponApplied ? applied : '', attendSelf, agree, buyer: { ...b, vatNumber: business ? b.vatNumber : '', org: b.org } })
     if (r.ok) { router.push(r.url); return }
     setBusy(false)
     setError(r.error)
@@ -102,9 +114,24 @@ export function Checkout({ slug, title, tiers, groupRules, maxQty, initial, init
   return (
     <div className={s.grid}>
       <div className={s.steps}>
+        {cohorts.length > 0 && (
+          <section className={s.step}>
+            <h2><span className="num">1</span> اختر الدفعة</h2>
+            <div className={s.tiers} role="radiogroup">
+              {cohorts.map((k) => (
+                <button key={k.id} type="button" role="radio" aria-checked={cohortId === k.id} disabled={k.state !== 'open'} className={s.tier}
+                  onClick={() => { setCohortId(k.id); setQty(1) }}>
+                  <strong>{k.title}</strong>
+                  <span className={`num ${s.tierDesc}`}>{k.startsAt ? `${formatWeekday(k.startsAt)} ${formatDay(k.startsAt)}` : 'الموعد يُعلن قريباً'}{k.city ? ` · ${k.city}` : ''}</span>
+                  <span className={`num ${s.tierDesc}`}>{k.state === 'open' ? (k.seats ? `بقي ${k.seats.total - k.seats.taken} مقعداً` : 'التسجيل مفتوح') : k.state === 'full' ? 'اكتمل العدد' : k.state === 'soon' ? 'قريباً' : 'انتهى التسجيل'}</span>
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
         {tiers.length > 0 && (
           <section className={s.step}>
-            <h2><span className="num">1</span> اختر الباقة</h2>
+            <h2><span className="num">{cohorts.length ? 2 : 1}</span> اختر الباقة</h2>
             <div className={s.tiers} role="radiogroup">
               {tiers.map((t) => (
                 <button key={t.id} type="button" role="radio" aria-checked={tierId === t.id} className={s.tier} data-highlight={t.highlight ? '1' : '0'} onClick={() => setTierId(t.id)}>
@@ -120,12 +147,12 @@ export function Checkout({ slug, title, tiers, groupRules, maxQty, initial, init
         )}
 
         <section className={s.step}>
-          <h2><span className="num">{tiers.length ? 2 : 1}</span> عدد المقاعد</h2>
+          <h2><span className="num">{n0 + 1}</span> عدد المقاعد</h2>
           <div className={s.qtyRow}>
             <div className={s.stepper}>
               <button type="button" aria-label="أقل" disabled={qty <= 1} onClick={() => setQty((x) => Math.max(1, x - 1))}>−</button>
               <output className="num" aria-live="polite">{qty}</output>
-              <button type="button" aria-label="أكثر" disabled={qty >= maxQty} onClick={() => setQty((x) => Math.min(maxQty, x + 1))}>+</button>
+              <button type="button" aria-label="أكثر" disabled={qty >= limit} onClick={() => setQty((x) => Math.min(limit, x + 1))}>+</button>
             </div>
             <span className={s.hint}>
               {q.groupPercent > 0 ? <>خصم المجموعة <strong className="num">{q.groupPercent}%</strong> مطبّق</> : nextRule ? <>سجّل <span className="num">{nextRule.minQty}</span> مقاعد فأكثر لخصم <span className="num">{nextRule.percent}%</span></> : 'لفريقك؟ زد العدد وخصّص المقاعد لاحقاً'}
@@ -137,7 +164,7 @@ export function Checkout({ slug, title, tiers, groupRules, maxQty, initial, init
         </section>
 
         <section className={s.step}>
-          <h2><span className="num">{tiers.length ? 3 : 2}</span> كوبون الخصم</h2>
+          <h2><span className="num">{n0 + 2}</span> كوبون الخصم</h2>
           <div className={s.couponRow}>
             <input className={s.input} dir="ltr" placeholder="NAF20" value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} onKeyDown={(e) => e.key === 'Enter' && setApplied(code.trim())} aria-label="رمز الكوبون" />
             {q.couponApplied ? (
@@ -152,7 +179,7 @@ export function Checkout({ slug, title, tiers, groupRules, maxQty, initial, init
         </section>
 
         <section className={s.step}>
-          <h2><span className="num">{tiers.length ? 4 : 3}</span> بياناتك</h2>
+          <h2><span className="num">{n0 + 3}</span> بياناتك</h2>
           {mustVerify ? (
             <>
               <p className={s.hint}>تحقّق من بريدك برمز يصلك فوراً — يصير هو حسابك، وتجد فيه دوراتك وفواتيرك.</p>

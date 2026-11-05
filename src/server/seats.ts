@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto'
 import { and, eq, isNull } from 'drizzle-orm'
 import { z } from 'zod'
 import { db, schema as s } from './db'
-import { upsertLearner } from './sales'
+import { accessUntilOf, upsertLearner } from './sales'
 import { audit } from './audit'
 
 export async function assignSeatCore(grantId: string, email: string, name: string, by: string): Promise<{ ok: boolean; error?: string; orderId?: string }> {
@@ -20,7 +20,7 @@ export async function assignSeatCore(grantId: string, email: string, name: strin
   if (dup) return { ok: false, error: 'هذا المشارك مسجّل في الدورة من قبل' }
   const [item] = await db.select().from(s.orderItems).where(and(eq(s.orderItems.orderId, g.orderId), eq(s.orderItems.courseId, g.courseId)))
   const eid = randomUUID()
-  await db.insert(s.enrollments).values({ id: eid, learnerId: learner.id, courseId: g.courseId, tierId: item?.tierId ?? null, orderId: g.orderId, source: 'seat' })
+  await db.insert(s.enrollments).values({ id: eid, learnerId: learner.id, courseId: g.courseId, tierId: item?.tierId ?? null, cohortId: g.cohortId, orderId: g.orderId, source: 'seat', accessUntil: await accessUntilOf(g.courseId, g.cohortId) })
   const claimed = await db.update(s.seatGrants).set({ email: learner.email, enrollmentId: eid }).where(and(eq(s.seatGrants.id, grantId), isNull(s.seatGrants.enrollmentId))).returning({ id: s.seatGrants.id })
   if (!claimed.length) {
     await db.delete(s.enrollments).where(eq(s.enrollments.id, eid))

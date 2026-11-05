@@ -9,7 +9,7 @@ export function blankCourse(): CourseInput {
   return {
     slug: '', title: '', subtitle: '', trackId: null, level: 'practitioner', mode: 'live', status: 'draft',
     publishAt: null, startsAt: null, endsAt: null, hours: 0, seatsTotal: null, seatsTaken: 0, city: '', venue: '', venueMapUrl: '',
-    coverId: null, price: 0, compareAt: null, saleEndsAt: null, free: false, description: '', outcomes: [], audience: [],
+    coverId: null, price: 0, compareAt: null, saleStartsAt: null, saleEndsAt: null, free: false, accessDays: null, teaser: { provider: 'none' }, description: '', outcomes: [], audience: [],
     requirements: [], faq: [], featured: false, certificate: DEFAULT_RULES, seoTitle: '', seoDescription: '', instructorIds: [], curriculum: [], tiers: [], groupRules: [],
   }
 }

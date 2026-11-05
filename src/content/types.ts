@@ -12,13 +12,20 @@ export type CourseStatus =
 export type DeliveryMode = 'recorded' | 'live' | 'onsite' | 'blended'
 export type Level = 'practitioner' | 'proficient' | 'expert'
 
+/** عرض عام: يُختار الأفضل للمشتري بينه وبين عرض الدورة، بلا تراكم */
+export type Promo = { label: string; kind: 'percent' | 'amount'; value: number; startsAt?: string | null; endsAt?: string | null }
+
 export type Pricing = {
   /** السعر الحالي بالهللة لتفادي أخطاء الفاصلة */
   amount: number
   /** السعر قبل العرض — يظهر مشطوباً */
   compareAt?: number
+  /** بداية العرض ISO — قبلها يُدفع السعر الأصلي */
+  saleStartsAt?: string
   /** نهاية العرض ISO — يظهر عدّاد تنازلي */
   saleEndsAt?: string
+  /** العروض العامة المنطبقة على الدورة (المنصة كلها أو مسارها أو هي) */
+  promos?: Promo[]
   free?: boolean
   /** سعر أرخص باقة — يُعرض «من …» */
   from?: boolean
@@ -60,6 +67,18 @@ export type Course = {
   pricing: Pricing
   city?: string
   instructor: string
+  /** دفعات الدورة الظاهرة — فارغ للدورة بلا دفعات */
+  cohorts?: CohortView[]
+}
+
+export type CohortView = {
+  id: string
+  title: string
+  state: 'open' | 'full' | 'soon' | 'closed'
+  startsAt?: string
+  endsAt?: string
+  seats?: { total: number; taken: number }
+  city?: string
 }
 
 export type Instructor = {

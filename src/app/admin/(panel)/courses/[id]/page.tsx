@@ -4,6 +4,7 @@ import { CourseEditor } from '@/admin/courses/CourseEditor'
 import { blankCourse, fromRow } from '@/admin/courses/form'
 import { isNull } from 'drizzle-orm'
 import { db, schema as s } from '@/server/db'
+import { cohortsForEdit } from '@/admin/cohorts/actions'
 
 export default async function EditCourse({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -12,6 +13,7 @@ export default async function EditCourse({ params }: { params: Promise<{ id: str
   if (id === 'new') return <CourseEditor id={null} initial={blankCourse()} tracks={tracks} instructors={instructors} media={media} templates={templates} />
   const data = await courseForEdit(id)
   if (!data) notFound()
+  const cohorts = await cohortsForEdit(id)
   return (
     <CourseEditor
       key={data.course.updatedAt}
@@ -22,6 +24,7 @@ export default async function EditCourse({ params }: { params: Promise<{ id: str
       instructors={instructors}
       media={media}
       templates={templates}
+      cohorts={cohorts}
     />
   )
 }

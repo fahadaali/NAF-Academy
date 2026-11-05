@@ -9,6 +9,8 @@ import type { PublicQuiz } from '@/lib/learning-types'
 import { playbackUrl } from './stream'
 import { ticketToken } from './tickets'
 import { inList } from '@/server/db/limits'
+import { hasAccess, withSession } from '@/lib/cohorts'
+import { sessionsOf } from './cohorts'
 
 export type LessonState = { id: string; title: string; type: LessonFull['type']; minutes: number; preview: boolean; access: Availability; done: boolean; startsAt: string | null }
 export type ModuleState = { id: string; title: string; lessons: LessonState[] }
@@ -19,12 +21,17 @@ const completable = (l: { type: string }) => l.type !== 'live' && l.type !== 'on
 export async function learnerCourse(slug: string, learner: LearnerRow | null) {
   const [course] = await db.select().from(s.courses).where(and(eq(s.courses.slug, slug), isNull(s.courses.deletedAt)))
   if (!course) return null
-  const [enrollment] = learner
+  const [row] = learner
     ? await db.select().from(s.enrollments).where(and(eq(s.enrollments.learnerId, learner.id), eq(s.enrollments.courseId, course.id), eq(s.enrollments.status, 'active')))
     : []
+  /* التسجيل المنتهي وصوله لا يفتح الدروس — يُعاد منفصلاً لتعرض الصفحة «انتهى وصولك» والتجديد */
+  const enrollment = row && hasAccess(row) ? row : undefined
+  const expired = row && !enrollment ? row : null
   const mods = await db.select().from(s.modules).where(eq(s.modules.courseId, course.id)).orderBy(asc(s.modules.sortOrder))
   const lessons = mods.length ? await db.select().from(s.lessons).where(inList(s.lessons.moduleId, mods.map((m) => m.id))).orderBy(asc(s.lessons.sortOrder)) : []
-  const ordered = mods.flatMap((m) => lessons.filter((l) => l.moduleId === m.id))
+  /* مواعيد الجلسات من دفعة المتدرب إن كان في دفعة */
+  const sessions = await sessionsOf(row?.cohortId)
+  const ordered = mods.flatMap((m) => lessons.filter((l) => l.moduleId === m.id)).map((l) => withSession(l, sessions))
   const prog = learner ? await db.select().from(s.lessonProgress).where(and(eq(s.lessonProgress.learnerId, learner.id), eq(s.lessonProgress.courseId, course.id))) : []
   const att = learner ? await db.select().from(s.attendance).where(and(eq(s.attendance.learnerId, learner.id), eq(s.attendance.courseId, course.id))) : []
   const done = new Set([...prog.filter((p) => p.completedAt).map((p) => p.lessonId), ...att.map((a) => a.lessonId)])
@@ -41,7 +48,8 @@ export async function learnerCourse(slug: string, learner: LearnerRow | null) {
   const last = prog.filter((p) => !p.completedAt).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0]
   const nextUp = ordered.find((l) => acc.get(l.id)?.state === 'open' && !done.has(l.id) && completable(l))
   const upcoming = ordered.filter((l) => (l.type === 'live' || l.type === 'onsite') && l.startsAt && joinWindow(l.startsAt, l.endsAt).state !== 'ended')
-  return { course, enrollment: enrollment ?? null, modules, ordered, pct, done, resumeId: last?.lessonId ?? nextUp?.id ?? ordered[0]?.id ?? null, upcoming }
+  const [cohort] = row?.cohortId ? await db.select().from(s.cohorts).where(eq(s.cohorts.id, row.cohortId)) : []
+  return { course, enrollment: enrollment ?? null, expired, cohort: cohort ?? null, modules, ordered, pct, done, resumeId: last?.lessonId ?? nextUp?.id ?? ordered[0]?.id ?? null, upcoming }
 }
 
 export type LessonView = {

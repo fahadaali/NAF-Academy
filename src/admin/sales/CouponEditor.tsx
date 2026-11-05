@@ -81,7 +81,7 @@ export function CouponEditor({ id, initial, courses, tracks }: { id: string | nu
   )
 }
 
-function Chips({ items, on, toggle, error }: { items: Opt[]; on: string[]; toggle: (id: string) => void; error?: string }) {
+export function Chips({ items, on, toggle, error }: { items: Opt[]; on: string[]; toggle: (id: string) => void; error?: string }) {
   return (
     <div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>

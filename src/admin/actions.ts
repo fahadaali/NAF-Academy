@@ -188,7 +188,7 @@ export async function saveInstructor(id: string | null, raw: InstructorInput): P
 
 const tables = {
   course: s.courses, track: s.tracks, instructor: s.instructors, media: s.media, coupon: s.coupons,
-  organization: s.organizations, template: s.certificateTemplates,
+  organization: s.organizations, template: s.certificateTemplates, cohort: s.cohorts, promotion: s.promotions,
 } as const
 export type Entity = keyof typeof tables
 const OWNER: Record<Entity, Perm> = TRASH_OWNER
@@ -199,6 +199,11 @@ export async function trash(entity: Entity, id: string) {
   const admin = await requirePermission(OWNER[entity])
   if (!idInput.safeParse(id).success) return
   const t = tables[entity]
+  /* دفعة فيها متدربون لا تُحذف — يُنقلون أولاً */
+  if (entity === 'cohort') {
+    const [n] = await db.select({ n: count() }).from(s.enrollments).where(and(eq(s.enrollments.cohortId, id), eq(s.enrollments.status, 'active')))
+    if (n.n) return
+  }
   await db.update(t).set({ deletedAt: now() }).where(eq(t.id, id))
   await audit(admin.name, 'trash', entity, id, 'نُقل إلى المحذوفات')
   refresh()
@@ -234,6 +239,13 @@ export async function purge(entity: Entity, id: string, confirm: string): Promis
     await db.delete(s.groupRules).where(eq(s.groupRules.courseId, id))
     await db.delete(s.interest).where(eq(s.interest.courseId, id))
     await db.delete(s.courseInstructors).where(eq(s.courseInstructors.courseId, id))
+    await db.delete(s.cohorts).where(eq(s.cohorts.courseId, id))
+  }
+  if (entity === 'cohort') {
+    const [sold] = await db.select({ n: count() }).from(s.orderItems).where(eq(s.orderItems.cohortId, id))
+    const [enr] = await db.select({ n: count() }).from(s.enrollments).where(eq(s.enrollments.cohortId, id))
+    if (sold.n || enr.n) return { ok: false, error: 'للدفعة طلبات أو تسجيلات — تبقى في السجل ولا تُحذف نهائياً' }
+    await db.delete(s.cohortSessions).where(eq(s.cohortSessions.cohortId, id))
   }
   if (entity === 'coupon') {
     const [used] = await db.select({ n: count() }).from(s.couponRedemptions).where(eq(s.couponRedemptions.couponId, id))

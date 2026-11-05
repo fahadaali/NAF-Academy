@@ -72,3 +72,5 @@
 .facts > div { padding: 12px 14px; border-radius: var(--radius-m); background: var(--surface-2); }
 .facts dt { font-size: 12.5px; color: var(--muted); }
 .facts dd { font-weight: 700; margin-block-start: 2px; display: grid; gap: 2px; overflow-wrap: anywhere; }
+.select { min-block-size: 34px; padding-inline: 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--text); font: inherit; font-size: 13px; max-inline-size: 180px; }
+.warn { color: var(--danger); font-weight: 600; }

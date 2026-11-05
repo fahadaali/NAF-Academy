@@ -1,6 +1,7 @@
 /* محرّك التسعير — دالة نقية. الخادم يستدعيها عند كل إنشاء طلب وإتمامه، والمتصفح للعرض فقط.
    الترتيب: سعر الوحدة (مع العرض الساري) × العدد ← خصم المجموعة ← خصم الكوبون ← المجموع (شامل الضريبة). */
 import { priceView } from './pricing'
+import type { Promo } from '@/content/types'
 
 export type QuoteCoupon = {
   code: string
@@ -21,7 +22,7 @@ export type QuoteCoupon = {
 }
 
 export type QuoteInput = {
-  price: { amount: number; compareAt?: number | null; saleEndsAt?: string | null; free?: boolean }
+  price: { amount: number; compareAt?: number | null; saleStartsAt?: string | null; saleEndsAt?: string | null; free?: boolean; promos?: Promo[] }
   quantity: number
   groupRules?: { minQty: number; percent: number }[]
   coupon?: QuoteCoupon | null
@@ -72,7 +73,7 @@ export function couponError(c: QuoteCoupon, ctx: { now: Date; courseId: string; 
 export function quote(i: QuoteInput): Quote {
   const now = i.now ?? new Date()
   const qty = Math.max(1, Math.min(MAX_QTY, Math.floor(i.quantity || 1)))
-  const pv = priceView({ amount: i.price.amount, compareAt: i.price.compareAt ?? undefined, saleEndsAt: i.price.saleEndsAt ?? undefined, free: i.price.free }, now)
+  const pv = priceView({ amount: i.price.amount, compareAt: i.price.compareAt ?? undefined, saleStartsAt: i.price.saleStartsAt ?? undefined, saleEndsAt: i.price.saleEndsAt ?? undefined, free: i.price.free, promos: i.price.promos }, now)
   const unit = pv.free ? 0 : pv.current
   const unitList = pv.original ?? unit
   const subtotal = unit * qty

@@ -6,6 +6,7 @@ export const EVENTS = [
   'inactive_nudge', 'halfway', 'completed',
   'registration_open', 'sale_ending', 'cart_abandoned',
   'certificate_issued', 'order_paid', 'refund_issued',
+  'cohort_transfer', 'access_ending',
 ] as const
 export type EventKey = (typeof EVENTS)[number]
 
@@ -56,6 +57,7 @@ export const VAR_LABEL: Record<string, string> = {
   starts: 'بداية الدورة', link: 'رابط الدرس أو الدورة', calendar: 'رابط التقويم', pct: 'نسبة الإنجاز',
   price: 'السعر', ends: 'انتهاء العرض', coupon: 'الكوبون', order: 'رقم الطلب', left: 'المتبقي على الجلسة',
   code: 'رقم الشهادة', total: 'المبلغ المدفوع', amount: 'المبلغ المسترد', seats: 'عدد المقاعد',
+  cohort: 'الدفعة', until: 'نهاية الوصول',
 }
 
 const COMMON = ['name', 'course', 'link']
@@ -113,6 +115,14 @@ export const EVENT_META: Record<EventKey, EventMeta> = {
     label: 'استرداد مبلغ', hint: 'بعد تنفيذ استرداد كامل أو جزئي من اللوحة — برابط الطلب والإشعار الدائن', category: 'transactional', sms: false,
     vars: ['name', 'course', 'link', 'order', 'amount'], facts: [['رقم الطلب', 'order'], ['المبلغ المسترد', 'amount']],
   },
+  cohort_transfer: {
+    label: 'النقل إلى دفعة', hint: 'حين ينقل الفريق المتدرب إلى دفعة أخرى — بمواعيدها الجديدة', category: 'transactional', sms: true,
+    vars: [...COMMON, 'cohort', 'starts', 'calendar'], facts: [['الدفعة', 'cohort'], ['تبدأ', 'starts']],
+  },
+  access_ending: {
+    label: 'قرب انتهاء الوصول', hint: 'قبل انتهاء مدة الوصول إلى الدورة بأسبوع', category: 'engagement', sms: false,
+    vars: [...COMMON, 'until', 'pct'], facts: [['ينتهي الوصول', 'until'], ['إنجازك', 'pct']],
+  },
 }
 
 const t = (subject: string, heading: string, body: string, cta: string, sms = ''): Template => ({ enabled: true, subject, heading, body, cta, sms })
@@ -131,6 +141,8 @@ export const DEFAULT_NOTIFY: NotifySettings = {
     cart_abandoned: t('أكمل تسجيلك في {{course}}', 'مقعدك بانتظارك', 'بدأت التسجيل في «{{course}}» ولم يكتمل. يمكنك المتابعة من حيث توقفت.', 'أكمل التسجيل'),
     certificate_issued: t('صدرت شهادتك: {{course}}', 'مبارك يا {{name}}', 'صدرت شهادة إتمام «{{course}}». يمكنك تنزيلها ومشاركتها، ويتحقق منها أي أحد برقمها.', 'عرض الشهادة', 'أكاديمية ناف: صدرت شهادتك في {{course}}. {{link}}'),
     order_paid: t('طلبك {{order}}: {{course}}', 'اكتمل طلبك', 'استلمنا دفعتك لـ«{{course}}». تجد الفاتورة الضريبية وتفاصيل الطلب في صفحته، ومنها يُخصَّص كل مقعد لصاحبه إن اشتريت لفريقك.', 'الطلب والفاتورة'),
+    cohort_transfer: t('انتقلت إلى {{cohort}}: {{course}}', 'دفعتك الجديدة', 'نُقل تسجيلك في «{{course}}» إلى «{{cohort}}». تقدّمك محفوظ، ومواعيد الجلسات صارت مواعيد الدفعة الجديدة — أضفها إلى تقويمك.', 'مساحة التعلّم', 'أكاديمية ناف: انتقلت إلى {{cohort}} في {{course}}. {{link}}'),
+    access_ending: t('وصولك إلى {{course}} ينتهي قريباً', 'أسبوع على نهاية الوصول', 'ينتهي وصولك إلى «{{course}}» في {{until}}، وأنجزت {{pct}}. أكمل ما بقي قبل الموعد، أو جدّد الوصول من صفحة الدورة.', 'تابع التعلّم'),
     refund_issued: t('استرداد لطلبك {{order}}', 'نفّذنا الاسترداد', 'أُعيد {{amount}} من طلب «{{course}}» إلى وسيلة الدفع نفسها، ويصل خلال المدة المعتادة لدى البنك. الإشعار الدائن في صفحة الطلب.', 'صفحة الطلب'),
   },
   sessionOffsets: [

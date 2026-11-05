@@ -91,8 +91,14 @@ export const courses = sqliteTable(
     /* التسعير */
     price: integer('price').notNull().default(0),
     compareAt: integer('compare_at'),
+    /** بداية العرض — قبلها يُدفع السعر الأصلي (فارغ = ساري من الآن) */
+    saleStartsAt: text('sale_starts_at'),
     saleEndsAt: text('sale_ends_at'),
     free: integer('free', { mode: 'boolean' }).notNull().default(false),
+    /** مدة الوصول بالأيام من التسجيل (أو من نهاية الدفعة) — فارغ = وصول دائم */
+    accessDays: integer('access_days'),
+    /** فيديو تشويقي في صفحة الدورة */
+    teaser: text('teaser', { mode: 'json' }).$type<VideoSource>().notNull().default(sql`'{"provider":"none"}'`),
     /* المحتوى */
     description: text('description').notNull().default(''),
     outcomes: text('outcomes', { mode: 'json' }).$type<string[]>().notNull().default(sql`'[]'`),
@@ -126,6 +132,67 @@ export const courseInstructors = sqliteTable(
   (t) => [primaryKey({ columns: [t.courseId, t.instructorId] })],
 )
 
+
+/* ───────── الدفعات ─────────
+   دورة لها دفعات: لكل دفعة مواعيدها ومقاعدها، والمنهج واحد. مواعيد الجلسات المباشرة والحضورية لكل دفعة في cohort_sessions،
+   والدورة بلا دفعات تعمل بمواعيد دروسها كما هي. */
+export const COHORT_STATUS = ['soon', 'open', 'closed'] as const
+export const cohorts = sqliteTable(
+  'cohorts',
+  {
+    id: id(),
+    courseId: text('course_id').notNull().references(() => courses.id, { onDelete: 'cascade' }),
+    title: text('title').notNull(),
+    status: text('status', { enum: COHORT_STATUS }).notNull().default('open'),
+    startsAt: text('starts_at'),
+    endsAt: text('ends_at'),
+    seatsTotal: integer('seats_total'),
+    seatsTaken: integer('seats_taken').notNull().default(0),
+    city: text('city').notNull().default(''),
+    venue: text('venue').notNull().default(''),
+    sortOrder: integer('sort_order').notNull().default(0),
+    ...stamps,
+    ...soft,
+  },
+  (t) => [index('cohorts_course_idx').on(t.courseId)],
+)
+
+export const cohortSessions = sqliteTable(
+  'cohort_sessions',
+  {
+    cohortId: text('cohort_id').notNull().references(() => cohorts.id, { onDelete: 'cascade' }),
+    lessonId: text('lesson_id').notNull().references(() => lessons.id, { onDelete: 'cascade' }),
+    startsAt: text('starts_at'),
+    endsAt: text('ends_at'),
+    joinUrl: text('join_url').notNull().default(''),
+    location: text('location').notNull().default(''),
+    recording: text('recording', { mode: 'json' }).$type<VideoSource | null>(),
+    ...stamps,
+  },
+  (t) => [primaryKey({ columns: [t.cohortId, t.lessonId] }), index('cohort_sessions_start_idx').on(t.startsAt)],
+)
+export type CohortRow = typeof cohorts.$inferSelect
+export type CohortSessionRow = typeof cohortSessions.$inferSelect
+
+/* ───────── العروض العامة ─────────
+   خصم تلقائي على المنصة كلها أو مسارات أو دورات في نافذة زمنية — يختار التسعير الأفضل للمشتري بينه وبين عرض الدورة (بلا تراكم). */
+export const PROMO_SCOPE = ['all', 'tracks', 'courses'] as const
+export const promotions = sqliteTable('promotions', {
+  id: id(),
+  label: text('label').notNull(),
+  scope: text('scope', { enum: PROMO_SCOPE }).notNull().default('all'),
+  trackIds: text('track_ids', { mode: 'json' }).$type<string[]>().notNull().default(sql`'[]'`),
+  courseIds: text('course_ids', { mode: 'json' }).$type<string[]>().notNull().default(sql`'[]'`),
+  kind: text('kind', { enum: ['percent', 'amount'] }).notNull().default('percent'),
+  /** نسبة 1–90 أو مبلغ بالهللة */
+  value: integer('value').notNull(),
+  startsAt: text('starts_at'),
+  endsAt: text('ends_at'),
+  active: integer('active', { mode: 'boolean' }).notNull().default(true),
+  ...stamps,
+  ...soft,
+})
+export type PromotionRow = typeof promotions.$inferSelect
 
 export const modules = sqliteTable('modules', {
   id: id(),
@@ -310,6 +377,7 @@ export const orderItems = sqliteTable('order_items', {
   orderId: text('order_id').notNull().references(() => orders.id, { onDelete: 'cascade' }),
   courseId: text('course_id').notNull().references(() => courses.id),
   tierId: text('tier_id').references(() => priceTiers.id, { onDelete: 'set null' }),
+  cohortId: text('cohort_id').references(() => cohorts.id, { onDelete: 'set null' }),
   title: text('title').notNull(),
   tierName: text('tier_name').notNull().default(''),
   unitPrice: integer('unit_price').notNull(),
@@ -370,10 +438,14 @@ export const enrollments = sqliteTable(
     orderId: text('order_id').references(() => orders.id, { onDelete: 'set null' }),
     source: text('source', { enum: ENROLL_SOURCE }).notNull(),
     status: text('status', { enum: ['active', 'canceled'] }).notNull().default('active'),
+    /** الدفعة — فارغ للدورات بلا دفعات */
+    cohortId: text('cohort_id').references(() => cohorts.id, { onDelete: 'set null' }),
+    /** نهاية الوصول — فارغ = دائم */
+    accessUntil: text('access_until'),
     ...stamps,
   },
   (t) => [
-    index('enroll_course_idx').on(t.courseId), index('enroll_learner_idx').on(t.learnerId),
+    index('enroll_course_idx').on(t.courseId), index('enroll_learner_idx').on(t.learnerId), index('enroll_cohort_idx').on(t.cohortId),
     /* تسجيل نشط واحد للمتدرب في الدورة — مهما تسابقت الطلبات */
     uniqueIndex('enroll_one_active').on(t.learnerId, t.courseId).where(sql`status = 'active'`),
   ],
@@ -384,6 +456,7 @@ export const seatGrants = sqliteTable('seat_grants', {
   id: id(),
   orderId: text('order_id').notNull().references(() => orders.id, { onDelete: 'cascade' }),
   courseId: text('course_id').notNull().references(() => courses.id),
+  cohortId: text('cohort_id').references(() => cohorts.id, { onDelete: 'set null' }),
   email: text('email'),
   enrollmentId: text('enrollment_id'),
   ...stamps,

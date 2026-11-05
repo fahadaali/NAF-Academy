@@ -40,6 +40,7 @@ export function PriceTag({ pricing, size = 'm' }: { pricing: Pricing; size?: 's'
         )}
         {v.savePct ? <span className={`${styles.save} num`}>وفّر {v.savePct}%</span> : null}
       </div>
+      {v.label && <span className={styles.promo}>{v.label}</span>}
       {left && !left.done && (
         <div className={`${styles.countdown} num`}>
           <span className={styles.pulse} aria-hidden="true" />

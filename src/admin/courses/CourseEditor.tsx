@@ -17,13 +17,15 @@ import {
 } from '@/admin/ui/kit'
 import { MediaPicker, urlOf } from '@/admin/ui/MediaPicker'
 import { STATUS_HINT, STATUS_LABEL, STATUS_ORDER } from './labels'
-import { LessonDetail } from './LessonDetail'
+import { LessonDetail, VideoField } from './LessonDetail'
+import { CohortsPanel } from '@/admin/cohorts/CohortsPanel'
+import type { CohortRow, CohortSessionRow } from '@/server/db/schema'
 import { DEFAULT_RULES } from '@/lib/certificate'
 import styles from './editor.module.css'
 import { useCan } from '@/admin/ui/perms'
 
 const TABS = [
-  ['basics', 'الأساسيات'], ['pricing', 'التسعير والعروض'], ['schedule', 'الموعد والمكان'], ['content', 'المحتوى'],
+  ['basics', 'الأساسيات'], ['pricing', 'التسعير والعروض'], ['schedule', 'الموعد والمكان'], ['cohorts', 'الدفعات'], ['content', 'المحتوى'],
   ['curriculum', 'المنهج'], ['certificate', 'الشهادة'], ['people', 'المدربون'], ['publish', 'النشر والظهور'],
 ] as const
 type Tab = (typeof TABS)[number][0]
@@ -43,9 +45,10 @@ type Props = {
   instructors: InstructorRow[]
   media: Media[]
   templates: { id: string; name: string }[]
+  cohorts?: { row: CohortRow; used: number; sessions: CohortSessionRow[] }[]
 }
 
-export function CourseEditor({ id, initial, previewToken, tracks, instructors, media, templates }: Props) {
+export function CourseEditor({ id, initial, previewToken, tracks, instructors, media, templates, cohorts = [] }: Props) {
   const write = useCan()('content.write')
   const router = useRouter()
   const [v, setV] = useState<CourseInput>(initial)
@@ -147,6 +150,7 @@ export function CourseEditor({ id, initial, previewToken, tracks, instructors, m
               <Field label="صورة الغلاف" hint="بدونها تظهر بطاقة بحرف المسار. اضبط نقطة التركيز من المكتبة.">
                 <MediaPicker value={v.coverId} onChange={(x) => set('coverId', x)} library={media} label="صورة الغلاف" />
               </Field>
+              <VideoField label="فيديو تشويقي" hint="يظهر زر تشغيل على غلاف صفحة الدورة — قصير يعرّف بالدورة والمدرب" value={v.teaser ?? { provider: 'none' }} onChange={(x) => set('teaser', x)} error={err('teaser.uid') ?? err('teaser.url')} />
             </Section>
           )}
 
@@ -163,14 +167,19 @@ export function CourseEditor({ id, initial, previewToken, tracks, instructors, m
                       <Money value={v.compareAt} onChange={(x) => set('compareAt', x)} placeholder="3490" />
                     </Field>
                   </Grid>
-                  <Field label="نهاية العرض" hint="يظهر عدّاد تنازلي، وبعد الموعد يعود السعر الأصلي تلقائياً">
-                    <DateTime value={v.saleEndsAt} onChange={(x) => set('saleEndsAt', x)} />
-                  </Field>
+                  <Grid>
+                    <Field label="بداية العرض" hint="فارغ = ساري من الآن. قبلها يُدفع السعر الأصلي">
+                      <DateTime value={v.saleStartsAt ?? null} onChange={(x) => set('saleStartsAt', x)} />
+                    </Field>
+                    <Field label="نهاية العرض" error={err('saleEndsAt')} hint="يظهر عدّاد تنازلي، وبعد الموعد يعود السعر الأصلي تلقائياً">
+                      <DateTime value={v.saleEndsAt} onChange={(x) => set('saleEndsAt', x)} />
+                    </Field>
+                  </Grid>
                 </>
               )}
               <div className={styles.priceNote}>
                 {v.free ? 'ستظهر «مجاناً».' : pv.original ? `ستظهر بخصم ${pv.savePct}% — يدفع المتدرب ${(pv.current / 100).toLocaleString('en-US')} ريالاً.` : 'ستظهر بسعر واحد بلا عرض.'}
-                <span>{v.tiers.length ? 'للدورة باقات — سعر الباقة يحلّ محل السعر الأساسي، ونهاية العرض تسري على الباقات أيضاً.' : 'الكوبونات تُدار من قسم المبيعات ← الكوبونات.'}</span>
+                <span>{v.tiers.length ? 'للدورة باقات — سعر الباقة يحلّ محل السعر الأساسي، ونافذة العرض تسري على الباقات أيضاً.' : 'الكوبونات والعروض العامة (على المنصة أو مسار) تُدار من قسم المبيعات.'}</span>
               </div>
             </Section>
           )}
@@ -183,6 +192,9 @@ export function CourseEditor({ id, initial, previewToken, tracks, instructors, m
                 <Field label="تاريخ البدء"><DateTime value={v.startsAt} onChange={(x) => set('startsAt', x)} /></Field>
                 <Field label="تاريخ الانتهاء" error={err('endsAt')}><DateTime value={v.endsAt} onChange={(x) => set('endsAt', x)} /></Field>
               </Grid>
+              <Field label="مدة الوصول (أيام)" hint="فارغ = وصول دائم. تُحسب من التسجيل، أو من نهاية الدفعة إن كانت لاحقة" error={err('accessDays')}>
+                <Input type="number" dir="ltr" min={1} value={v.accessDays ?? ''} onChange={(e) => set('accessDays', e.target.value ? Number(e.target.value) : null)} placeholder="365" />
+              </Field>
               <Grid cols={3}>
                 <Field label="عدد الساعات"><Input type="number" dir="ltr" min={0} step={0.5} value={v.hours} onChange={(e) => set('hours', Number(e.target.value))} /></Field>
                 <Field label="السعة (مقاعد)" hint="فارغ = بلا حد"><Input type="number" dir="ltr" min={1} value={v.seatsTotal ?? ''} onChange={(e) => set('seatsTotal', e.target.value ? Number(e.target.value) : null)} /></Field>
@@ -199,6 +211,11 @@ export function CourseEditor({ id, initial, previewToken, tracks, instructors, m
               )}
             </Section>
           )}
+
+          {tab === 'cohorts' && (id
+            ? <CohortsPanel courseId={id} items={cohorts} canWrite={write}
+                lessons={v.curriculum.flatMap((m) => m.lessons).filter((l): l is typeof l & { id: string } => !!l.id && (l.type === 'live' || l.type === 'onsite')).map((l) => ({ id: l.id, title: l.title, type: l.type as 'live' | 'onsite' }))} />
+            : <Section title="الدفعات"><p>احفظ الدورة أولاً، ثم أضف دفعاتها.</p></Section>)}
 
           {tab === 'content' && (
             <>
@@ -324,7 +341,7 @@ function tabOf(key: string): Tab {
   if (/^curriculum|completeAt/.test(key)) return 'curriculum'
   if (/^certificate/.test(key)) return 'certificate'
   if (/price|compare|sale|free|tiers|groupRules/.test(key)) return 'pricing'
-  if (/starts|ends|seats|city|venue|hours/.test(key)) return 'schedule'
+  if (/starts|ends|seats|city|venue|hours|access/.test(key)) return 'schedule'
   if (/publish|seo/.test(key)) return 'publish'
   if (/outcomes|audience|requirements|faq|description/.test(key)) return 'content'
   return 'basics'
