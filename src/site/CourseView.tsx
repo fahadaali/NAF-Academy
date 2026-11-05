@@ -5,6 +5,9 @@ import { PriceTag } from '@/components/PriceTag'
 import { Picture } from '@/components/Picture'
 import { CourseCard } from '@/components/CourseCard'
 import { Prose } from '@/components/Prose'
+import { Riyal } from '@/components/Riyal'
+import { CouponBanner } from './CouponBanner'
+import { formatAmount } from '@/lib/pricing'
 import { levelLabel, modeLabel, statusView } from '@/lib/course-meta'
 import { formatDay, formatHijri, formatTime, formatWeekday } from '@/lib/dates'
 import s from './course.module.css'
@@ -12,7 +15,8 @@ import s from './course.module.css'
 const LESSON: Record<string, string> = { video: 'فيديو', article: 'مقال', file: 'ملف', quiz: 'اختبار', live: 'مباشر', onsite: 'حضوري', assignment: 'واجب' }
 
 export function CourseView({ data, preview }: { data: CourseDetail; preview?: boolean }) {
-  const { course: c, row, track, instructors, curriculum, related } = data
+  const { course: c, row, track, instructors, curriculum, related, tiers, groupRules } = data
+  const fromPrice = tiers.length ? Math.min(...tiers.map((t) => t.price)) : null
   const st = statusView[c.status] ?? { label: 'مسودة', cta: 'معاينة فقط', dim: false, tone: 'soon' as const }
   const lessons = curriculum.reduce((a, m) => a + m.lessons.length, 0)
   const minutes = curriculum.reduce((a, m) => a + m.lessons.reduce((b, l) => b + l.minutes, 0), 0)
@@ -22,6 +26,7 @@ export function CourseView({ data, preview }: { data: CourseDetail; preview?: bo
   return (
     <article className={s.page} data-status={st.tone}>
       {preview && <div className={s.previewBar}>معاينة — الحالة الحالية لا تُظهر الدورة للعموم</div>}
+      <CouponBanner slug={c.slug} />
 
       <header className={s.hero} data-surface="night">
         {c.cover && <div className={s.heroImg}><Picture media={c.cover} priority /></div>}
@@ -56,6 +61,24 @@ export function CourseView({ data, preview }: { data: CourseDetail; preview?: bo
               <ul role="list" className={s.outcomes}>
                 {row.outcomes.map((o, i) => <li key={i} className="reveal" style={{ ['--d' as string]: i }}><span className="num">{String(i + 1).padStart(2, '0')}</span>{o}</li>)}
               </ul>
+            </section>
+          )}
+
+          {tiers.length > 0 && (
+            <section className={s.block}>
+              <h2 className={s.h2}>الباقات</h2>
+              <div className={s.tiers}>
+                {tiers.map((t, i) => (
+                  <a key={t.id} href={`${enroll}?tier=${t.id}`} className={`reveal ${s.tier}`} data-highlight={t.highlight ? '1' : '0'} style={{ ['--d' as string]: i }}>
+                    {t.highlight && <span className={s.flag}>الأكثر اختياراً</span>}
+                    <strong>{t.name}</strong>
+                    <span className={`num ${s.tierPrice}`}>{formatAmount(t.price)} <Riyal />{t.compareAt ? <s>{formatAmount(t.compareAt)}</s> : null}</span>
+                    {t.description && <span className={s.muted}>{t.description}</span>}
+                    {t.features.length > 0 && <ul role="list">{t.features.map((f) => <li key={f}>{f}</li>)}</ul>}
+                    <span className={s.tierGo}>اختر هذه الباقة ←</span>
+                  </a>
+                ))}
+              </div>
             </section>
           )}
 
@@ -137,7 +160,8 @@ export function CourseView({ data, preview }: { data: CourseDetail; preview?: bo
         <aside className={s.aside} id="enroll">
           <div className={s.card} data-dim={st.dim ? '1' : '0'}>
             {st.dim && <span className={s.closedBadge}>{st.label}</span>}
-            <PriceTag pricing={c.pricing} size="l" />
+            {fromPrice !== null ? <p className={`num ${s.from}`}><span>تبدأ من</span> {formatAmount(fromPrice)} <Riyal /></p> : <PriceTag pricing={c.pricing} size="l" />}
+            {groupRules.length > 0 && <p className={s.muted}>خصم حتى <span className="num">{Math.max(...groupRules.map((g) => g.percent))}%</span> عند تسجيل <span className="num">{groupRules[0].minQty}</span> مقاعد فأكثر</p>}
             {c.seats && c.status !== 'closed' && (
               <div className={s.seats}>
                 <div className={s.bar}><span style={{ ['--f' as string]: c.seats.taken / c.seats.total }} /></div>
@@ -168,7 +192,7 @@ export function CourseView({ data, preview }: { data: CourseDetail; preview?: bo
       )}
 
       <div className={s.mobileBar} data-dim={st.dim ? '1' : '0'}>
-        <PriceTag pricing={c.pricing} size="s" />
+        {fromPrice !== null ? <span className={`num ${s.from}`} style={{ fontSize: 20 }}>من {formatAmount(fromPrice)} <Riyal /></span> : <PriceTag pricing={c.pricing} size="s" />}
         <a href={enroll} className="btn">{st.cta}</a>
       </div>
     </article>

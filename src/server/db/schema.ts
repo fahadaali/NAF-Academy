@@ -168,3 +168,217 @@ export type CourseRow = typeof courses.$inferSelect
 export type ModuleRow = typeof modules.$inferSelect
 export type LessonRow = typeof lessons.$inferSelect
 
+
+/* ═══════════════════ البيع ═══════════════════ */
+
+export const learners = sqliteTable('learners', {
+  id: id(),
+  name: text('name').notNull(),
+  /** البريد بأحرف صغيرة — مفتاح الربط بالحساب في مرحلة الدخول */
+  email: text('email').notNull().unique(),
+  phone: text('phone').notNull().default(''),
+  org: text('org').notNull().default(''),
+  vatNumber: text('vat_number').notNull().default(''),
+  ...stamps,
+})
+
+export const priceTiers = sqliteTable('price_tiers', {
+  id: id(),
+  courseId: text('course_id').notNull().references(() => courses.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(),
+  description: text('description').notNull().default(''),
+  price: integer('price').notNull(),
+  compareAt: integer('compare_at'),
+  features: text('features', { mode: 'json' }).$type<string[]>().notNull().default(sql`'[]'`),
+  highlight: integer('highlight', { mode: 'boolean' }).notNull().default(false),
+  /** سعة خاصة بالباقة (مثل جلسات خاصة محدودة) */
+  capacity: integer('capacity'),
+  sortOrder: integer('sort_order').notNull().default(0),
+})
+
+/** خصم المقاعد الجماعية: من minQty مقعداً فأكثر ← percent٪ */
+export const groupRules = sqliteTable('group_rules', {
+  id: id(),
+  courseId: text('course_id').notNull().references(() => courses.id, { onDelete: 'cascade' }),
+  minQty: integer('min_qty').notNull(),
+  percent: integer('percent').notNull(),
+})
+
+export const COUPON_KIND = ['percent', 'amount'] as const
+export const COUPON_SCOPE = ['all', 'courses', 'tracks'] as const
+
+export const coupons = sqliteTable('coupons', {
+  id: id(),
+  code: text('code').notNull().unique(),
+  label: text('label').notNull().default(''),
+  kind: text('kind', { enum: COUPON_KIND }).notNull().default('percent'),
+  /** نسبة 1–100 أو مبلغ بالهللة */
+  value: integer('value').notNull(),
+  scope: text('scope', { enum: COUPON_SCOPE }).notNull().default('all'),
+  courseIds: text('course_ids', { mode: 'json' }).$type<string[]>().notNull().default(sql`'[]'`),
+  trackIds: text('track_ids', { mode: 'json' }).$type<string[]>().notNull().default(sql`'[]'`),
+  startsAt: text('starts_at'),
+  endsAt: text('ends_at'),
+  maxUses: integer('max_uses'),
+  maxPerLearner: integer('max_per_learner'),
+  minAmount: integer('min_amount'),
+  /** مثل company.sa — يقصر الكوبون على بريد المنشأة */
+  emailDomain: text('email_domain').notNull().default(''),
+  stackWithSale: integer('stack_with_sale', { mode: 'boolean' }).notNull().default(false),
+  active: integer('active', { mode: 'boolean' }).notNull().default(true),
+  batch: text('batch').notNull().default(''),
+  ...stamps,
+  ...soft,
+})
+
+export const couponRedemptions = sqliteTable(
+  'coupon_redemptions',
+  {
+    id: id(),
+    couponId: text('coupon_id').notNull().references(() => coupons.id, { onDelete: 'cascade' }),
+    orderId: text('order_id').notNull(),
+    learnerId: text('learner_id').notNull(),
+    amount: integer('amount').notNull(),
+    ...stamps,
+  },
+  (t) => [index('redemptions_coupon_idx').on(t.couponId)],
+)
+
+export const ORDER_STATUS = ['pending', 'paid', 'failed', 'canceled', 'expired', 'refunded', 'partially_refunded'] as const
+export const PAY_METHOD = ['gateway', 'free', 'bank_transfer', 'cash', 'grant'] as const
+
+export const orders = sqliteTable(
+  'orders',
+  {
+    id: id(),
+    number: text('number').notNull().unique(),
+    /** رمز وصول سري لصفحات الطلب والفاتورة */
+    token: text('token').notNull(),
+    learnerId: text('learner_id').notNull().references(() => learners.id),
+    status: text('status', { enum: ORDER_STATUS }).notNull().default('pending'),
+    method: text('method', { enum: PAY_METHOD }).notNull().default('gateway'),
+    buyer: text('buyer', { mode: 'json' }).$type<{ name: string; email: string; phone: string; org: string; vatNumber: string }>().notNull(),
+    subtotal: integer('subtotal').notNull(),
+    groupDiscount: integer('group_discount').notNull().default(0),
+    couponDiscount: integer('coupon_discount').notNull().default(0),
+    total: integer('total').notNull(),
+    vat: integer('vat').notNull(),
+    refunded: integer('refunded').notNull().default(0),
+    couponId: text('coupon_id').references(() => coupons.id, { onDelete: 'set null' }),
+    couponCode: text('coupon_code').notNull().default(''),
+    gatewayPaymentId: text('gateway_payment_id'),
+    expiresAt: text('expires_at'),
+    paidAt: text('paid_at'),
+    note: text('note').notNull().default(''),
+    /** في الطلب الجماعي: هل يحضر المشتري بنفسه (يأخذ أول مقعد) */
+    attendSelf: integer('attend_self', { mode: 'boolean' }).notNull().default(true),
+    createdBy: text('created_by').notNull().default('web'),
+    ...stamps,
+  },
+  (t) => [index('orders_status_idx').on(t.status), index('orders_learner_idx').on(t.learnerId)],
+)
+
+export const orderItems = sqliteTable('order_items', {
+  id: id(),
+  orderId: text('order_id').notNull().references(() => orders.id, { onDelete: 'cascade' }),
+  courseId: text('course_id').notNull().references(() => courses.id),
+  tierId: text('tier_id').references(() => priceTiers.id, { onDelete: 'set null' }),
+  title: text('title').notNull(),
+  tierName: text('tier_name').notNull().default(''),
+  unitPrice: integer('unit_price').notNull(),
+  listPrice: integer('list_price').notNull(),
+  quantity: integer('quantity').notNull().default(1),
+  lineTotal: integer('line_total').notNull(),
+})
+
+export const payments = sqliteTable('payments', {
+  id: id(),
+  orderId: text('order_id').notNull().references(() => orders.id, { onDelete: 'cascade' }),
+  gateway: text('gateway').notNull(),
+  gatewayId: text('gateway_id').notNull().unique(),
+  status: text('status').notNull(),
+  amount: integer('amount').notNull(),
+  method: text('method').notNull().default(''),
+  message: text('message').notNull().default(''),
+  ...stamps,
+})
+
+export const refunds = sqliteTable('refunds', {
+  id: id(),
+  orderId: text('order_id').notNull().references(() => orders.id, { onDelete: 'cascade' }),
+  amount: integer('amount').notNull(),
+  reason: text('reason').notNull().default(''),
+  gatewayRefundId: text('gateway_refund_id'),
+  status: text('status').notNull().default('done'),
+  by: text('by').notNull(),
+  ...stamps,
+})
+
+export const invoices = sqliteTable('invoices', {
+  id: id(),
+  number: text('number').notNull().unique(),
+  kind: text('kind', { enum: ['invoice', 'credit_note'] }).notNull().default('invoice'),
+  orderId: text('order_id').notNull().references(() => orders.id, { onDelete: 'cascade' }),
+  refOf: text('ref_of'),
+  seller: text('seller', { mode: 'json' }).$type<{ name: string; vatNumber: string; crNumber: string; address: string }>().notNull(),
+  buyer: text('buyer', { mode: 'json' }).$type<{ name: string; email: string; org: string; vatNumber: string }>().notNull(),
+  lines: text('lines', { mode: 'json' }).$type<{ title: string; quantity: number; unit: number; total: number }[]>().notNull(),
+  total: integer('total').notNull(),
+  vat: integer('vat').notNull(),
+  qr: text('qr').notNull(),
+  issuedAt: text('issued_at').notNull(),
+})
+
+export const ENROLL_SOURCE = ['purchase', 'free', 'grant', 'manual', 'seat'] as const
+export const enrollments = sqliteTable(
+  'enrollments',
+  {
+    id: id(),
+    learnerId: text('learner_id').notNull().references(() => learners.id),
+    courseId: text('course_id').notNull().references(() => courses.id),
+    tierId: text('tier_id').references(() => priceTiers.id, { onDelete: 'set null' }),
+    orderId: text('order_id').references(() => orders.id, { onDelete: 'set null' }),
+    source: text('source', { enum: ENROLL_SOURCE }).notNull(),
+    status: text('status', { enum: ['active', 'canceled'] }).notNull().default('active'),
+    ...stamps,
+  },
+  (t) => [index('enroll_course_idx').on(t.courseId), index('enroll_learner_idx').on(t.learnerId)],
+)
+
+/** مقاعد طلب جماعي — يُخصَّص كل مقعد ببريد موظف فيصير تسجيلاً */
+export const seatGrants = sqliteTable('seat_grants', {
+  id: id(),
+  orderId: text('order_id').notNull().references(() => orders.id, { onDelete: 'cascade' }),
+  courseId: text('course_id').notNull().references(() => courses.id),
+  email: text('email'),
+  enrollmentId: text('enrollment_id'),
+  ...stamps,
+})
+
+export const INTEREST_KIND = ['notify_open', 'waitlist', 'next_cohort', 'register'] as const
+export const interest = sqliteTable(
+  'interest',
+  {
+    id: id(),
+    courseId: text('course_id').notNull().references(() => courses.id, { onDelete: 'cascade' }),
+    kind: text('kind', { enum: INTEREST_KIND }).notNull(),
+    name: text('name').notNull().default(''),
+    email: text('email').notNull(),
+    phone: text('phone').notNull().default(''),
+    notifiedAt: text('notified_at'),
+    ...stamps,
+  },
+  (t) => [index('interest_course_idx').on(t.courseId)],
+)
+
+export const counters = sqliteTable('counters', {
+  key: text('key').primaryKey(),
+  value: integer('value').notNull().default(0),
+})
+
+export type CouponRow = typeof coupons.$inferSelect
+export type TierRow = typeof priceTiers.$inferSelect
+export type GroupRuleRow = typeof groupRules.$inferSelect
+export type OrderRow = typeof orders.$inferSelect
+export type OrderItemRow = typeof orderItems.$inferSelect
+export type LearnerRow = typeof learners.$inferSelect

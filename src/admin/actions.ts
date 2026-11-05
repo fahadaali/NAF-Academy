@@ -30,7 +30,7 @@ export async function saveCourse(id: string | null, raw: CourseInput): Promise<R
   const admin = await requireAdmin()
   const p = courseInput.safeParse(raw)
   if (!p.success) return { ok: false, errors: errorsOf(p.error), message: 'راجع الحقول المعلّمة' }
-  const { instructorIds, curriculum, ...v } = p.data
+  const { instructorIds, curriculum, tiers, groupRules, ...v } = p.data
   const cid = id ?? randomUUID()
   try {
     if (id) await db.update(s.courses).set({ ...v, updatedAt: now() }).where(eq(s.courses.id, id))
@@ -57,6 +57,19 @@ export async function saveCourse(id: string | null, raw: CourseInput): Promise<R
         })),
       )
   }
+  /* الباقات تُحدَّث بمعرّفاتها حتى لا تنقطع صلتها بالطلبات السابقة */
+  const oldTiers = await db.select({ id: s.priceTiers.id }).from(s.priceTiers).where(eq(s.priceTiers.courseId, cid))
+  const keep = new Set<string>()
+  for (const [i, t] of tiers.entries()) {
+    const known = t.id && oldTiers.some((o) => o.id === t.id)
+    const row = { name: t.name, description: t.description, price: t.price, compareAt: t.compareAt, features: t.features, highlight: t.highlight, capacity: t.capacity, sortOrder: i }
+    if (known) { await db.update(s.priceTiers).set(row).where(eq(s.priceTiers.id, t.id!)); keep.add(t.id!) }
+    else { const tid = randomUUID(); await db.insert(s.priceTiers).values({ ...row, id: tid, courseId: cid }); keep.add(tid) }
+  }
+  const drop = oldTiers.filter((o) => !keep.has(o.id)).map((o) => o.id)
+  if (drop.length) await db.delete(s.priceTiers).where(inArray(s.priceTiers.id, drop))
+  await db.delete(s.groupRules).where(eq(s.groupRules.courseId, cid))
+  if (groupRules.length) await db.insert(s.groupRules).values(groupRules.map((g) => ({ id: randomUUID(), courseId: cid, ...g })))
   await audit(admin.name, id ? 'update' : 'create', 'course', cid, v.title, p.data)
   refresh()
   return { ok: true, id: cid }
@@ -89,6 +102,10 @@ export async function duplicateCourse(id: string): Promise<Result> {
     const ls = await db.select().from(s.lessons).where(eq(s.lessons.moduleId, m.id))
     if (ls.length) await db.insert(s.lessons).values(ls.map((l) => ({ ...l, id: randomUUID(), moduleId: mid })))
   }
+  const tiers = await db.select().from(s.priceTiers).where(eq(s.priceTiers.courseId, id))
+  if (tiers.length) await db.insert(s.priceTiers).values(tiers.map((t) => ({ ...t, id: randomUUID(), courseId: nid })))
+  const rules = await db.select().from(s.groupRules).where(eq(s.groupRules.courseId, id))
+  if (rules.length) await db.insert(s.groupRules).values(rules.map((r) => ({ ...r, id: randomUUID(), courseId: nid })))
   await audit(admin.name, 'duplicate', 'course', nid, `نسخة من ${c.title}`)
   return { ok: true, id: nid }
 }

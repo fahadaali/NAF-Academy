@@ -71,6 +71,13 @@ for (const [i, c] of courses.entries()) {
     ],
   })
   await db.insert(s.courseInstructors).values({ courseId: id, instructorId: instId.get(c.instructor)!, sortOrder: 0 })
+  if (i === 0) {
+    await db.insert(s.priceTiers).values([
+      { id: randomUUID(), courseId: id, name: 'الأساسية', description: 'الجلسات المباشرة وتسجيلاتها', price: 249000, compareAt: 349000, features: ['12 ساعة مباشرة', 'تسجيلات الجلسات', 'شهادة إتمام'], sortOrder: 0 },
+      { id: randomUUID(), courseId: id, name: 'المميزة', description: 'مع مراجعة شخصية لعقدك', price: 349000, compareAt: 449000, features: ['كل ما في الأساسية', 'جلسة خاصة 45 دقيقة', 'مراجعة عقد من عملك'], highlight: true, capacity: 10, sortOrder: 1 },
+    ])
+    await db.insert(s.groupRules).values([{ id: randomUUID(), courseId: id, minQty: 3, percent: 10 }, { id: randomUUID(), courseId: id, minQty: 5, percent: 15 }])
+  }
   for (const [mi, m] of demoModules.entries()) {
     const mid = randomUUID()
     await db.insert(s.modules).values({ id: mid, courseId: id, title: m.title, sortOrder: mi })
@@ -80,6 +87,7 @@ for (const [i, c] of courses.entries()) {
   }
 }
 
+await db.insert(s.coupons).values({ id: randomUUID(), code: 'WELCOME10', label: 'ترحيب — كوبون تجريبي', kind: 'percent', value: 10, maxPerLearner: 1, stackWithSale: true })
 await db.insert(s.settings).values({ key: 'home', value: { ...DEFAULT_HOME, hero, ladder, stats, corporate } })
 await db.insert(s.auditLog).values({ actor: 'system', action: 'seed', entity: 'site', entityId: '-', summary: 'بذر المحتوى المبدئي' })
 console.log(`db: seeded ${tracks.length} tracks, ${courses.length} courses, ${instructors.length} instructors`)

@@ -70,7 +70,7 @@ export function CourseEditor({ id, initial, previewToken, tracks, instructors, m
       setErrors(r.errors)
       setMsg({ ok: false, text: r.message ?? 'راجع الحقول' })
       const first = Object.keys(r.errors)[0] ?? ''
-      const where: Tab = /price|compare|sale|free/.test(first) ? 'pricing' : /starts|ends|seats|city|venue|hours/.test(first) ? 'schedule'
+      const where: Tab = /price|compare|sale|free|tiers|groupRules/.test(first) ? 'pricing' : /starts|ends|seats|city|venue|hours/.test(first) ? 'schedule'
         : /curriculum/.test(first) ? 'curriculum' : /publish|seo/.test(first) ? 'publish' : 'basics'
       setTab(where)
       return
@@ -106,7 +106,7 @@ export function CourseEditor({ id, initial, previewToken, tracks, instructors, m
       <PageHead
         title={id ? v.title || 'دورة' : 'دورة جديدة'}
         sub={id ? `/${v.slug}` : 'ابدأ بالعنوان والمسار، ثم أكمل بقية التبويبات'}
-        actions={id && previewToken ? <a className="btn ghost" href={`/courses/${v.slug}/preview/${previewToken}`} target="_blank" rel="noreferrer">معاينة الصفحة ↗</a> : null}
+        actions={id && previewToken ? <><a className="btn ghost" href={`/admin/courses/${id}/learners`}>المسجّلون</a><a className="btn ghost" href={`/courses/${v.slug}/preview/${previewToken}`} target="_blank" rel="noreferrer">معاينة الصفحة ↗</a></> : null}
       />
 
       <div className={styles.layout}>
@@ -166,10 +166,12 @@ export function CourseEditor({ id, initial, previewToken, tracks, instructors, m
               )}
               <div className={styles.priceNote}>
                 {v.free ? 'ستظهر «مجاناً».' : pv.original ? `ستظهر بخصم ${pv.savePct}% — يدفع المتدرب ${(pv.current / 100).toLocaleString('en-US')} ريالاً.` : 'ستظهر بسعر واحد بلا عرض.'}
-                <span>الكوبونات والباقات تُدار من قسم المبيعات (المرحلة القادمة).</span>
+                <span>{v.tiers.length ? 'للدورة باقات — سعر الباقة يحلّ محل السعر الأساسي، ونهاية العرض تسري على الباقات أيضاً.' : 'الكوبونات تُدار من قسم المبيعات ← الكوبونات.'}</span>
               </div>
             </Section>
           )}
+          {tab === 'pricing' && !v.free && <TiersEditor value={v.tiers} onChange={(x) => set('tiers', x)} errors={errors} />}
+          {tab === 'pricing' && !v.free && <GroupEditor value={v.groupRules} onChange={(x) => set('groupRules', x)} error={errors.groupRules} />}
 
           {tab === 'schedule' && (
             <Section title="الموعد والمكان" desc={v.mode === 'recorded' ? 'الدورة المسجّلة تبدأ متى شاء المتدرب — المواعيد اختيارية' : 'الجلسات التفصيلية تُضاف في المنهج'}>
@@ -271,7 +273,7 @@ export function CourseEditor({ id, initial, previewToken, tracks, instructors, m
 }
 
 function tabOf(key: string): Tab {
-  if (/price|compare|sale|free/.test(key)) return 'pricing'
+  if (/price|compare|sale|free|tiers|groupRules/.test(key)) return 'pricing'
   if (/starts|ends|seats|city|venue|hours/.test(key)) return 'schedule'
   if (/curriculum/.test(key)) return 'curriculum'
   if (/publish|seo/.test(key)) return 'publish'
@@ -351,5 +353,53 @@ function InstructorPicker({ all, value, onChange, media }: { all: InstructorRow[
       )}
       <a href="/admin/instructors/new" target="_blank" className={styles.newPerson}>مدرب جديد ↗</a>
     </div>
+  )
+}
+
+type Tiers = CourseInput['tiers']
+
+function TiersEditor({ value, onChange, errors }: { value: Tiers; onChange: (v: Tiers) => void; errors: Errors }) {
+  const { props, move } = useSortable(value, onChange)
+  const set = (i: number, patch: Partial<Tiers[number]>) => onChange(value.map((t, k) => (k === i ? { ...t, ...patch } : t)))
+  return (
+    <Section title="الباقات" desc="اختياري — مثل: أساسية ومميزة مع جلسة خاصة. الباقة المميزة تظهر «الأكثر اختياراً».">
+      {value.map((t, i) => (
+        <div key={t.id ?? i} className={styles.module} {...props(i)}>
+          <div className={styles.moduleHead}>
+            <span className={`${styles.modNum} num`}>{i + 1}</span>
+            <Input value={t.name} placeholder="اسم الباقة" onChange={(e) => set(i, { name: e.target.value })} data-err={errors[`tiers.${i}.name`] ? '1' : '0'} />
+            <RowTools i={i} n={value.length} move={move} onRemove={() => onChange(value.filter((_, k) => k !== i))} />
+          </div>
+          <Grid cols={3}>
+            <Field label="السعر"><Money value={t.price} onChange={(x) => set(i, { price: x ?? 0 })} /></Field>
+            <Field label="قبل العرض" error={errors[`tiers.${i}.compareAt`]}><Money value={t.compareAt} onChange={(x) => set(i, { compareAt: x })} /></Field>
+            <Field label="سعة الباقة" hint="فارغ = سعة الدورة"><Input type="number" dir="ltr" min={1} value={t.capacity ?? ''} onChange={(e) => set(i, { capacity: e.target.value ? Number(e.target.value) : null })} /></Field>
+          </Grid>
+          <Field label="وصف قصير"><Input value={t.description} onChange={(e) => set(i, { description: e.target.value })} /></Field>
+          <Field label="المزايا"><ListEditor value={t.features} onChange={(x) => set(i, { features: x })} add="ميزة" /></Field>
+          <Switch checked={t.highlight} onChange={(b) => onChange(value.map((x, k) => ({ ...x, highlight: k === i ? b : false })))} label="الأكثر اختياراً" />
+        </div>
+      ))}
+      <button type="button" className="btn ghost" style={{ justifySelf: 'start' }} onClick={() => onChange([...value, { id: `new-${Date.now()}`, name: '', description: '', price: 0, compareAt: null, features: [], highlight: value.length === 1, capacity: null }])}>+ باقة</button>
+    </Section>
+  )
+}
+
+function GroupEditor({ value, onChange, error }: { value: CourseInput['groupRules']; onChange: (v: CourseInput['groupRules']) => void; error?: string }) {
+  return (
+    <Section title="خصم المقاعد الجماعية" desc="للفرق والمؤسسات: كلما زاد العدد زاد الخصم. تُطبَّق أعلى قاعدة منطبقة.">
+      {value.map((g, i) => (
+        <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+          <span>من</span>
+          <Input style={{ maxInlineSize: 90 }} type="number" dir="ltr" min={2} max={50} value={g.minQty} onChange={(e) => onChange(value.map((x, k) => (k === i ? { ...x, minQty: Number(e.target.value) } : x)))} />
+          <span>مقاعد فأكثر ← خصم</span>
+          <Input style={{ maxInlineSize: 90 }} type="number" dir="ltr" min={1} max={90} value={g.percent} onChange={(e) => onChange(value.map((x, k) => (k === i ? { ...x, percent: Number(e.target.value) } : x)))} />
+          <span>%</span>
+          <button type="button" className="btn ghost" style={{ minBlockSize: 36 }} onClick={() => onChange(value.filter((_, k) => k !== i))}>حذف</button>
+        </div>
+      ))}
+      {error && <span style={{ color: 'var(--danger)', fontSize: 13, fontWeight: 600 }}>{error}</span>}
+      <button type="button" className="btn ghost" style={{ justifySelf: 'start' }} onClick={() => onChange([...value, { minQty: (value.at(-1)?.minQty ?? 2) + 3, percent: (value.at(-1)?.percent ?? 5) + 5 }])}>+ قاعدة</button>
+    </Section>
   )
 }

@@ -13,7 +13,7 @@ export default async function EditCourse({ params }: { params: Promise<{ id: str
     <CourseEditor
       key={data.course.updatedAt}
       id={id}
-      initial={fromRow(data.course, data.instructorIds, data.curriculum)}
+      initial={fromRow(data.course, data.instructorIds, data.curriculum, data.tiers, data.groupRules)}
       previewToken={data.course.previewToken}
       tracks={tracks}
       instructors={instructors}

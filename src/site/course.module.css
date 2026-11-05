@@ -112,3 +112,17 @@ details[open] > summary .chev { transform: rotate(-135deg); }
   .mobileBar [class*='countdown'] { display: none; }
   .page { padding-block-end: 80px; }
 }
+
+.tiers { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; }
+.tier { position: relative; display: grid; gap: 10px; align-content: start; padding: 24px; border-radius: var(--radius-l); background: var(--surface); border: 1px solid var(--line); transition: transform var(--t-gentle) var(--ease-glide), box-shadow var(--t-gentle); }
+.tier:hover { transform: translateY(-4px); box-shadow: var(--shadow-2); }
+.tier[data-highlight='1'] { border-color: var(--gold-3); box-shadow: var(--shadow-glow); }
+.tier strong { font-family: var(--font-display); font-size: 24px; }
+.tierPrice { font-size: 28px; font-weight: 900; }
+.tierPrice s { font-size: 15px; color: var(--muted); font-weight: 500; margin-inline-start: 8px; }
+.tier ul { display: grid; gap: 6px; font-size: 14.5px; color: var(--text-soft); }
+.tier li::before { content: '✓  '; color: var(--gold-2); font-weight: 700; }
+.tierGo { color: var(--accent); font-weight: 700; font-size: 14px; margin-block-start: 6px; }
+.flag { position: absolute; inset-block-start: -12px; inset-inline-end: 18px; font-size: 12px; font-weight: 700; padding: 4px 12px; border-radius: 999px; background: var(--gold-3); color: var(--night-1); }
+.from { font-size: 36px; font-weight: 900; display: flex; align-items: baseline; gap: 8px; }
+.from span { font-size: 15px; font-weight: 600; color: var(--muted); }

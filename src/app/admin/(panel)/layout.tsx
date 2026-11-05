@@ -11,7 +11,7 @@ export default async function PanelLayout({ children }: { children: React.ReactN
   return (
     <div className={styles.shell}>
       <Sidebar name={admin.name} />
-      <div className={styles.main}>{children}</div>
+      <main id="main" className={styles.main}>{children}</main>
     </div>
   )
 }

@@ -13,6 +13,12 @@ const groups = [
     { href: '/admin/instructors', label: 'المدربون', icon: '◉' },
     { href: '/admin/media', label: 'مكتبة الصور', icon: '▣' },
   ] },
+  { title: 'المبيعات', items: [
+    { href: '/admin/sales', label: 'لوحة المبيعات', icon: '◔' },
+    { href: '/admin/orders', label: 'الطلبات', icon: '▥' },
+    { href: '/admin/coupons', label: 'الكوبونات', icon: '✦' },
+    { href: '/admin/settings/payments', label: 'إعدادات الدفع', icon: '⚙' },
+  ] },
   { title: 'الموقع', items: [
     { href: '/admin/home', label: 'الصفحة الرئيسية', icon: '⌂' },
   ] },

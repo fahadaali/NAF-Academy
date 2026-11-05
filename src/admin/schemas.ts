@@ -27,6 +27,18 @@ export const moduleInput = z.object({
   lessons: z.array(lessonInput).max(100),
 })
 
+export const tierInput = z.object({
+  id: z.string().optional(),
+  name: text(80).min(1, 'اسم الباقة مطلوب'),
+  description: text(300),
+  price: halalas,
+  compareAt: halalas.nullable(),
+  features: lines,
+  highlight: z.boolean(),
+  capacity: z.number().int().min(1).max(100_000).nullable(),
+})
+export const groupRuleInput = z.object({ minQty: z.number().int().min(2).max(50), percent: z.number().int().min(1).max(90) })
+
 export const courseInput = z
   .object({
     slug,
@@ -60,6 +72,8 @@ export const courseInput = z
     seoDescription: text(300),
     instructorIds: z.array(z.string()).max(12),
     curriculum: z.array(moduleInput).max(50),
+    tiers: z.array(tierInput).max(6),
+    groupRules: z.array(groupRuleInput).max(6),
   })
   .superRefine((v, ctx) => {
     if (v.compareAt !== null && !v.free && v.compareAt <= v.price)
@@ -68,6 +82,11 @@ export const courseInput = z
       ctx.addIssue({ code: 'custom', path: ['publishAt'], message: 'حدّد موعد النشر للدورة المجدولة' })
     if (v.endsAt && v.startsAt && v.endsAt < v.startsAt)
       ctx.addIssue({ code: 'custom', path: ['endsAt'], message: 'النهاية قبل البداية' })
+    v.tiers.forEach((t, i) => {
+      if (t.compareAt !== null && t.compareAt <= t.price) ctx.addIssue({ code: 'custom', path: ['tiers', i, 'compareAt'], message: 'السعر قبل العرض أعلى من سعر الباقة' })
+    })
+    if (new Set(v.groupRules.map((g) => g.minQty)).size !== v.groupRules.length)
+      ctx.addIssue({ code: 'custom', path: ['groupRules'], message: 'لا تكرّر عدد المقاعد في قاعدتين' })
     if (v.seatsTotal !== null && v.seatsTaken > v.seatsTotal)
       ctx.addIssue({ code: 'custom', path: ['seatsTaken'], message: 'المحجوز أكثر من السعة' })
   })

@@ -23,8 +23,12 @@ export async function courseForEdit(id: string) {
   const mods = await db.select().from(s.modules).where(eq(s.modules.courseId, id)).orderBy(asc(s.modules.sortOrder))
   const lessons = await db.select().from(s.lessons).orderBy(asc(s.lessons.sortOrder))
   const links = await db.select().from(s.courseInstructors).where(eq(s.courseInstructors.courseId, id)).orderBy(asc(s.courseInstructors.sortOrder))
+  const tiers = await db.select().from(s.priceTiers).where(eq(s.priceTiers.courseId, id)).orderBy(asc(s.priceTiers.sortOrder))
+  const rules = await db.select().from(s.groupRules).where(eq(s.groupRules.courseId, id))
   return {
     course,
+    tiers: tiers.map(({ id, name, description, price, compareAt, features, highlight, capacity }) => ({ id, name, description, price, compareAt, features, highlight, capacity })),
+    groupRules: rules.map(({ minQty, percent }) => ({ minQty, percent })).sort((a, b) => a.minQty - b.minQty),
     instructorIds: links.map((l) => l.instructorId),
     curriculum: mods.map((m) => ({ id: m.id, title: m.title, lessons: lessons.filter((l) => l.moduleId === m.id).map(({ id, title, type, minutes, preview }) => ({ id, title, type, minutes, preview })) })),
   }
