@@ -6,6 +6,8 @@ export type VideoSource =
   | { provider: 'none' }
 
 export type Chapter = { at: number; title: string }
+/** ترجمة نصية: ملف VTT في التخزين الخاص */
+export type Caption = { lang: string; label: string; assetId: string }
 export type Attachment = { assetId: string; name: string; size: number }
 
 export type QuizQuestion = {

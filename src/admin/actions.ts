@@ -19,6 +19,7 @@ import type { CourseStatus } from '@/content/types'
 import { COURSE_STATUS } from '@/lib/enums'
 import { chunksOf, inList } from '@/server/db/limits'
 import { blocksText } from '@/lib/blocks'
+import { zoomMeetingId } from '@/lib/zoom'
 import {
   courseInput, errorsOf, homeInput, instructorInput, pagesInput, trackInput,
   type CourseInput, type InstructorInput, type Result, type TrackInput,
@@ -64,7 +65,9 @@ export async function saveCourse(id: string | null, raw: CourseInput, opts: { co
     await db.insert(s.courseInstructors).values(part)
   const oldMods = await db.select({ id: s.modules.id }).from(s.modules).where(eq(s.modules.courseId, cid))
   const oldModIds = new Set(oldMods.map((m) => m.id))
-  const oldLessons = oldMods.length ? await db.select({ id: s.lessons.id }).from(s.lessons).where(inList(s.lessons.moduleId, [...oldModIds])) : []
+  const oldLessons = oldMods.length ? await db.select({ id: s.lessons.id, recording: s.lessons.recording }).from(s.lessons).where(inList(s.lessons.moduleId, [...oldModIds])) : []
+  const hadRec = new Set(oldLessons.filter((l) => l.recording && l.recording.provider !== 'none').map((l) => l.id))
+  const newRec: string[] = []
   const oldLessonIds = new Set(oldLessons.map((l) => l.id))
   const keepMods = new Set<string>()
   const keepLessons = new Set<string>()
@@ -75,8 +78,8 @@ export async function saveCourse(id: string | null, raw: CourseInput, opts: { co
     keepMods.add(mid)
     for (const [li, l] of m.lessons.entries()) {
       const { id: lid0, ...fields } = l
-      const row = { ...fields, moduleId: mid, sortOrder: li }
-      if (lid0 && oldLessonIds.has(lid0)) { await db.update(s.lessons).set(row).where(eq(s.lessons.id, lid0)); keepLessons.add(lid0) }
+      const row = { ...fields, moduleId: mid, sortOrder: li, zoomMeetingId: zoomMeetingId(fields.joinUrl) }
+      if (lid0 && oldLessonIds.has(lid0)) { await db.update(s.lessons).set(row).where(eq(s.lessons.id, lid0)); keepLessons.add(lid0); if (row.recording && row.recording.provider !== 'none' && !hadRec.has(lid0)) newRec.push(lid0) }
       else { const lid = randomUUID(); await db.insert(s.lessons).values({ ...row, id: lid }); keepLessons.add(lid) }
     }
   }
@@ -98,6 +101,11 @@ export async function saveCourse(id: string | null, raw: CourseInput, opts: { co
   await db.delete(s.groupRules).where(eq(s.groupRules.courseId, cid))
   for (const part of chunksOf(s.groupRules, groupRules.map((g) => ({ id: randomUUID(), courseId: cid, ...g })))) await db.insert(s.groupRules).values(part)
   await audit(admin.name, id ? 'update' : 'create', 'course', cid, v.title, p.data)
+  /* تسجيل أُضيف يدوياً لجلسة: يُبلَّغ مسجّلوها */
+  if (newRec.length) {
+    const { onRecordingReady } = await import('@/server/notify/engine')
+    for (const lid of newRec) await onRecordingReady(lid, null)
+  }
   refresh()
   return { ok: true, id: cid }
 }

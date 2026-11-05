@@ -82,6 +82,24 @@ export async function onCohortTransfer(enrollmentId: string) {
   }
 }
 
+/** تسجيل جلسة صار متاحاً — لمسجّلي الدرس (أو دفعته) الساري وصولهم، مرة لكل جلسة */
+export async function onRecordingReady(lessonId: string, cohortId: string | null) {
+  try {
+    const [row] = await db.select({ courseId: s.modules.courseId }).from(s.lessons).innerJoin(s.modules, eq(s.modules.id, s.lessons.moduleId)).where(eq(s.lessons.id, lessonId))
+    if (!row) return
+    const enr = await db.select({ e: s.enrollments, l: s.learners }).from(s.enrollments).innerJoin(s.learners, eq(s.learners.id, s.enrollments.learnerId))
+      .where(and(eq(s.enrollments.courseId, row.courseId), eq(s.enrollments.status, 'active'), cohortId ? eq(s.enrollments.cohortId, cohortId) : isNull(s.enrollments.cohortId)))
+    const rows: Omit<Row, 'id'>[] = enr.filter((x) => hasAccess(x.e)).map(({ l }) => ({
+      key: `rec:${lessonId}:${cohortId ?? '-'}:${l.id}`, event: 'recording_ready', channel: 'email', to: l.email, learnerId: l.id, courseId: row.courseId, ref: { lessonId }, sendAt: iso(new Date()),
+    }))
+    if (!rows.length) return
+    await enqueue(rows)
+    await dispatch(new Date(), { keys: rows.map((x) => x.key) })
+  } catch (e) {
+    console.error('onRecordingReady', e)
+  }
+}
+
 /** بعد اكتمال درس — تهنئة منتصف الدورة وإكمالها */
 export async function onProgress(learnerId: string, courseId: string) {
   /* الشهادة أولاً: فحص الشروط مستقل عن رسائل التهنئة */
@@ -90,6 +108,13 @@ export async function onProgress(learnerId: string, courseId: string) {
     await checkCertificate(learnerId, courseId)
   } catch (e) {
     console.error('certificate check', e)
+  }
+  /* الإنجازات — مستقلة عن الرسائل */
+  try {
+    const { evaluateAchievements } = await import('../achievements')
+    await evaluateAchievements(learnerId)
+  } catch (e) {
+    console.error('achievements', e)
   }
   try {
     const p = await progressOf([{ learnerId, courseId }])
@@ -386,7 +411,7 @@ async function contextFor(n: typeof s.notifications.$inferSelect, site: string, 
       .where(and(eq(s.enrollments.learnerId, n.learnerId), eq(s.enrollments.courseId, course.id), eq(s.enrollments.status, 'active'))) : []
     return withSession(l, await sessionsOf(e?.cohortId))
   }
-  const needEnrolled = ['enrolled', 'session_reminder', 'session_followup', 'drip_unlocked', 'inactive_nudge', 'halfway', 'completed', 'cohort_transfer', 'access_ending'].includes(ev)
+  const needEnrolled = ['enrolled', 'session_reminder', 'session_followup', 'drip_unlocked', 'inactive_nudge', 'halfway', 'completed', 'cohort_transfer', 'access_ending', 'recording_ready'].includes(ev)
   if (needEnrolled && !(await enrollmentActive(n.learnerId, n.courseId))) return { ok: false, reason: 'التسجيل لم يعد فعّالاً' }
 
   switch (ev) {
@@ -406,6 +431,7 @@ async function contextFor(n: typeof s.notifications.$inferSelect, site: string, 
       break
     }
     case 'session_followup':
+    case 'recording_ready':
     case 'drip_unlocked': {
       const l = await lessonOf()
       if (!l) return { ok: false, reason: 'الدرس غير موجود' }
@@ -525,7 +551,9 @@ export async function dispatch(now: Date, opt: { limit?: number; keys?: string[]
       const [sub] = n.learnerId ? await db.select({ id: s.pushSubscriptions.id }).from(s.pushSubscriptions).where(eq(s.pushSubscriptions.learnerId, n.learnerId)).limit(1) : []
       if (!sub) { await finish('skipped', { error: 'لم يفعّل التنبيهات' }); out.skipped++; continue }
     }
-    if (!(await channelOpen(n.channel as Channel))) { await finish('skipped', { error: 'القناة مقفلة' }); out.skipped++; continue }
+    /* رسالة المتدرب بالبريد تصل داخل المنصة أيضاً — ولو كان البريد مقفلاً بعد */
+    const emailClosed = n.channel === 'email' && !!n.learnerId && !(await channelOpen('email'))
+    if (!emailClosed && !(await channelOpen(n.channel as Channel))) { await finish('skipped', { error: 'القناة مقفلة' }); out.skipped++; continue }
     let email = n.channel === 'email' ? n.to : typeof n.ref?.email === 'string' ? n.ref.email : ''
     if (!email && n.learnerId) email = (await db.select({ e: s.learners.email }).from(s.learners).where(eq(s.learners.id, n.learnerId)))[0]?.e ?? ''
     if (meta.category !== 'transactional' && email && (await isOptedOut(email))) { await finish('skipped', { error: 'ألغى الاشتراك' }); out.skipped++; continue }
@@ -541,6 +569,11 @@ export async function dispatch(now: Date, opt: { limit?: number; keys?: string[]
     if (!ctx.ok) { await finish('cancelled', { error: ctx.reason }); out.skipped++; continue }
 
     const v = ctx.vars
+    if (n.channel === 'email' && n.learnerId) {
+      const { toInbox } = await import('../achievements')
+      await toInbox(n.learnerId, { key: n.key, kind: ev, title: fill(tpl.subject, v), body: fill(tpl.body, v).split('\n')[0], url: v.link?.startsWith(site) ? v.link.slice(site.length) || '/' : v.link ?? '' })
+    }
+    if (emailClosed) { await finish('skipped', { error: 'البريد مقفل — وصلت داخل المنصة' }); out.skipped++; continue }
     const unsub = meta.category !== 'transactional' && email ? `${site}/unsubscribe?t=${optoutToken(email)}` : undefined
     let r: Awaited<ReturnType<typeof send>>
     if (n.channel === 'email') {

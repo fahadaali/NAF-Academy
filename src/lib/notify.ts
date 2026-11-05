@@ -6,7 +6,7 @@ export const EVENTS = [
   'inactive_nudge', 'halfway', 'completed',
   'registration_open', 'sale_ending', 'cart_abandoned',
   'certificate_issued', 'order_paid', 'refund_issued',
-  'cohort_transfer', 'access_ending',
+  'cohort_transfer', 'access_ending', 'recording_ready',
 ] as const
 export type EventKey = (typeof EVENTS)[number]
 
@@ -119,6 +119,10 @@ export const EVENT_META: Record<EventKey, EventMeta> = {
     label: 'النقل إلى دفعة', hint: 'حين ينقل الفريق المتدرب إلى دفعة أخرى — بمواعيدها الجديدة', category: 'transactional', sms: true,
     vars: [...COMMON, 'cohort', 'starts', 'calendar'], facts: [['الدفعة', 'cohort'], ['تبدأ', 'starts']],
   },
+  recording_ready: {
+    label: 'تسجيل الجلسة متاح', hint: 'حين يُضاف تسجيل جلسة مباشرة (تلقائياً من Zoom أو يدوياً)', category: 'transactional', sms: false,
+    vars: [...COMMON, 'lesson'], facts: [['الجلسة', 'lesson']],
+  },
   access_ending: {
     label: 'قرب انتهاء الوصول', hint: 'قبل انتهاء مدة الوصول إلى الدورة بأسبوع', category: 'engagement', sms: false,
     vars: [...COMMON, 'until', 'pct'], facts: [['ينتهي الوصول', 'until'], ['إنجازك', 'pct']],
@@ -142,6 +146,7 @@ export const DEFAULT_NOTIFY: NotifySettings = {
     certificate_issued: t('صدرت شهادتك: {{course}}', 'مبارك يا {{name}}', 'صدرت شهادة إتمام «{{course}}». يمكنك تنزيلها ومشاركتها، ويتحقق منها أي أحد برقمها.', 'عرض الشهادة', 'أكاديمية ناف: صدرت شهادتك في {{course}}. {{link}}'),
     order_paid: t('طلبك {{order}}: {{course}}', 'اكتمل طلبك', 'استلمنا دفعتك لـ«{{course}}». تجد الفاتورة الضريبية وتفاصيل الطلب في صفحته، ومنها يُخصَّص كل مقعد لصاحبه إن اشتريت لفريقك.', 'الطلب والفاتورة'),
     cohort_transfer: t('انتقلت إلى {{cohort}}: {{course}}', 'دفعتك الجديدة', 'نُقل تسجيلك في «{{course}}» إلى «{{cohort}}». تقدّمك محفوظ، ومواعيد الجلسات صارت مواعيد الدفعة الجديدة — أضفها إلى تقويمك.', 'مساحة التعلّم', 'أكاديمية ناف: انتقلت إلى {{cohort}} في {{course}}. {{link}}'),
+    recording_ready: t('تسجيل {{lesson}} متاح الآن', 'شاهد التسجيل متى شئت', 'أُضيف تسجيل جلسة «{{lesson}}» من دورة «{{course}}» — تجده تحت الجلسة في مساحة التعلّم.', 'شاهد التسجيل'),
     access_ending: t('وصولك إلى {{course}} ينتهي قريباً', 'أسبوع على نهاية الوصول', 'ينتهي وصولك إلى «{{course}}» في {{until}}، وأنجزت {{pct}}. أكمل ما بقي قبل الموعد، أو جدّد الوصول من صفحة الدورة.', 'تابع التعلّم'),
     refund_issued: t('استرداد لطلبك {{order}}', 'نفّذنا الاسترداد', 'أُعيد {{amount}} من طلب «{{course}}» إلى وسيلة الدفع نفسها، ويصل خلال المدة المعتادة لدى البنك. الإشعار الدائن في صفحة الطلب.', 'صفحة الطلب'),
   },

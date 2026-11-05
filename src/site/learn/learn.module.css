@@ -42,3 +42,16 @@
 /* الحركة: البطاقات تتتابع عند التركيب (globals.css) */
 .grid { composes: stagger from global; }
 .contract { display: grid; gap: 8px; margin-block-start: 14px; }
+.bell { display: inline-flex; align-items: center; gap: 6px; }
+.bell svg { inline-size: 18px; block-size: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; stroke-linecap: round; }
+.dot { min-inline-size: 20px; block-size: 20px; padding-inline: 6px; border-radius: 999px; display: inline-grid; place-items: center; background: var(--gold-3); color: var(--night-0); font-size: 11.5px; font-weight: 800; }
+.inbox { display: grid; gap: 14px; }
+.inboxHead { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.inboxHead h2 { font-family: var(--font-display); font-size: 24px; }
+.inbox ol { display: grid; gap: 8px; }
+.note { display: grid; gap: 4px; padding: 14px 16px; border-radius: var(--radius-m); background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); color: inherit; }
+.note:hover { box-shadow: inset 0 0 0 1px var(--gold-3); }
+.note span { color: var(--text-soft); font-size: 14.5px; }
+.note small { color: var(--muted); font-size: 12.5px; }
+.inbox li[data-unread='1'] .note { box-shadow: inset 3px 0 0 var(--gold-3), inset 0 0 0 1px var(--line); }
+.nav a[aria-current='page'] .dot { background: var(--night-0); color: var(--gold-4); }

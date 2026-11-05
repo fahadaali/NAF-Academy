@@ -56,7 +56,7 @@ export type LessonView = {
   lesson: Omit<LessonFull, 'quiz' | 'joinUrl' | 'video' | 'recording'>
   access: Availability
   enrolled: boolean
-  player: { kind: 'stream' | 'url' | 'none'; src: string | null; resumeAt: number; duration: number }
+  player: { kind: 'stream' | 'url' | 'none'; src: string | null; resumeAt: number; duration: number; captions: { src: string; lang: string; label: string }[] }
   recording: { kind: 'stream' | 'url'; src: string } | null
   join: JoinState
   quiz: (PublicQuiz & { attemptId: string; used: number; best: number | null; lastPassed: boolean | null }) | null
@@ -77,13 +77,14 @@ export async function lessonView(slug: string, lessonId: string, learner: Learne
 
   const [prog] = learner ? await db.select().from(s.lessonProgress).where(and(eq(s.lessonProgress.learnerId, learner.id), eq(s.lessonProgress.lessonId, l.id))) : []
   const resumeAt = prog && !prog.completedAt ? prog.positionSec : 0
-  let player: LessonView['player'] = { kind: 'none', src: null, resumeAt, duration: l.minutes * 60 }
+  let player: LessonView['player'] = { kind: 'none', src: null, resumeAt, duration: l.minutes * 60, captions: [] }
   if (access.state === 'open' && l.type === 'video') {
     if (l.video.provider === 'stream') player = { ...player, kind: 'stream', src: await playbackUrl(l.video.uid, resumeAt) }
-    if (l.video.provider === 'url') player = { ...player, kind: 'url', src: l.video.url }
+    if (l.video.provider === 'url') player = { ...player, kind: 'url', src: l.video.url, captions: (l.captions ?? []).map((c) => ({ src: `/files/${c.assetId}`, lang: c.lang, label: c.label })) }
   }
   let recording: LessonView['recording'] = null
-  if (enrolled && l.recording && l.recording.provider !== 'none') {
+  /* التسجيل يظهر بعد انتهاء الجلسة */
+  if (enrolled && l.recording && l.recording.provider !== 'none' && joinWindow(l.startsAt, l.endsAt).state === 'ended') {
     const src = l.recording.provider === 'stream' ? await playbackUrl(l.recording.uid) : l.recording.url
     if (src) recording = { kind: l.recording.provider, src }
   }

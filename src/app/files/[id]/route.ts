@@ -15,6 +15,22 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
   const me = await currentLearner()
   let ok = false
   if (a.scope === 'submission') ok = !!me && a.ownerLearnerId === me.id
+  if (a.scope === 'caption') {
+    /* ترجمة فيديو: لمن يحق له الدرس (المسجّل الساري وصوله، أو أي زائر لدرس معاينة) */
+    const rows = await db.select({ courseId: s.modules.courseId, preview: s.lessons.preview, captions: s.lessons.captions }).from(s.lessons)
+      .innerJoin(s.modules, eq(s.modules.id, s.lessons.moduleId)).where(like(s.lessons.captions, `%${id}%`))
+    for (const r of rows) {
+      if (ok || !r.captions.some((x) => x.assetId === id)) continue
+      if (r.preview) { ok = true; continue }
+      if (!me) continue
+      const [en] = await db.select().from(s.enrollments).where(and(eq(s.enrollments.learnerId, me.id), eq(s.enrollments.courseId, r.courseId), eq(s.enrollments.status, 'active')))
+      if (hasAccess(en)) ok = true
+    }
+    if (ok) {
+      const bytes = await (await import('@/server/storage')).getObject(a.key)
+      return bytes ? new Response(bytes as BodyInit, { headers: { 'content-type': 'text/vtt; charset=utf-8', 'cache-control': 'private, max-age=300', 'x-content-type-options': 'nosniff' } }) : new Response('Not found', { status: 404 })
+    }
+  }
   if (a.scope === 'lesson') {
     const rows = await db.select({ courseId: s.modules.courseId, preview: s.lessons.preview, attachments: s.lessons.attachments }).from(s.lessons)
       .innerJoin(s.modules, eq(s.modules.id, s.lessons.moduleId)).where(like(s.lessons.attachments, `%${id}%`))

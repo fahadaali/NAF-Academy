@@ -10,7 +10,7 @@ import w from './workspace.module.css'
 type Note = { id: string; body: string; atSec: number | null }
 type Q = { id: string; body: string; answer: string | null; mine: boolean }
 
-export function VideoWorkspace(p: { slug: string; lessonId: string; kind: 'stream' | 'url'; src: string; resumeAt: number; chapters: Chapter[]; watermark: string; done: boolean }) {
+export function VideoWorkspace(p: { slug: string; lessonId: string; kind: 'stream' | 'url'; src: string; resumeAt: number; chapters: Chapter[]; watermark: string; done: boolean; captions?: { src: string; lang: string; label: string }[] }) {
   const router = useRouter()
   const api = useRef<PlayerApi>(null)
   const [theater, setTheater] = useState(false)
@@ -20,7 +20,7 @@ export function VideoWorkspace(p: { slug: string; lessonId: string; kind: 'strea
   }, [p.slug, p.lessonId, done, router])
   return (
     <div className={w.video} data-theater={theater ? '1' : '0'}>
-      <Player ref={api} kind={p.kind} src={p.src} resumeAt={p.resumeAt} chapters={p.chapters} watermark={p.watermark} onBeat={onBeat} theater={theater} onTheater={setTheater} />
+      <Player ref={api} kind={p.kind} src={p.src} resumeAt={p.resumeAt} chapters={p.chapters} captions={p.captions ?? []} watermark={p.watermark} onBeat={onBeat} theater={theater} onTheater={setTheater} />
       {done && <p className={w.done} role="status">✓ اكتمل هذا الدرس</p>}
       <div className={w.side}>
         {p.chapters.length > 0 && (

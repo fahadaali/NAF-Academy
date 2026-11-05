@@ -45,3 +45,10 @@
 .joinNow::before { content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; box-shadow: 0 0 0 10px color-mix(in srgb, var(--gold-3) 15%, transparent), var(--shadow-glow); opacity: 0; animation: glow var(--t-pulse) var(--ease-move) infinite; }
 @keyframes glow { 50% { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .joinNow::before, .clock[data-low='1'] { animation: none; } }
+
+/* سطر الانضمام في بطاقة «دوراتي» */
+.joinLine { display: flex; align-items: center; justify-content: space-between; gap: 10px 14px; flex-wrap: wrap; padding: 12px 14px; border-radius: var(--radius-m); background: var(--surface-2); }
+.joinLine > span { display: grid; gap: 2px; }
+.joinLine small { color: var(--muted); font-size: 13px; }
+.joinLine[data-state='open'] { background: color-mix(in srgb, var(--gold-3) 16%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gold-3) 45%, transparent); }
+.joinSoon { font-size: 12.5px; color: var(--muted); }

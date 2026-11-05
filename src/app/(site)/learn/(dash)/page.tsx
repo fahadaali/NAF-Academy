@@ -7,6 +7,11 @@ import { plain } from '@/motion/kashida'
 import { learnerCourse } from '@/server/learning'
 import { Ring } from '@/site/learn/Outline'
 import st from '@/site/learn/learn.module.css'
+import { JoinPanel } from '@/site/learn/LessonParts'
+import { joinWindow } from '@/lib/learning'
+import { hasAccess } from '@/lib/cohorts'
+import { Achievements } from '@/site/learn/Achievements'
+import { learnerAchievements } from '@/server/achievements'
 
 export default async function MyCourses() {
   const me = (await currentLearner())!
@@ -16,14 +21,24 @@ export default async function MyCourses() {
   if (!rows.length)
     return <div className={st.empty}><strong>لم تسجّل في دورة بعد.</strong><a className="btn" href="/courses">تصفّح الدورات</a></div>
   const now = Date.now()
-  const prog = new Map(await Promise.all(rows.map(async ({ c }) => { const x = await learnerCourse(c.slug, me); return [c.id, { pct: x?.pct ?? 0, resume: x?.resumeId ?? null, next: x?.upcoming[0] ?? null }] as const })))
+  const prog = new Map(await Promise.all(rows.map(async ({ c }) => { const x = await learnerCourse(c.slug, me); return [c.id, { pct: x?.pct ?? 0, resume: x?.resumeId ?? null, next: x?.upcoming[0] ?? null, cohort: x?.cohort ?? null }] as const })))
+  const badges = await learnerAchievements(me.id)
   return (
+    <>
+    <Achievements items={badges} />
     <div className={st.grid}>
-      {rows.sort((a, b) => (a.c.startsAt ?? '9').localeCompare(b.c.startsAt ?? '9')).map(({ e, c, tier }) => (
-        <article key={e.id} className={st.course}>
+      {rows.sort((a, b) => (prog.get(a.c.id)!.cohort?.startsAt ?? a.c.startsAt ?? '9').localeCompare(prog.get(b.c.id)!.cohort?.startsAt ?? b.c.startsAt ?? '9')).map(({ e, c: course, tier }) => {
+        const p = prog.get(course.id)!
+        /* بدفعة: موعدها ومدينتها */
+        const c = { ...course, startsAt: p.cohort?.startsAt ?? course.startsAt, city: p.cohort?.city || course.city }
+        const next = p.next
+        const jw = next ? joinWindow(next.startsAt, next.endsAt) : null
+        const open = hasAccess(e)
+        return (
+        <article key={e.id} className={st.course} data-expired={open ? '0' : '1'}>
           <div className={st.courseHead}>
-            <div><span className="eyebrow">{modeLabel[c.mode]}{tier ? ` · ${tier}` : ''}</span><h2>{plain(c.title)}</h2></div>
-            <Ring pct={prog.get(c.id)!.pct} size={72} />
+            <div><span className="eyebrow">{modeLabel[c.mode]}{tier ? ` · ${tier}` : ''}{p.cohort ? ` · ${p.cohort.title}` : ''}</span><h2>{plain(c.title)}</h2></div>
+            <Ring pct={p.pct} size={72} />
           </div>
           <div className={`${st.meta} num`}>
             {c.startsAt && <span>{formatDay(c.startsAt)} · {formatTime(c.startsAt)} · {formatHijri(c.startsAt)}</span>}
@@ -33,14 +48,20 @@ export default async function MyCourses() {
           {c.startsAt && Date.parse(c.startsAt) > now && (
             <div className={`${st.next} num`}>تبدأ بعد {Math.ceil((Date.parse(c.startsAt) - now) / 864e5)} يوماً — ستصلك التذكيرات قبلها</div>
           )}
-          {prog.get(c.id)!.next && <div className={`${st.next} num`}>الجلسة القادمة: {prog.get(c.id)!.next!.title} — {formatDay(prog.get(c.id)!.next!.startsAt!)} · {formatTime(prog.get(c.id)!.next!.startsAt!)}</div>}
+          {!open && <div className={`${st.next} num`}>انتهى الوصول في {formatDay(e.accessUntil!)} — جدّده من صفحة الدورة</div>}
+          {open && next && jw && (next.type === 'live'
+            ? <JoinPanel compact lessonId={next.id} title={`${next.title} — ${formatDay(next.startsAt!)} · ${formatTime(next.startsAt!)}`} startsAt={next.startsAt} opensAt={jw.state === 'upcoming' ? jw.opensAt : null} state={jw.state} />
+            : <div className={`${st.next} num`}>الجلسة الحضورية القادمة: {next.title} — {formatDay(next.startsAt!)} · {formatTime(next.startsAt!)}</div>)}
+          {open && e.accessUntil && <div className={`${st.meta} num`}><span>الوصول حتى {formatDay(e.accessUntil)}</span></div>}
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-            <a className="btn" href={prog.get(c.id)!.resume ? `/learn/${c.slug}/${prog.get(c.id)!.resume}` : `/learn/${c.slug}`}>{prog.get(c.id)!.pct ? 'تابع التعلّم' : 'ابدأ'}</a>
+            <a className="btn" href={p.resume ? `/learn/${c.slug}/${p.resume}` : `/learn/${c.slug}`}>{p.pct ? 'تابع التعلّم' : 'ابدأ'}</a>
             <a className="btn ghost" href={`/learn/${c.slug}`}>المنهج</a>
             {c.startsAt && <a className="btn ghost" href={`/courses/${c.slug}/calendar`}>أضف إلى التقويم</a>}
           </div>
         </article>
-      ))}
+        )
+      })}
     </div>
+    </>
   )
 }

@@ -10,6 +10,8 @@ import { audit } from '@/server/audit'
 import { chunksOf, inList } from '@/server/db/limits'
 import { cohortSeatsUsed } from '@/server/cohorts'
 import { cohortInput, type CohortInput } from '@/admin/schemas'
+import { zoomMeetingId } from '@/lib/zoom'
+import type { VideoSource } from '@/lib/learning-types'
 
 const iso = z.string().datetime({ offset: true }).nullable()
 
@@ -48,16 +50,27 @@ export async function saveCohort(courseId: string, id: string | null, raw: Cohor
     await db.insert(s.cohorts).values({ ...v, id: cid, courseId, sortOrder: n })
   }
   /* المواعيد تُحدَّث بمفتاح (الدفعة، الدرس) فيبقى التسجيل المرفوع للجلسة، ويُحذف ما أُفرغ موعده */
-  const keep = sessions.filter((x) => x.startsAt || x.joinUrl || x.location)
+  /* التسجيل اليدوي: معرّف Stream (32 حرفاً) أو رابط https */
+  const rec = (x: string): VideoSource | null => (/^[a-f0-9]{32}$/.test(x) ? { provider: 'stream', uid: x } : /^https:\/\//.test(x) ? { provider: 'url', url: x } : null)
+  if (sessions.some((x) => x.recording && !rec(x.recording))) return { ok: false, error: 'التسجيل: معرّف Stream من 32 حرفاً أو رابط https' }
+  const keep = sessions.filter((x) => x.startsAt || x.joinUrl || x.location || x.recording)
   const old = await db.select().from(s.cohortSessions).where(eq(s.cohortSessions.cohortId, cid))
   const drop = old.filter((o) => !keep.some((k) => k.lessonId === o.lessonId)).map((o) => o.lessonId)
   if (drop.length) await db.delete(s.cohortSessions).where(and(eq(s.cohortSessions.cohortId, cid), inList(s.cohortSessions.lessonId, drop)))
-  for (const k of keep) {
-    const row = { ...k, cohortId: cid }
+  const added: string[] = []
+  for (const { recording: r, ...k } of keep) {
+    const recording = rec(r)
+    const was = old.find((o) => o.lessonId === k.lessonId)?.recording
+    if (recording && !(was && was.provider !== 'none')) added.push(k.lessonId)
+    const row = { ...k, cohortId: cid, zoomMeetingId: zoomMeetingId(k.joinUrl), recording }
     await db.insert(s.cohortSessions).values(row).onConflictDoUpdate({
       target: [s.cohortSessions.cohortId, s.cohortSessions.lessonId],
-      set: { startsAt: row.startsAt, endsAt: row.endsAt, joinUrl: row.joinUrl, location: row.location, updatedAt: new Date().toISOString() },
+      set: { startsAt: row.startsAt, endsAt: row.endsAt, joinUrl: row.joinUrl, location: row.location, zoomMeetingId: row.zoomMeetingId, recording: row.recording, updatedAt: new Date().toISOString() },
     })
+  }
+  if (added.length) {
+    const { onRecordingReady } = await import('@/server/notify/engine')
+    for (const lid of added) await onRecordingReady(lid, cid)
   }
   await audit(st.name, id ? 'update' : 'create', 'cohort', cid, v.title, p.data)
   refresh(courseId)

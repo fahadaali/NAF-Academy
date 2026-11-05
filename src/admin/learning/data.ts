@@ -70,3 +70,27 @@ export async function sessionRoster(lessonId: string) {
     .where(and(eq(s.enrollments.courseId, row.courseId), eq(s.enrollments.status, 'active'))).orderBy(asc(s.learners.name))
   return { lesson: row.l, course: row.course, people }
 }
+
+/** جلسات مباشرة انتهت بلا تسجيل (آخر 30 يوماً، بعد ثلاث ساعات من نهايتها) — البديل اليدوي حين لا يصل من Zoom */
+export async function missingRecordings() {
+  const scope = await courseScope(await requirePermission('attendance.mark'))
+  const now = Date.now()
+  const from = new Date(now - 30 * 864e5).toISOString()
+  const due = (start: string | null, end: string | null) => {
+    if (!start || start < from) return false
+    const e = end ? Date.parse(end) : Date.parse(start) + 2 * 3600e3
+    return e + 3 * 3600e3 < now
+  }
+  const own = await db.select({ l: s.lessons, courseId: s.courses.id, course: s.courses.title }).from(s.lessons)
+    .innerJoin(s.modules, eq(s.modules.id, s.lessons.moduleId)).innerJoin(s.courses, eq(s.courses.id, s.modules.courseId))
+    .where(and(eq(s.lessons.type, 'live'), isNull(s.courses.deletedAt), scoped(scope)))
+  const per = await db.select({ x: s.cohortSessions, title: s.lessons.title, cohort: s.cohorts.title, courseId: s.courses.id, course: s.courses.title }).from(s.cohortSessions)
+    .innerJoin(s.cohorts, eq(s.cohorts.id, s.cohortSessions.cohortId)).innerJoin(s.lessons, eq(s.lessons.id, s.cohortSessions.lessonId))
+    .innerJoin(s.modules, eq(s.modules.id, s.lessons.moduleId)).innerJoin(s.courses, eq(s.courses.id, s.modules.courseId))
+    .where(and(eq(s.lessons.type, 'live'), isNull(s.courses.deletedAt), isNull(s.cohorts.deletedAt), scoped(scope)))
+  const none = (r: { provider: string } | null) => !r || r.provider === 'none'
+  return [
+    ...own.filter((r) => none(r.l.recording) && due(r.l.startsAt, r.l.endsAt)).map((r) => ({ key: r.l.id, title: r.l.title, course: r.course, courseId: r.courseId, startsAt: r.l.startsAt!, cohort: '' })),
+    ...per.filter((r) => none(r.x.recording) && due(r.x.startsAt, r.x.endsAt)).map((r) => ({ key: `${r.x.cohortId}:${r.x.lessonId}`, title: r.title, course: r.course, courseId: r.courseId, startsAt: r.x.startsAt!, cohort: r.cohort })),
+  ].sort((a, b) => b.startsAt.localeCompare(a.startsAt))
+}

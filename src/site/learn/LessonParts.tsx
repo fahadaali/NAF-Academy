@@ -166,12 +166,22 @@ export function AssignmentPanel({ slug, lessonId, accept, maxMb }: { slug: strin
   )
 }
 
-export function JoinPanel({ lessonId, startsAt, opensAt, state: initial }: { lessonId: string; startsAt: string | null; opensAt: string | null; state: 'upcoming' | 'open' | 'ended' | 'unscheduled' }) {
+/** `compact`: سطر واحد في بطاقة «دوراتي» — العدّ التنازلي ثم «انضم الآن» في الموعد */
+export function JoinPanel({ lessonId, startsAt, opensAt, state: initial, compact, title }: { lessonId: string; startsAt: string | null; opensAt: string | null; state: 'upcoming' | 'open' | 'ended' | 'unscheduled'; compact?: boolean; title?: string }) {
   const [now, setNow] = useState(() => Date.now())
   useEffect(() => { const id = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(id) }, [])
   const state = initial === 'upcoming' && opensAt && now >= Date.parse(opensAt) ? 'open' : initial
   const left = startsAt ? Math.max(0, Date.parse(startsAt) - now) : 0
   const d = Math.floor(left / 864e5), h = Math.floor((left % 864e5) / 36e5), m = Math.floor((left % 36e5) / 6e4), sec = Math.floor((left % 6e4) / 1000)
+  if (compact) return (
+    <div className={s.joinLine} data-state={state}>
+      <span>{title && <strong>{title}</strong>}
+        {state === 'upcoming' && <small className="num">بعد {d > 0 ? `${d} يوم · ` : ''}{h} ساعة · {m} دقيقة · {sec} ثانية</small>}
+        {state === 'open' && <small>الجلسة مفتوحة الآن</small>}
+      </span>
+      {state === 'open' ? <a className={`btn ${s.joinNow}`} href={`/learn-go/${lessonId}`}>انضم الآن</a> : <span className={s.joinSoon}>الانضمام قبل الموعد بربع ساعة</span>}
+    </div>
+  )
   return (
     <div className={s.card}>
       {state === 'upcoming' && (

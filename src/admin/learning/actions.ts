@@ -9,7 +9,9 @@ import { db, schema as s } from '@/server/db'
 import { courseScope, inScope, requirePermission } from '@/server/auth'
 import { audit } from '@/server/audit'
 import { putObject } from '@/server/storage'
-import { directUpload, streamState } from '@/server/stream'
+import { directUpload, streamCaptionGenerate, streamCaptions, streamCaptionUpload, streamState } from '@/server/stream'
+import { toVtt } from '@/lib/captions'
+import { setZoomEnabled, zoomState } from '@/server/zoom'
 import { readTicket } from '@/server/tickets'
 import { EXT_MIME } from '@/lib/files'
 import { onProgress } from '@/server/notify/engine'
@@ -131,5 +133,64 @@ export async function setAttendance(learnerId: string, lessonId: string, present
   else await db.delete(s.attendance).where(and(eq(s.attendance.learnerId, learnerId), eq(s.attendance.lessonId, lessonId)))
   await audit(st.name, present ? 'attend' : 'unattend', 'lesson', lessonId, learnerId)
   revalidatePath('/admin/learning', 'layout')
+  return { ok: true }
+}
+
+/* ───────── الترجمات النصية ───────── */
+
+/** ملف ترجمة (VTT أو SRT ← VTT) لفيديو برابط مباشر — يُخزَّن خاصاً ويُقدَّم لمن يحق له الدرس */
+export async function uploadCaption(form: FormData): Promise<{ ok: true; caption: { lang: string; label: string; assetId: string } } | { ok: false; error: string }> {
+  const st = await requirePermission('content.write')
+  const file = form.get('file')
+  const lang = String(form.get('lang') ?? '')
+  const label = String(form.get('label') ?? '').trim().slice(0, 40)
+  if (!(file instanceof File) || !file.size) return { ok: false, error: 'لم يُرفق ملف' }
+  if (!/^[a-z]{2}$/.test(lang) || !label) return { ok: false, error: 'اختر اللغة' }
+  if (file.size > 2 * 1024 * 1024) return { ok: false, error: 'ملف الترجمة حتى 2 ميغابايت' }
+  const vtt = toVtt(await file.text())
+  if (!vtt) return { ok: false, error: 'الملف ليس ترجمة WebVTT أو SRT صالحة' }
+  const id = randomUUID()
+  const key = `cap-${id}.vtt`
+  const bytes = new TextEncoder().encode(vtt)
+  await putObject(key, bytes, 'text/vtt')
+  await db.insert(s.assets).values({ id, key, name: `${label}.vtt`, mime: 'text/vtt', size: bytes.length, scope: 'caption' })
+  await audit(st.name, 'upload', 'asset', id, `ترجمة ${label}`)
+  return { ok: true, caption: { lang, label, assetId: id } }
+}
+
+/** ترجمات فيديو Stream — قائمة، ورفع ملف، وتوليد آلي */
+export async function streamCaptionsOf(uid: string) {
+  await requirePermission('content.read')
+  return (await streamCaptions(uid)) ?? []
+}
+export async function streamCaptionAdd(form: FormData): Promise<{ ok: boolean; error?: string }> {
+  const st = await requirePermission('content.write')
+  const uid = String(form.get('uid') ?? '')
+  const lang = String(form.get('lang') ?? '')
+  const file = form.get('file')
+  if (!streamState().configured) return { ok: false, error: streamState().problem }
+  if (!(file instanceof File) || file.size > 2 * 1024 * 1024) return { ok: false, error: 'ملف ترجمة حتى 2 ميغابايت' }
+  const vtt = toVtt(await file.text())
+  if (!vtt) return { ok: false, error: 'الملف ليس ترجمة WebVTT أو SRT صالحة' }
+  if (!(await streamCaptionUpload(uid, lang, vtt))) return { ok: false, error: 'رفض Stream الملف' }
+  await audit(st.name, 'caption', 'stream', uid, lang)
+  return { ok: true }
+}
+export async function streamCaptionAuto(uid: string, lang: string): Promise<{ ok: boolean; error?: string }> {
+  const st = await requirePermission('content.write')
+  if (!streamState().configured) return { ok: false, error: streamState().problem }
+  if (!(await streamCaptionGenerate(uid, lang))) return { ok: false, error: 'تعذّر بدء التوليد — تأكد أن الفيديو اكتملت معالجته' }
+  await audit(st.name, 'caption', 'stream', uid, `توليد ${lang}`)
+  return { ok: true }
+}
+
+/** تفعيل إلحاق تسجيلات Zoom تلقائياً — مقفل حتى يُضاف سرّ الإشعارات */
+export async function setZoom(enabled: boolean): Promise<{ ok: boolean; error?: string }> {
+  const st = await requirePermission('channels.manage')
+  if (typeof enabled !== 'boolean') return { ok: false, error: 'بيانات غير صالحة' }
+  if (enabled && !zoomState().configured) return { ok: false, error: zoomState().problem }
+  await setZoomEnabled(enabled)
+  await audit(st.name, 'update', 'settings', 'zoom', enabled ? 'تسجيلات Zoom تلقائية' : 'تسجيلات Zoom موقوفة')
+  revalidatePath('/admin/learning/sessions')
   return { ok: true }
 }

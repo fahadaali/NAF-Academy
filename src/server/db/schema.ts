@@ -61,7 +61,7 @@ export const instructors = sqliteTable('instructors', {
 })
 
 import { COURSE_STATUS, DELIVERY, LESSON_TYPE, LEVEL } from '../../lib/enums'
-import type { Assignment, Attachment, Chapter, Drip, Quiz, VideoSource } from '../../lib/learning-types'
+import type { Assignment, Attachment, Caption, Chapter, Drip, Quiz, VideoSource } from '../../lib/learning-types'
 import type { CertDesign, CertRules, Criterion } from '../../lib/certificate'
 import type { Block } from '../../lib/blocks'
 export { COURSE_STATUS, DELIVERY, LESSON_TYPE, LEVEL }
@@ -172,9 +172,10 @@ export const cohortSessions = sqliteTable(
     joinUrl: text('join_url').notNull().default(''),
     location: text('location').notNull().default(''),
     recording: text('recording', { mode: 'json' }).$type<VideoSource | null>(),
+    zoomMeetingId: text('zoom_meeting_id'),
     ...stamps,
   },
-  (t) => [primaryKey({ columns: [t.cohortId, t.lessonId] }), index('cohort_sessions_start_idx').on(t.startsAt)],
+  (t) => [primaryKey({ columns: [t.cohortId, t.lessonId] }), index('cohort_sessions_start_idx').on(t.startsAt), index('cohort_sessions_zoom_idx').on(t.zoomMeetingId)],
 )
 export type CohortRow = typeof cohorts.$inferSelect
 export type CohortSessionRow = typeof cohortSessions.$inferSelect
@@ -229,6 +230,10 @@ export const lessons = sqliteTable('lessons', {
   joinUrl: text('join_url').notNull().default(''),
   location: text('location').notNull().default(''),
   recording: text('recording', { mode: 'json' }).$type<VideoSource>(),
+  /** ترجمات نصية للفيديو المباشر (ملفات VTT خاصة) — وفيديو Stream ترجماته في Stream نفسه */
+  captions: text('captions', { mode: 'json' }).$type<Caption[]>().notNull().default(sql`'[]'`),
+  /** رقم اجتماع Zoom المستخرج من رابط الانضمام — لإلحاق التسجيل تلقائياً */
+  zoomMeetingId: text('zoom_meeting_id'),
 })
 
 /** إعدادات ومحتوى الصفحات (مفتاح ← JSON) */
@@ -825,3 +830,34 @@ export const orgContracts = sqliteTable(
   (t) => [index('contracts_org_idx').on(t.orgId)],
 )
 export type ContractRow = typeof orgContracts.$inferSelect
+
+/* ───────── الإنجازات والإشعارات داخل المنصة ───────── */
+export const achievements = sqliteTable(
+  'achievements',
+  {
+    id: id(),
+    learnerId: text('learner_id').notNull().references(() => learners.id, { onDelete: 'cascade' }),
+    kind: text('kind').notNull(),
+    /** للإنجاز الخاص بدورة أو مسار — فارغ للعام */
+    ref: text('ref').notNull().default(''),
+    earnedAt: stamps.createdAt,
+  },
+  (t) => [uniqueIndex('achievement_once').on(t.learnerId, t.kind, t.ref)],
+)
+
+export const inbox = sqliteTable(
+  'inbox',
+  {
+    id: id(),
+    /** مفتاح فريد (مفتاح الرسالة أو الإنجاز) — لا تتكرر بإعادة المحاولة */
+    key: text('key').notNull().unique(),
+    learnerId: text('learner_id').notNull().references(() => learners.id, { onDelete: 'cascade' }),
+    kind: text('kind').notNull(),
+    title: text('title').notNull(),
+    body: text('body').notNull().default(''),
+    url: text('url').notNull().default(''),
+    readAt: text('read_at'),
+    createdAt: stamps.createdAt,
+  },
+  (t) => [index('inbox_learner_idx').on(t.learnerId, t.createdAt)],
+)

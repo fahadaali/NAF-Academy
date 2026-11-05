@@ -99,6 +99,8 @@ export async function issueCertificate(id: string, by: string) {
   try {
     const { onCertificate } = await import('../notify/engine')
     await onCertificate(row.id)
+    const { evaluateAchievements } = await import('../achievements')
+    await evaluateAchievements(row.learnerId)
   } catch (e) {
     console.error('certificate notify', e)
   }

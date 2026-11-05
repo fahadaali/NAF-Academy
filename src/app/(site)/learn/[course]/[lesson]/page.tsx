@@ -65,7 +65,7 @@ export default async function LessonPage({ params }: { params: Promise<{ course:
         {access.state === 'open' && (
           <div className={st.content}>
             {l.type === 'video' && v.player.kind !== 'none' && v.player.src && (
-              <VideoWorkspace slug={slug} lessonId={l.id} kind={v.player.kind} src={v.player.src} resumeAt={v.player.resumeAt} chapters={l.chapters} watermark={me ? me.email || me.phone || me.name : ''} done={v.done} />
+              <VideoWorkspace slug={slug} lessonId={l.id} kind={v.player.kind} src={v.player.src} resumeAt={v.player.resumeAt} chapters={l.chapters} captions={v.player.captions} watermark={me ? me.email || me.phone || me.name : ''} done={v.done} />
             )}
             {l.type === 'video' && v.player.kind === 'none' && <div className={st.locked}><strong>الفيديو قيد التجهيز</strong></div>}
 

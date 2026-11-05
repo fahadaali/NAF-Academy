@@ -23,7 +23,7 @@ const STATUS = [
 const TONE = { soon: 'soon', open: 'open', closed: 'draft' } as const
 
 function blank(lessons: SessionLesson[]): CohortInput {
-  return { title: '', status: 'soon', startsAt: null, endsAt: null, seatsTotal: null, seatsTaken: 0, city: '', venue: '', sessions: lessons.map((l) => ({ lessonId: l.id, startsAt: null, endsAt: null, joinUrl: '', location: '' })) }
+  return { title: '', status: 'soon', startsAt: null, endsAt: null, seatsTotal: null, seatsTaken: 0, city: '', venue: '', sessions: lessons.map((l) => ({ lessonId: l.id, startsAt: null, endsAt: null, joinUrl: '', location: '', recording: '' })) }
 }
 
 function toInput(it: Item, lessons: SessionLesson[]): CohortInput {
@@ -32,7 +32,8 @@ function toInput(it: Item, lessons: SessionLesson[]): CohortInput {
     title: row.title, status: row.status, startsAt: row.startsAt, endsAt: row.endsAt, seatsTotal: row.seatsTotal, seatsTaken: row.seatsTaken, city: row.city, venue: row.venue,
     sessions: lessons.map((l) => {
       const x = it.sessions.find((y) => y.lessonId === l.id)
-      return { lessonId: l.id, startsAt: x?.startsAt ?? null, endsAt: x?.endsAt ?? null, joinUrl: x?.joinUrl ?? '', location: x?.location ?? '' }
+      const r = x?.recording
+      return { lessonId: l.id, startsAt: x?.startsAt ?? null, endsAt: x?.endsAt ?? null, joinUrl: x?.joinUrl ?? '', location: x?.location ?? '', recording: r?.provider === 'stream' ? r.uid : r?.provider === 'url' ? r.url : '' }
     }),
   }
 }
@@ -117,7 +118,7 @@ export function CohortsPanel({ courseId, items, lessons, canWrite }: { courseId:
           <h4 className={c.h}>مواعيد الجلسات</h4>
           {lessons.length === 0 ? <p className={p.muted}>لا جلسات مباشرة أو حضورية في المنهج — أضفها واحفظ الدورة أولاً.</p> : (
             <table className={p.table}>
-              <thead><tr><th>الجلسة</th><th>البداية</th><th>النهاية</th><th>رابط الانضمام / المكان</th></tr></thead>
+              <thead><tr><th>الجلسة</th><th>البداية</th><th>النهاية</th><th>رابط الانضمام / المكان</th><th>التسجيل</th></tr></thead>
               <tbody>
                 {edit.v.sessions.map((x, i) => {
                   const l = lessons.find((y) => y.id === x.lessonId)!
@@ -129,6 +130,7 @@ export function CohortsPanel({ courseId, items, lessons, canWrite }: { courseId:
                       <td>{l.type === 'live'
                         ? <Input dir="ltr" value={x.joinUrl} onChange={(e) => setSession(i, { joinUrl: e.target.value })} placeholder="https://zoom.us/j/…" />
                         : <Input value={x.location} onChange={(e) => setSession(i, { location: e.target.value })} placeholder="القاعة والدور" />}</td>
+                      <td>{l.type === 'live' && <Input dir="ltr" value={x.recording ?? ''} onChange={(e) => setSession(i, { recording: e.target.value.trim() })} placeholder="تلقائي من Zoom، أو معرّف Stream / رابط" />}</td>
                     </tr>
                   )
                 })}

@@ -87,6 +87,7 @@ export const lessonInput = z.object({
   joinUrl: z.union([z.literal(''), z.string().trim().url('رابط غير صالح').regex(/^https:\/\//, 'رابط https فقط').max(1000)]).default(''),
   location: z.string().max(1000).default(''),
   recording: videoInput.nullable().default(null),
+  captions: z.array(z.object({ lang: z.string().regex(/^[a-z]{2}$/), label: z.string().trim().min(1).max(40), assetId: z.string().uuid() })).max(6).default([]),
 })
 
 export const moduleInput = z.object({
@@ -245,7 +246,7 @@ export const pagesInput = z.object({
 /* ───────── الدفعات ───────── */
 const httpsUrl = z.union([z.literal(''), z.string().trim().url('رابط غير صالح').regex(/^https:\/\//, 'رابط https فقط').max(1000)])
 
-const sessionInput = z.object({ lessonId: z.string().uuid(), startsAt: iso, endsAt: iso, joinUrl: httpsUrl, location: z.string().trim().max(1000) })
+const sessionInput = z.object({ lessonId: z.string().uuid(), startsAt: iso, endsAt: iso, joinUrl: httpsUrl, location: z.string().trim().max(1000), recording: z.string().trim().max(1000).default('') })
   .refine((x) => !x.startsAt || !x.endsAt || Date.parse(x.endsAt) > Date.parse(x.startsAt), { message: 'النهاية بعد البداية', path: ['endsAt'] })
 export const cohortInput = z.object({
   title: z.string().trim().min(2, 'اسم الدفعة مطلوب').max(120),

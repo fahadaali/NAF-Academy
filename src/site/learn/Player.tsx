@@ -13,6 +13,8 @@ type Props = {
   src: string
   resumeAt: number
   chapters: Chapter[]
+  /** ترجمات الفيديو المباشر — Stream يعرض ترجماته في مشغّله */
+  captions?: { src: string; lang: string; label: string }[]
   watermark: string
   onBeat: (position: number, delta: number, duration: number) => void
   theater: boolean
@@ -30,7 +32,7 @@ const fmt = (t: number) => {
 }
 const SPEEDS = [0.75, 1, 1.25, 1.5, 1.75, 2]
 
-export const Player = forwardRef<PlayerApi, Props>(function Player({ kind, src, resumeAt, chapters, watermark, onBeat, theater, onTheater }, ref) {
+export const Player = forwardRef<PlayerApi, Props>(function Player({ kind, src, resumeAt, chapters, captions = [], watermark, onBeat, theater, onTheater }, ref) {
   const video = useRef<HTMLVideoElement>(null)
   const frame = useRef<StreamEl>(null)
   const sdk = useRef<StreamSdk | null>(null)
@@ -41,6 +43,15 @@ export const Player = forwardRef<PlayerApi, Props>(function Player({ kind, src, 
   const [rate, setRate] = useState(1)
   const [wm, setWm] = useState({ x: 8, y: 10 })
   const [hint, setHint] = useState('')
+  /* الترجمة: اللغة المختارة تُحفظ لهذا المتصفح */
+  const [cc, setCc] = useState<string>('')
+  useEffect(() => { try { const v = localStorage.getItem('naf-cc'); if (v && captions.some((c) => c.lang === v)) setCc(v) } catch {} }, [captions])
+  useEffect(() => {
+    const tracks = video.current?.textTracks
+    if (!tracks) return
+    for (const t of Array.from(tracks)) t.mode = t.language === cc ? 'showing' : 'hidden'
+    try { localStorage.setItem('naf-cc', cc) } catch {}
+  }, [cc])
   const watched = useRef(0)
   const lastT = useRef(resumeAt)
 
@@ -143,7 +154,9 @@ export const Player = forwardRef<PlayerApi, Props>(function Player({ kind, src, 
             onPlay={() => setPaused(false)}
             onPause={() => setPaused(true)}
             onClick={toggle}
-          />
+          >
+            {captions.map((c) => <track key={c.lang} kind="subtitles" src={c.src} srcLang={c.lang} label={c.label} />)}
+          </video>
         ) : (
           <iframe ref={frame} src={src} className={s.media} allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture; fullscreen" allowFullScreen title="فيديو الدرس" />
         )}
@@ -160,6 +173,12 @@ export const Player = forwardRef<PlayerApi, Props>(function Player({ kind, src, 
             <input type="range" min={0} max={dur || 1} step={1} value={t} onChange={(e) => seek(Number(e.target.value))} aria-label="الموضع" style={{ ['--p' as string]: `${pct}%` }} />
             {dur > 0 && chapters.map((c) => <i key={c.at} className={s.mark} style={{ left: `${(c.at / dur) * 100}%` }} title={c.title} />)}
           </div>
+          {captions.length > 0 && (
+            <select value={cc} onChange={(e) => setCc(e.target.value)} aria-label="الترجمة النصية">
+              <option value="">CC ✕</option>
+              {captions.map((c) => <option key={c.lang} value={c.lang}>CC {c.label}</option>)}
+            </select>
+          )}
           <select value={rate} onChange={(e) => setSpeed(Number(e.target.value))} aria-label="السرعة">
             {SPEEDS.map((r) => <option key={r} value={r}>{r}×</option>)}
           </select>

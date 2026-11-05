@@ -7,7 +7,9 @@ import type { CourseInput } from '@/admin/schemas'
 import type { Chapter, Quiz, QuizQuestion } from '@/lib/learning-types'
 import { EMPTY_ASSIGNMENT, EMPTY_QUIZ } from '@/lib/learning-types'
 import { DateTime, Field, Grid, Input, RowTools, Segmented, Switch, Textarea } from '@/admin/ui/kit'
-import { streamStatus, streamUpload, uploadLessonFile } from '@/admin/learning/actions'
+import { streamCaptionAdd, streamCaptionAuto, streamCaptionsOf, streamStatus, streamUpload, uploadCaption, uploadLessonFile } from '@/admin/learning/actions'
+import { CAPTION_LANGS } from '@/lib/captions'
+import type { Caption } from '@/lib/learning-types'
 import d from './lesson.module.css'
 import { fileSize } from '@/lib/files'
 
@@ -28,6 +30,8 @@ export function LessonDetail({ value: l, onChange, err }: { value: Lesson; onCha
     <div className={d.panel}>
       {l.type === 'video' && <VideoField label="مصدر الفيديو" value={l.video ?? { provider: 'none' }} onChange={(video) => onChange({ video })} error={err('video.uid') ?? err('video.url')} />}
       {l.type === 'video' && <Chapters value={l.chapters ?? []} onChange={(chapters) => onChange({ chapters })} />}
+      {l.type === 'video' && l.video?.provider === 'url' && <Captions value={l.captions ?? []} onChange={(captions) => onChange({ captions })} />}
+      {l.type === 'video' && l.video?.provider === 'stream' && /^[a-f0-9]{32}$/.test(l.video.uid) && <StreamCaptions uid={l.video.uid} />}
 
       {session && (
         <Grid>
@@ -118,6 +122,70 @@ export function VideoField({ label, hint, value, onChange, error }: { label: str
         <span className={d.note} role="status">Stream غير مربوط: {stream.problem}. لن يُشغَّل الفيديو حتى تُضاف المفاتيح — استعمل «رابط مباشر» إلى ذلك الحين.</span>
       )}
       {busy && <span className={d.note} role="status">{busy}</span>}
+    </Field>
+  )
+}
+
+/** ترجمات الفيديو المباشر: ملف VTT أو SRT لكل لغة */
+function Captions({ value, onChange }: { value: Caption[]; onChange: (v: Caption[]) => void }) {
+  const [lang, setLang] = useState<string>(CAPTION_LANGS[0].lang)
+  const [msg, setMsg] = useState('')
+  const file = useRef<HTMLInputElement>(null)
+  const add = async (f: File) => {
+    const label = CAPTION_LANGS.find((x) => x.lang === lang)?.label ?? lang
+    const fd = new FormData()
+    fd.set('file', f); fd.set('lang', lang); fd.set('label', label)
+    setMsg('يُرفع…')
+    const r = await uploadCaption(fd)
+    if (!r.ok) return setMsg(r.error)
+    onChange([...value.filter((c) => c.lang !== lang), r.caption])
+    setMsg('')
+  }
+  return (
+    <Field label="الترجمة النصية" hint="ملف WebVTT أو SRT لكل لغة — يظهر زر الترجمة في المشغّل">
+      <div className={d.list}>
+        {value.map((c) => (
+          <div key={c.lang} className={d.row}>
+            <span>{c.label} <small dir="ltr">({c.lang})</small></span>
+            <button type="button" className={d.x} aria-label={`حذف ترجمة ${c.label}`} onClick={() => onChange(value.filter((x) => x.lang !== c.lang))}>×</button>
+          </div>
+        ))}
+        <div className={d.row}>
+          <select value={lang} onChange={(e) => setLang(e.target.value)} aria-label="لغة الترجمة">{CAPTION_LANGS.map((x) => <option key={x.lang} value={x.lang}>{x.label}</option>)}</select>
+          <input ref={file} type="file" accept=".vtt,.srt,text/vtt" hidden onChange={(e) => { if (e.target.files?.[0]) add(e.target.files[0]); e.target.value = '' }} />
+          <button type="button" className={d.add} onClick={() => file.current?.click()}>+ ملف ترجمة</button>
+        </div>
+        {msg && <span className={d.note} role="status">{msg}</span>}
+      </div>
+    </Field>
+  )
+}
+
+/** ترجمات فيديو Stream: تُحفظ في Stream نفسه — رفع ملف أو توليد آلي من الصوت */
+function StreamCaptions({ uid }: { uid: string }) {
+  const [list, setList] = useState<{ language: string; label: string; status?: string }[] | null>(null)
+  const [msg, setMsg] = useState('')
+  const [lang, setLang] = useState<string>(CAPTION_LANGS[0].lang)
+  const file = useRef<HTMLInputElement>(null)
+  useEffect(() => { let live = true; streamCaptionsOf(uid).then((x) => live && setList(x)).catch(() => {}); return () => { live = false } }, [uid])
+  const refresh = async () => setList(await streamCaptionsOf(uid))
+  return (
+    <Field label="الترجمة النصية (Stream)" hint="يعرضها مشغّل Stream بزر الترجمة">
+      <div className={d.list}>
+        {list === null ? <span className={d.note}>يُحمَّل…</span> : list.length === 0 ? <span className={d.note}>لا ترجمات بعد.</span> : list.map((c) => <span key={c.language} className={d.note}>{c.label} ({c.language}){c.status && c.status !== 'ready' ? ` — ${c.status}` : ''}</span>)}
+        <div className={d.row}>
+          <select value={lang} onChange={(e) => setLang(e.target.value)} aria-label="لغة الترجمة">{CAPTION_LANGS.map((x) => <option key={x.lang} value={x.lang}>{x.label}</option>)}</select>
+          <input ref={file} type="file" accept=".vtt,.srt,text/vtt" hidden onChange={async (e) => {
+            const f = e.target.files?.[0]; e.target.value = ''
+            if (!f) return
+            const fd = new FormData(); fd.set('uid', uid); fd.set('lang', lang); fd.set('file', f)
+            const r = await streamCaptionAdd(fd); setMsg(r.ok ? 'رُفعت الترجمة' : r.error ?? ''); if (r.ok) refresh()
+          }} />
+          <button type="button" className={d.add} onClick={() => file.current?.click()}>+ ملف</button>
+          <button type="button" className={d.add} onClick={async () => { const r = await streamCaptionAuto(uid, lang); setMsg(r.ok ? 'بدأ التوليد — يظهر خلال دقائق' : r.error ?? ''); if (r.ok) refresh() }}>توليد تلقائي</button>
+        </div>
+        {msg && <span className={d.note} role="status">{msg}</span>}
+      </div>
     </Field>
   )
 }

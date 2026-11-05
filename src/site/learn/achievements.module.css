@@ -1,0 +1,14 @@
+.box { display: grid; gap: 14px; margin-block-end: 26px; }
+.head { display: flex; align-items: baseline; justify-content: space-between; }
+.head h2 { font-family: var(--font-display); font-size: 24px; }
+.head span { color: var(--muted); font-size: 14px; }
+.list { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+.badge { display: grid; justify-items: center; gap: 4px; padding: 16px 10px; text-align: center; border-radius: var(--radius-m); background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); }
+.badge svg { inline-size: 64px; block-size: 64px; margin-block-end: 4px; }
+.badge strong { font-size: 14.5px; }
+.badge small { font-size: 12px; color: var(--muted); line-height: 1.5; }
+.disc { fill: color-mix(in srgb, var(--gold-3) 22%, transparent); stroke: var(--gold-3); stroke-width: 2.5; }
+.ink { fill: none; stroke: var(--text); stroke-width: 3.5; stroke-linecap: round; stroke-linejoin: round; }
+.badge[data-locked='1'] { opacity: 0.45; }
+.badge[data-locked='1'] .disc { fill: transparent; stroke: var(--line-strong); stroke-dasharray: 4 5; }
+.badge[data-locked='1'] .ink { stroke: var(--muted); }
