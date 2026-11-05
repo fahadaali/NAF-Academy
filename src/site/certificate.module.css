@@ -6,7 +6,7 @@
 .status div { display: grid; }
 .status strong, .statusTitle { font-size: 17px; font-weight: 700; }
 .status small { color: var(--muted); font-size: 13.5px; }
-.sheet { position: relative; }
+.sheet { position: relative; --wipe-r: 6px; }
 .sheet[data-revoked='1'] { filter: grayscale(1); opacity: 0.55; }
 .facts { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
 .facts div { padding: 14px 16px; border-radius: var(--radius-m); background: var(--surface); border: 1px solid var(--line); }

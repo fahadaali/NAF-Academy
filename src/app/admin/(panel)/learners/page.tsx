@@ -25,13 +25,13 @@ export default async function Learners({ searchParams }: { searchParams: Promise
         {(sp.q || sp.c) && <Link className="btn ghost" href="/admin/learners">مسح</Link>}
       </form>
       {rows.length === 0 ? <div className={p.empty}>لا متدربين يطابقون البحث.</div> : (
-        <table className={p.table}>
+        <div className={p.scroll}><table className={p.table}>
           <thead><tr><th>المتدرب</th><th>الجوال</th><th>الجهة</th><th>دورات نشطة</th><th>شهادات</th><th>آخر تسجيل</th></tr></thead>
           <tbody>
             {rows.map((r) => (
               <tr key={r.l.id}>
-                <td><Link href={`/admin/learners/${r.l.id}`} className={p.rowLink}>{r.l.name}</Link><div className={p.muted} dir="ltr" style={{ textAlign: 'end' }}>{r.l.email}</div></td>
-                <td className="num" dir="ltr" style={{ textAlign: 'end' }}>{r.l.phone || '—'}</td>
+                <td><Link href={`/admin/learners/${r.l.id}`} className={p.rowLink}>{r.l.name}</Link><div className={`${p.muted} ${p.ltr}`}>{r.l.email}</div></td>
+                <td className={`num ${p.ltr}`}>{r.l.phone || '—'}</td>
                 <td className={p.muted}>{r.l.org || '—'}</td>
                 <td className="num">{r.active}</td>
                 <td className="num">{r.certs}</td>
@@ -39,7 +39,7 @@ export default async function Learners({ searchParams }: { searchParams: Promise
               </tr>
             ))}
           </tbody>
-        </table>
+        </table></div>
       )}
       {pages > 1 && (
         <nav className={p.toolbar} aria-label="الصفحات" style={{ marginBlockStart: 16 }}>

@@ -1,6 +1,6 @@
 .voices { padding-block: clamp(80px, 14vh, 160px); background: var(--bg); }
 .title { display: block; margin-block: 12px 40px; }
-.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr)); gap: 20px; }
 .card { display: grid; gap: 22px; align-content: space-between; padding: 28px 28px 24px; border-radius: var(--radius-l); background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow-1); }
 .quote { position: relative; font-family: var(--font-text); font-size: var(--fs-statement); line-height: 1.75; color: var(--text); }
 .quote::before { content: '«'; position: absolute; inset-block-start: -0.42em; inset-inline-start: -0.08em; font-family: var(--font-display); font-size: 3.2em; line-height: 1; color: var(--gold-3); opacity: 0.35; }

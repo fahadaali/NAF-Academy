@@ -50,7 +50,7 @@ export function PromotionsBoard({ rows, courses, tracks }: { rows: PromotionRow[
       <PageHead title="العروض العامة" sub="خصم تلقائي باسم يظهر بجوار السعر وعدّاد تنازلي — بلا كوبون"
         actions={!edit && <button className="btn" onClick={() => open(null, BLANK)}>+ عرض</button>} />
       {!edit && (rows.length === 0 ? <div className={p.empty}>لا عروض عامة. عرض الدورة الواحدة يُضبط من «التسعير والعروض» في محرّرها.</div> : (
-        <table className={p.table}>
+        <div className={p.scroll}><table className={p.table}>
           <thead><tr><th>العرض</th><th>الخصم</th><th>النطاق</th><th>النافذة</th><th>الحالة</th><th /></tr></thead>
           <tbody>
             {rows.map((r) => {
@@ -67,7 +67,7 @@ export function PromotionsBoard({ rows, courses, tracks }: { rows: PromotionRow[
               )
             })}
           </tbody>
-        </table>
+        </table></div>
       ))}
       {edit && (
         <>

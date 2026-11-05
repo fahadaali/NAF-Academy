@@ -27,7 +27,7 @@
 .review { display: grid; gap: 12px; }
 .starsIn { display: flex; gap: 4px; border: 0; padding: 0; flex-direction: row-reverse; justify-content: flex-end; }
 .starsIn legend { font-weight: 700; margin-block-end: 6px; inline-size: 100%; }
-.starsIn label { cursor: pointer; font-size: 30px; line-height: 1; color: var(--line-strong); transition: color var(--t-base), transform var(--t-base); }
+.starsIn label { cursor: pointer; font-size: 30px; line-height: 1; color: var(--line-strong); transition: color var(--t-base) var(--ease-move), transform var(--t-base) var(--ease-move); }
 .starsIn label[data-on='1'] { color: var(--chart-1); }
 .starsIn label:hover { transform: scale(1.12); }
 .starsIn input { position: absolute; opacity: 0; inline-size: 1px; block-size: 1px; }

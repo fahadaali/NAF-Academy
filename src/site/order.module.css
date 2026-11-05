@@ -9,7 +9,7 @@
 .burst span {
   position: absolute; inset-block-start: 55%; inset-inline-start: 50%; inline-size: 7px; block-size: 7px; border-radius: 1px;
   background: var(--gold-3); opacity: 0; transform: rotate(45deg);
-  animation: spark calc(var(--t-gentle) * 6) var(--ease-glide) calc(var(--t-gentle) * 2 + var(--i) * 40ms) forwards;
+  animation: spark calc(var(--t-gentle) * 6) var(--ease-glide) calc(var(--t-gentle) * 2 + var(--i) * var(--stagger-row)) backwards;
   --a: calc(var(--i) * 15deg);
 }
 @keyframes spark {
@@ -34,6 +34,6 @@
 .link { color: var(--accent); font-weight: 700; }
 .next ol { display: grid; gap: 14px; counter-reset: n; }
 .next li { counter-increment: n; display: grid; grid-template-columns: 34px 1fr; gap: 12px; color: var(--text-soft); line-height: 1.7; }
-.next li::before { content: counter(n); inline-size: 30px; block-size: 30px; border-radius: 50%; display: grid; place-items: center; background: var(--night-1); color: var(--gold-4); font-weight: 700; font-size: 14px; }
+.next li::before { content: counter(n); inline-size: 30px; block-size: 30px; border-radius: 50%; display: grid; place-items: center; background: var(--badge-bg); color: var(--badge-ink); font-weight: 700; font-size: 14px; }
 .next li strong { color: var(--text); }
-@media (max-width: 900px) { .body { grid-template-columns: 1fr; } }
+@media (max-width: 900px) { .body { grid-template-columns: minmax(0, 1fr); } }

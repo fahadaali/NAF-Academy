@@ -7,6 +7,7 @@ import { CourseCard } from '@/components/CourseCard'
 import { Picture } from '@/components/Picture'
 import { Prose } from '@/components/Prose'
 import { PageHero } from '@/site/PageHero'
+import pg from '@/site/pages.module.css'
 
 export const revalidate = 300
 
@@ -28,29 +29,29 @@ export default async function InstructorPage({ params }: { params: Promise<{ slu
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: ldJson([person(siteUrl() ?? '', { slug: p.slug, name: p.name, title: p.title, image: p.photo ? `${siteUrl() ?? ''}${p.photo.url}` : undefined }), breadcrumbs(siteUrl() ?? '', [['الرئيسية', '/'], [p.name, `/instructors/${p.slug}`]])]) }} />
       <PageHero eyebrow={p.title} title={p.name}>
         {p.links && p.links.length > 0 && (
-          <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
-            {p.links.map((l) => <a key={l.url} href={l.url} target="_blank" rel="noreferrer" style={{ color: 'var(--gold-4)', fontWeight: 600 }}>{l.label} ↗</a>)}
+          <div className={pg.links}>
+            {p.links.map((l) => <a key={l.url} href={l.url} target="_blank" rel="noreferrer">{l.label} ↗</a>)}
           </div>
         )}
       </PageHero>
-      <div className="wrap" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 50, paddingBlock: '60px 100px', alignItems: 'start' }}>
-        <div style={{ position: 'relative', aspectRatio: '4 / 4.6', borderRadius: 'var(--radius-l)', overflow: 'hidden', background: 'radial-gradient(70% 60% at 50% 40%, var(--night-3), var(--night-1))', maxInlineSize: 420, display: 'grid', placeItems: 'center', color: 'var(--gold-3)', fontFamily: 'var(--font-display)', fontSize: 120 }}>
+      <div className={`wrap ${pg.person}`}>
+        <div className={pg.portrait}>
           {p.scene ?? p.photo ? <Picture media={(p.scene ?? p.photo)!} priority /> : p.name.slice(0, 1)}
         </div>
-        <div style={{ display: 'grid', gap: 22 }}>
+        <div className={pg.about}>
           {p.bio && <Prose text={p.bio} />}
           {p.highlights.length > 0 && (
-            <ul role="list" style={{ display: 'grid', gap: 10 }}>
-              {p.highlights.map((h) => <li key={h} style={{ padding: '14px 18px', borderRadius: 'var(--radius-m)', background: 'var(--surface)', border: '1px solid var(--line)', fontWeight: 600 }}>{h}</li>)}
+            <ul role="list" className={pg.highlights}>
+              {p.highlights.map((h) => <li key={h}>{h}</li>)}
             </ul>
           )}
         </div>
       </div>
       {courses.length > 0 && (
-        <section style={{ background: 'var(--surface-2)', paddingBlock: '60px 100px' }}>
+        <section className={pg.courses}>
           <div className="wrap">
-            <h2 className="scene-title" style={{ marginBlockEnd: 26 }}>دورات {p.name}</h2>
-            <div className="stagger reveal" style={{ display: 'flex', flexWrap: 'wrap', gap: 22 }}>
+            <h2 className="scene-title">دورات {p.name}</h2>
+            <div className={`stagger reveal ${pg.cards}`}>
               {courses.map((c) => <CourseCard key={c.slug} course={c} track={tracks.find((t) => t.slug === c.track)} instructor={instructors.find((x) => x.slug === c.instructor)} />)}
             </div>
           </div>

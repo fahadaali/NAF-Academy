@@ -3,9 +3,13 @@
 .canvas { position: absolute; inset: 0; inline-size: 100%; block-size: 100%; z-index: 0; }
 .vignette {
   position: absolute; inset: 0; z-index: 1; pointer-events: none;
-  background:
-    radial-gradient(60% 50% at 50% 50%, transparent 0%, transparent 40%, color-mix(in srgb, var(--night-0) 65%, transparent) 100%),
-    radial-gradient(40% 35% at 50% 55%, color-mix(in srgb, var(--gold-3) calc((0.04 + var(--p, 0) * 0.1) * 100%), transparent), transparent 70%);
+  background: radial-gradient(60% 50% at 50% 50%, transparent 0%, transparent 40%, color-mix(in srgb, var(--night-0) 65%, transparent) 100%);
+}
+/* التوهّج الذهبي يشتدّ مع التمرير — طبقة ثابتة الرسم تتغيّر شفافيتها فقط (لا إعادة رسم في كل إطار) */
+.vignette::after {
+  content: ''; position: absolute; inset: 0;
+  background: radial-gradient(40% 35% at 50% 55%, color-mix(in srgb, var(--gold-3) 14%, transparent), transparent 70%);
+  opacity: calc(0.29 + var(--p, 0) * 0.71);
 }
 
 .head {
@@ -59,3 +63,9 @@
   .canvas, .meter, .hint { display: none; }
   .calmMark { display: grid; place-items: center; color: var(--gold-3); }
 }
+
+/* بلا JS: العنوان والدعوة ظاهران، والمشهد بارتفاع الشاشة (لا تمرير فارغ فوق مراحل لا تتحرك) */
+:global(html:not(.js)) .opening { block-size: 100svh; }
+:global(html:not(.js)) .eyebrow, :global(html:not(.js)) .hint { opacity: 1; transform: none; }
+:global(html:not(.js)) .final { opacity: 1; transform: none; pointer-events: auto; }
+:global(html:not(.js)) .phases { display: none; }

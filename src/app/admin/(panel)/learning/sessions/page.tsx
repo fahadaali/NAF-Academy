@@ -17,7 +17,7 @@ export default async function Sessions() {
       {missing.length > 0 && (
         <section className={p.block}>
           <h2 className={p.h2}>جلسات انتهت بلا تسجيل <span className="num">({missing.length})</span></h2>
-          <table className={p.table}>
+          <div className={p.scroll}><table className={p.table}>
             <tbody>{missing.map((m) => (
               <tr key={m.key}>
                 <td><strong>{m.title}</strong><div className={p.muted}>{m.course}{m.cohort ? ` · ${m.cohort}` : ''}</div></td>
@@ -26,11 +26,11 @@ export default async function Sessions() {
                 <td><a className={p.rowLink} href={`/admin/courses/${m.courseId}?tab=${m.cohortId ? 'cohorts' : 'curriculum'}`}>أضف التسجيل ←</a></td>
               </tr>
             ))}</tbody>
-          </table>
+          </table></div>
         </section>
       )}
       {rows.length === 0 ? <div className={p.empty}>لا جلسات مجدولة.</div> : (
-        <table className={p.table}>
+        <div className={p.scroll}><table className={p.table}>
           <thead><tr><th>الجلسة</th><th>الموعد</th><th>النوع</th><th>الحضور</th></tr></thead>
           <tbody>{rows.map((r) => (
             <tr key={r.key}>
@@ -40,7 +40,7 @@ export default async function Sessions() {
               <td className="num">{r.attended} / {r.enrolled}</td>
             </tr>
           ))}</tbody>
-        </table>
+        </table></div>
       )}
     </>
   )

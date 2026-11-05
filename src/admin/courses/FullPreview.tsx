@@ -16,6 +16,8 @@ export function FullPreview({ courseId, url, draft, onClose }: { courseId: strin
   const [busy, setBusy] = useState(true)
   const box = useRef<HTMLDivElement>(null)
   const [scale, setScale] = useState(1)
+  /* ارتفاع المسرح الفعلي — شريط الأدوات يلتفّ على الجوال فلا يُفترض ارتفاعه */
+  const [h, setH] = useState(0)
   const json = JSON.stringify(draft)
 
   /* المسودة تُحفظ بعد توقّف الكتابة ثم يُعاد تحميل الإطار */
@@ -31,7 +33,7 @@ export function FullPreview({ courseId, url, draft, onClose }: { courseId: strin
   useEffect(() => {
     const el = box.current
     if (!el) return
-    const fit = () => setScale(Math.min(1, (el.clientWidth - 32) / DEVICES[device]))
+    const fit = () => { setScale(Math.min(1, (el.clientWidth - 32) / DEVICES[device])); setH(Math.max(0, el.clientHeight - 32)) }
     fit()
     const ro = new ResizeObserver(fit)
     ro.observe(el)
@@ -55,10 +57,10 @@ export function FullPreview({ courseId, url, draft, onClose }: { courseId: strin
         <button type="button" className="btn" onClick={onClose}>إغلاق</button>
       </div>
       <div className={f.stage} ref={box}>
-        <div className={f.frameBox} style={{ inlineSize: w * scale, blockSize: `calc((100svh - 110px))` }}>
+        <div className={f.frameBox} style={{ inlineSize: w * scale, blockSize: h || undefined }}>
           {rev > 0 && (
             <iframe key={`${rev}-${device}`} title="معاينة الدورة" src={`${url}?draft=1&r=${rev}`} className={f.frame}
-              style={{ inlineSize: w, blockSize: `calc((100svh - 110px) / ${scale})`, transform: `scale(${scale})` }}
+              style={{ inlineSize: w, blockSize: h ? h / scale : undefined, transform: `scale(${scale})` }}
               onLoad={() => setBusy(false)} />
           )}
         </div>

@@ -2,7 +2,7 @@
 .slot {
   position: relative; inline-size: 100%; max-inline-size: 420px; border-radius: var(--radius-m); overflow: hidden;
   border: 1.5px dashed var(--line-strong); background: var(--surface-2); color: var(--muted); font-weight: 600; font-size: 14px;
-  display: grid; place-items: center; transition: border-color var(--t-base);
+  display: grid; place-items: center; transition: border-color var(--t-base) var(--ease-move);
 }
 .slot:hover { border-color: var(--gold-3); color: var(--accent); }
 .slot img { position: absolute; inset: 0; inline-size: 100%; block-size: 100%; object-fit: cover; }
@@ -21,7 +21,7 @@
 .error { color: var(--danger); padding: 10px 20px 0; font-weight: 600; }
 .lib { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; padding: 18px 20px 22px; }
 .none { grid-column: 1 / -1; text-align: center; color: var(--muted); padding: 40px; }
-.tile { display: grid; gap: 6px; text-align: start; border-radius: var(--radius-m); padding: 6px; transition: background var(--t-base), box-shadow var(--t-base); }
+.tile { display: grid; gap: 6px; text-align: start; border-radius: var(--radius-m); padding: 6px; transition: background var(--t-base) var(--ease-move), box-shadow var(--t-base) var(--ease-move); }
 .tile img { inline-size: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 10px; }
 .tile span { font-size: 12.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tile:hover { background: var(--surface-2); }

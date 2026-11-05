@@ -25,10 +25,10 @@ export default async function CouponPage({ params }: { params: Promise<{ id: str
       <CouponEditor key={c.updatedAt} id={id} courses={courses} tracks={tracks} initial={{ code, label, kind, value, scope, courseIds, trackIds, startsAt, endsAt, maxUses, maxPerLearner, minAmount, emailDomain, stackWithSale, active }} />
       <h2 style={{ fontSize: 20, margin: '30px 0 12px' }}>سجل الاستخدام <span className="num">({uses.length})</span></h2>
       {uses.length === 0 ? <div className={p.empty}>لم يُستخدم بعد.</div> : (
-        <table className={p.table}>
+        <div className={p.scroll}><table className={p.table}>
           <thead><tr><th>الطلب</th><th>المتدرب</th><th>الخصم</th><th>الوقت</th></tr></thead>
-          <tbody>{uses.map((u) => <tr key={u.orderId}><td><Link className={`${p.rowLink} num`} href={`/admin/orders/${u.orderId}`}>{u.number}</Link></td><td dir="ltr" style={{ textAlign: 'end' }}>{u.email}</td><td className="num">{sar(u.amount)}</td><td className={`${p.muted} num`}>{when(u.at)}</td></tr>)}</tbody>
-        </table>
+          <tbody>{uses.map((u) => <tr key={u.orderId}><td><Link className={`${p.rowLink} num`} href={`/admin/orders/${u.orderId}`}>{u.number}</Link></td><td className={p.ltr}>{u.email}</td><td className="num">{sar(u.amount)}</td><td className={`${p.muted} num`}>{when(u.at)}</td></tr>)}</tbody>
+        </table></div>
       )}
     </>
   )

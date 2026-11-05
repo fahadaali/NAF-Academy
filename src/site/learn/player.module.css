@@ -16,14 +16,21 @@
 @keyframes hint { from { opacity: 1; transform: scale(0.9); } to { opacity: 0; transform: scale(1.15); } }
 .big { position: absolute; inset: 0; margin: auto; z-index: 3; inline-size: 84px; block-size: 84px; border-radius: 50%; background: var(--gold-3); color: var(--night-1); font-size: 30px; box-shadow: 0 10px 40px color-mix(in srgb, var(--black) 50%, transparent); transition: transform var(--t-base) var(--ease-glide); }
 .big:hover { transform: scale(1.06); }
-.bar { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: var(--night-1); color: var(--parchment); font-size: 14px; }
-.bar button { min-inline-size: 36px; min-block-size: 36px; border-radius: 8px; color: inherit; font-size: 15px; }
+.bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 10px 14px; background: var(--night-1); color: var(--parchment); font-size: 14px; }
+.bar button { min-inline-size: 40px; min-block-size: 40px; border-radius: 8px; color: inherit; font-size: 15px; }
 .bar button:hover, .bar button[aria-pressed='true'] { background: color-mix(in srgb, var(--white) 10%, transparent); }
-.bar select { background: transparent; color: inherit; border: 1px solid color-mix(in srgb, var(--white) 20%, transparent); border-radius: 8px; min-block-size: 32px; padding-inline: 6px; }
+.bar select { background: transparent; color: inherit; border: 1px solid color-mix(in srgb, var(--white) 20%, transparent); border-radius: 8px; min-block-size: 40px; padding-inline: 6px; }
 .bar select option { color: var(--ink-1); }
 .time { min-inline-size: 96px; font-size: 13px; opacity: 0.85; }
-.track { position: relative; flex: 1; display: grid; align-items: center; }
+.track { position: relative; flex: 1 1 160px; min-inline-size: 0; display: grid; align-items: center; min-block-size: 40px; }
 .track input { -webkit-appearance: none; appearance: none; inline-size: 100%; block-size: 6px; border-radius: 6px; background: linear-gradient(to right, var(--gold-3) var(--p), color-mix(in srgb, var(--white) 20%, transparent) var(--p)); cursor: pointer; }
 .track input::-webkit-slider-thumb { -webkit-appearance: none; inline-size: 14px; block-size: 14px; border-radius: 50%; background: var(--white); box-shadow: 0 0 0 3px color-mix(in srgb, var(--gold-3) 50%, transparent); }
 .track input::-moz-range-thumb { inline-size: 14px; block-size: 14px; border: 0; border-radius: 50%; background: var(--white); }
 .mark { position: absolute; inline-size: 3px; block-size: 10px; border-radius: 2px; background: var(--white); opacity: 0.75; transform: translateX(-50%); pointer-events: none; }
+
+/* الجوال: شريط التقدّم سطر كامل في الأعلى، والأزرار تحته — لا يُقصّ شيء داخل المشغّل */
+@media (max-width: 560px) {
+  .bar { gap: 6px 8px; }
+  .track { order: -1; flex-basis: 100%; }
+  .time { min-inline-size: 0; margin-inline-end: auto; }
+}

@@ -37,26 +37,26 @@ export default async function Organization({ params }: { params: Promise<{ id: s
       <Section title="الأعضاء والمسؤولون" desc="المسؤول يرى لوحة المؤسسة في «حسابي» بعد الدخول ببريده">
         <MemberForm orgId={id} />
         {v.rows.length > 0 && (
-          <table className={p.table}>
+          <div className={p.scroll}><table className={p.table}>
             <thead><tr><th>العضو</th><th>الدور</th><th>الدورات برعاية المؤسسة</th><th /></tr></thead>
             <tbody>{v.rows.map((m) => (
               <tr key={m.l.id}>
-                <td><strong>{m.l.name}</strong><div className={p.muted} dir="ltr" style={{ textAlign: 'end' }}>{m.l.email}</div></td>
+                <td><strong>{m.l.name}</strong><div className={`${p.muted} ${p.ltr}`}>{m.l.email}</div></td>
                 <td>{m.role === 'manager' ? 'مسؤول' : m.viaDomain ? 'عضو (بالنطاق)' : 'عضو'}</td>
                 <td>{m.courses.length ? m.courses.map((x) => <div key={x.courseId} className="num"><span className={c.bar}><i style={{ transform: `scaleX(${x.pct / 100})` }} /></span>{x.pct}% · {x.title}{x.cert ? ' · ✓ شهادة' : ''}</div>) : <span className={p.muted}>—</span>}</td>
                 <td>{!m.viaDomain && <RemoveMember orgId={id} learnerId={m.l.id} />}</td>
               </tr>
             ))}</tbody>
-          </table>
+          </table></div>
         )}
       </Section>
       <ContractsPanel orgId={id} items={items} courses={courses} />
       <Section title="المقاعد" desc="من الطلبات الجماعية لمسؤولي المؤسسة">
         {v.seats.length === 0 ? <p className={p.muted}>لا مقاعد بعد.</p> : (
-          <table className={p.table}>
+          <div className={p.scroll}><table className={p.table}>
             <thead><tr><th>الدورة</th><th>الطلب</th><th>المخصّص له</th></tr></thead>
-            <tbody>{v.seats.map((x) => <tr key={x.id}><td>{x.title}</td><td className="num"><a href={`/admin/orders/${x.orderId}`}>{x.number}</a></td><td dir="ltr" style={{ textAlign: 'end' }}>{x.email ?? '— متاح'}</td></tr>)}</tbody>
-          </table>
+            <tbody>{v.seats.map((x) => <tr key={x.id}><td>{x.title}</td><td className="num"><a href={`/admin/orders/${x.orderId}`}>{x.number}</a></td><td className={p.ltr}>{x.email ?? '— متاح'}</td></tr>)}</tbody>
+          </table></div>
         )}
       </Section>
     </>

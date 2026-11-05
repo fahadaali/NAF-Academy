@@ -24,3 +24,9 @@
   .stage { position: relative; }
   .rail { overflow-x: auto; }
 }
+
+/* بلا JS: المسار لا يتحرك بالتمرير — يُمرَّر أفقياً باليد */
+:global(html:not(.js)) .stage { position: relative; min-block-size: auto; }
+:global(html:not(.js)) .rail { overflow-x: auto; scroll-snap-type: x mandatory; }
+:global(html:not(.js)) .track > * { scroll-snap-align: center; }
+:global(html:not(.js)) .line { display: none; }

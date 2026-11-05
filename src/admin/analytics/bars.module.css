@@ -6,7 +6,7 @@
 .grid, .base { position: absolute; inset-inline: 0; block-size: 0; border-block-start: 1px dashed var(--line); pointer-events: none; }
 .base { inset-block-end: 0; border-block-start: 1px solid var(--line-strong); }
 .col { position: relative; flex: 1 1 0; block-size: 100%; display: flex; align-items: flex-end; min-inline-size: 0; cursor: default; }
-.bar { display: block; inline-size: 100%; min-block-size: 0; background: var(--chart-1); border-radius: 4px 4px 0 0; transition: opacity var(--t-base); }
+.bar { display: block; inline-size: 100%; min-block-size: 0; background: var(--chart-1); border-radius: 4px 4px 0 0; transition: opacity var(--t-base) var(--ease-move); }
 .plot:hover .col[data-on='0'] .bar { opacity: 0.45; }
 .tip { position: absolute; inset-block-start: 0; transform: translateX(50%); display: grid; gap: 2px; padding: 8px 12px; border-radius: var(--radius-s); background: var(--surface); border: 1px solid var(--line-strong); box-shadow: var(--shadow-2); white-space: nowrap; pointer-events: none; z-index: 2; font-size: 12.5px; color: var(--muted); }
 .tip strong { font-size: 15px; color: var(--text); }
@@ -20,8 +20,8 @@
 :global(.js) .fig:global(.reveal) .bar { transform: scaleY(0); transform-origin: 50% 100%; }
 .fig:global(.reveal.in) .bar {
   transform: none;
-  transition: transform calc(var(--t-gentle) * 3) var(--ease-glide) calc(var(--t-fast) + var(--k, 0) * var(--t-gentle) * 2), opacity var(--t-base);
+  transition: transform calc(var(--t-gentle) * 3) var(--ease-glide) calc(var(--t-fast) + var(--k, 0) * var(--t-gentle) * 2), opacity var(--t-base) var(--ease-move);
 }
-.peak { transition: opacity var(--t-base); }
+.peak { transition: opacity var(--t-base) var(--ease-move); }
 :global(.js) .fig:global(.reveal:not(.in)) .peak { opacity: 0; }
 @media (prefers-reduced-motion: reduce) { :global(.js) .fig .bar { transform: none !important; } }

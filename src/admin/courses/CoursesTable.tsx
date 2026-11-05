@@ -50,7 +50,7 @@ export function CoursesTable({ courses, tracks, media }: { courses: CourseRow[];
       </div>
 
       {shown.length === 0 ? <div className={p.empty}>لا دورات مطابقة.</div> : (
-        <table className={p.table}>
+        <div className={p.scroll}><table className={p.table}>
           <thead><tr><th>الدورة</th><th>الحالة</th><th>النمط</th><th>الموعد</th><th>السعر</th><th><span className="sr-only">إجراءات</span></th></tr></thead>
           <tbody>
             {shown.map((c) => {
@@ -112,7 +112,7 @@ export function CoursesTable({ courses, tracks, media }: { courses: CourseRow[];
               )
             })}
           </tbody>
-        </table>
+        </table></div>
       )}
     </>
   )

@@ -5,7 +5,7 @@
 .arrows button {
   inline-size: 52px; block-size: 52px; border-radius: 50%; display: grid; place-items: center;
   box-shadow: inset 0 0 0 1px var(--line-strong); color: var(--text);
-  transition: background var(--t-base), box-shadow var(--t-base), transform var(--t-base) var(--ease-glide);
+  transition: background var(--t-base) var(--ease-move), box-shadow var(--t-base) var(--ease-move), transform var(--t-base) var(--ease-glide);
 }
 .arrows button:hover { background: var(--surface); box-shadow: inset 0 0 0 1px var(--gold-3), var(--shadow-1); transform: translateY(-2px); }
 .arrows svg { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
@@ -23,7 +23,9 @@
   --d: 0;
   --tone-a: var(--night-2); --tone-b: var(--night-1); --tone-ink: var(--scene-text); --tone-glyph: var(--gold-3);
   position: relative; display: block; inline-size: clamp(260px, 26vw, 330px); aspect-ratio: 3 / 4.2;
-  border-radius: 20px 8px 8px 20px; transform-style: preserve-3d; color: var(--tone-ink);
+  /* الكعب في البداية (يمين الكتاب العربي): الزوايا الكبيرة عنده */
+  border-start-start-radius: 20px; border-end-start-radius: 20px; border-start-end-radius: 8px; border-end-end-radius: 8px;
+  transform-style: preserve-3d; color: var(--tone-ink);
   --a: 0;
   transform: rotateY(calc(var(--d) * -18deg)) translateZ(calc((1 - var(--a)) * 40px)) scale(calc(1 - var(--a) * 0.06));
   transition: transform calc(var(--t-gentle) * 1.2) var(--ease-glide);
@@ -34,12 +36,13 @@
 .card[data-tone='ember'] { --tone-a: var(--tone-ember-0); --tone-b: var(--tone-ember-1); --tone-glyph: var(--ember-soft); }
 .card[data-tone='ivory'] { --tone-a: var(--tone-ivory-0); --tone-b: var(--tone-ivory-1); --tone-ink: var(--night-1); --tone-glyph: var(--gold-1); }
 .spine {
-  position: absolute; inset-block: 0; inset-inline-start: 0; inline-size: 22px; border-radius: 20px 0 0 20px;
-  background: linear-gradient(90deg, color-mix(in srgb, var(--black) 35%, transparent), color-mix(in srgb, var(--white) 6%, transparent) 60%, transparent);
+  position: absolute; inset-block: 0; inset-inline-start: 0; inline-size: 22px; border-start-start-radius: 20px; border-end-start-radius: 20px;
+  /* الظل من الكعب نحو الداخل (الواجهة عربية: البداية يمين) */
+  background: linear-gradient(270deg, color-mix(in srgb, var(--black) 35%, transparent), color-mix(in srgb, var(--white) 6%, transparent) 60%, transparent);
   z-index: 2; pointer-events: none;
 }
 .face {
-  position: absolute; inset: 0; border-radius: inherit; overflow: hidden; padding: 26px 26px 26px 40px;
+  position: absolute; inset: 0; border-radius: inherit; overflow: hidden; padding: 26px; padding-inline-start: 40px;
   display: grid; grid-template-rows: auto 1fr auto;
   background:
     radial-gradient(120% 70% at 80% 0%, color-mix(in srgb, var(--white) 8%, transparent), transparent 60%),
@@ -52,7 +55,7 @@
 .glyph {
   align-self: center; justify-self: center; font-family: var(--font-display); font-size: clamp(120px, 12vw, 170px); font-weight: 900; line-height: 1;
   color: transparent; -webkit-text-stroke: 1.4px var(--tone-glyph);
-  transform: translateZ(30px) translateX(calc(var(--d) * 14px)); transition: color var(--t-gentle), transform var(--t-gentle) var(--ease-glide);
+  transform: translateZ(30px) translateX(calc(var(--d) * 14px)); transition: color var(--t-gentle) var(--ease-move), transform var(--t-gentle) var(--ease-glide);
   text-shadow: 0 0 40px color-mix(in srgb, var(--tone-glyph) 25%, transparent);
 }
 .bottom { display: grid; gap: 6px; }
@@ -60,13 +63,16 @@
 .sum { font-size: 15px; opacity: 0.78; }
 .go {
   display: inline-flex; align-items: center; gap: 6px; margin-block-start: 8px; font-size: 14px; font-weight: 700; color: var(--tone-glyph);
-  opacity: 0; transform: translateY(6px); transition: opacity var(--t-base), transform var(--t-gentle) var(--ease-glide);
+  opacity: 0; transform: translateY(6px); transition: opacity var(--t-base) var(--ease-move), transform var(--t-gentle) var(--ease-glide);
 }
 .go svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-.shine {
-  position: absolute; inset: 0; border-radius: inherit; pointer-events: none; mix-blend-mode: soft-light;
+.shine { position: absolute; inset: 0; border-radius: inherit; pointer-events: none; mix-blend-mode: soft-light; overflow: hidden; }
+/* البريق يعبر البطاقة مع التمرير: طبقة عريضة ثابتة الرسم تنزاح (transform) — مكافئ background-position السابق
+   (يسار فيزيائي عمداً، كموضع الخلفية) */
+.shine::before {
+  content: ''; position: absolute; inset-block: 0; left: 0; inline-size: 250%;
   background: linear-gradient(105deg, transparent 30%, color-mix(in srgb, var(--white) 35%, transparent) 45%, transparent 60%);
-  background-size: 250% 100%; background-position: calc(50% + var(--d) * 60%) 0;
+  transform: translate3d(calc(-30% - var(--d, 0) * 36%), 0, 0);
 }
 .card:hover, .card:focus-visible { transform: rotateY(calc(var(--d) * -18deg)) translateY(-10px) translateZ(60px); }
 .card:hover .glyph, .card:focus-visible .glyph { color: color-mix(in srgb, var(--tone-glyph) 22%, transparent); }
@@ -77,7 +83,8 @@
   .arrows { display: none; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .card { transform: none !important; }
+  /* البطاقة وكل ما يتحرك معها بالتمرير (الحرف، الصورة، البريق) ثابتة */
+  .card, .glyph, .photo img, .shine::before { transform: none !important; }
 }
 
 .photo { position: absolute; inset: 0; border-radius: inherit; overflow: hidden; }

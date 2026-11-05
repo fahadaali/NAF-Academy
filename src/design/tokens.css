@@ -86,6 +86,9 @@
   /* أدوار دلالية تتبدّل في الوضعين */
   --on-bg: var(--night-1);
   --on-fg: var(--gold-4);
+  /* أرقام الخطوات والوحدات والصور الرمزية: دائرة ليلية برقم ذهبي — وفي الداكن أفتح من الخلفية لتتمايز */
+  --badge-bg: var(--night-1);
+  --badge-ink: var(--gold-4);
   --success: var(--olive-1);
   --info: #41678c;
   --warn: var(--ember);
@@ -135,11 +138,20 @@
   --t-breathe: 2560ms;
   --t-drift: 24000ms;
   --t-orbit: 30080ms;
+  /* خطوات التتابع — مرآة stagger في src/motion/tokens.ts */
+  --stagger-fine: calc(var(--t-fast) / 8);
+  --stagger-row: calc(var(--t-fast) / 3);
+  --stagger-word: calc(var(--t-fast) / 2.8);
+  --stagger-item: calc(var(--t-fast) / 2);
+  --stagger-step: calc(var(--t-fast) * 0.64);
   --ease-in: cubic-bezier(.2,.85,.25,1);
   --ease-move: cubic-bezier(.4,0,.2,1);
   --ease-out: cubic-bezier(.4,0,1,1);
   --ease-glide: cubic-bezier(.22,.82,.2,1);
   --ease-travel: cubic-bezier(.65,0,.25,1);
+  /* حلقات ثابتة السرعة (الدوران) والوميض المتقطّع — مرآة curve.steady وcurve.blink في tokens.ts */
+  --ease-steady: linear;
+  --ease-blink: steps(2);
 
   /* — الظلال — */
   --shadow-1: 0 1px 2px rgb(7 14 22 / 0.06), 0 4px 16px rgb(7 14 22 / 0.06);
@@ -165,6 +177,8 @@
     --secondary: var(--olive-3);
     --on-bg: var(--gold-3);
     --on-fg: var(--night-1);
+    --badge-bg: var(--night-3);
+    --badge-ink: var(--gold-4);
     --success: var(--olive-3);
     --info: #86a0bd;
     --warn: var(--ember-soft);
@@ -190,6 +204,8 @@
   --secondary: var(--olive-3);
   --on-bg: var(--gold-3);
   --on-fg: var(--night-1);
+  --badge-bg: var(--night-3);
+  --badge-ink: var(--gold-4);
   --success: var(--olive-3);
   --info: #86a0bd;
   --warn: var(--ember-soft);

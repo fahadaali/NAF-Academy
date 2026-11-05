@@ -44,7 +44,7 @@ export default async function Analytics({ searchParams }: { searchParams: Promis
 
       <Section title="التحويل والإنجاز لكل دورة" desc="زيارة صفحة الدورة ← فتح صفحة التسجيل ← طلب ← دفع، في المدة المختارة. والإنجاز لكل المسجّلين الفعّالين">
         <div className={a.scroll}>
-          <table className={p.table}>
+          <div className={p.scroll}><table className={p.table}>
             <thead><tr><th>الدورة</th><th>زيارات</th><th>صفحة التسجيل</th><th>طلبات</th><th>مدفوعة</th><th>التحويل</th><th>مسجّلون</th><th>متوسط الإنجاز</th><th>أكملوا</th><th>شهادات</th><th>التقييم</th></tr></thead>
             <tbody>{courses.map((c) => (
               <tr key={c.id} data-on={pick?.id === c.id ? '1' : '0'}>
@@ -61,7 +61,7 @@ export default async function Analytics({ searchParams }: { searchParams: Promis
                 <td className="num">{c.rating !== null ? `${c.rating} ★` : '—'}<small className={a.rate}>{c.ratings || ''}</small></td>
               </tr>
             ))}</tbody>
-          </table>
+          </table></div>
         </div>
       </Section>
 

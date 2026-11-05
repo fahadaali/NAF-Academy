@@ -5,6 +5,7 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react'
 import type { Chapter } from '@/lib/learning-types'
 import s from './player.module.css'
+import { timing } from '@/motion/tokens'
 
 export type PlayerApi = { time: () => number; seek: (t: number) => void; pause: () => void }
 
@@ -119,7 +120,8 @@ export const Player = forwardRef<PlayerApi, Props>(function Player({ kind, src, 
     return () => removeEventListener('pagehide', out)
   }, [now, dur, onBeat])
 
-  const flash = (h: string) => { setHint(h); setTimeout(() => setHint(''), 700) }
+  /* بمدة حركة التلميح نفسها (--t-reveal) فلا تُقطع */
+  const flash = (h: string) => { setHint(h); setTimeout(() => setHint(''), timing.reveal) }
   const onKey = (e: React.KeyboardEvent) => {
     if ((e.target as HTMLElement).closest('input, textarea')) return
     const k = e.key.toLowerCase()

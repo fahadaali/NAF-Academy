@@ -1,7 +1,7 @@
 .header {
   position: fixed; inset-block-start: 0; inset-inline: 0; z-index: 50;
   block-size: var(--header-h); color: var(--scene-text);
-  transition: transform var(--t-gentle) var(--ease-glide), background var(--t-gentle) var(--ease-move), color var(--t-gentle);
+  transition: transform var(--t-gentle) var(--ease-glide), background var(--t-gentle) var(--ease-move), color var(--t-gentle) var(--ease-move);
 }
 .header[data-solid='1'] {
   background: var(--glass); color: var(--text);
@@ -27,7 +27,7 @@
 .nav a {
   position: relative; display: inline-flex; align-items: baseline; gap: 6px;
   padding: 8px 12px; border-radius: 999px; font-size: 15px; font-weight: 500; opacity: 0.88;
-  transition: opacity var(--t-base), background var(--t-base);
+  transition: opacity var(--t-base) var(--ease-move), background var(--t-base) var(--ease-move);
 }
 .nav a:hover { opacity: 1; background: color-mix(in srgb, currentColor 8%, transparent); }
 .nav a[aria-current='true'] { opacity: 1; }
@@ -40,11 +40,11 @@
 .header:not([data-night='1']) .idx { color: var(--accent-strong); }
 
 .actions { display: flex; align-items: center; gap: 10px; }
-.theme { inline-size: 42px; block-size: 42px; display: grid; place-items: center; border-radius: 50%; color: inherit; transition: background var(--t-base); }
+.theme { inline-size: 42px; block-size: 42px; display: grid; place-items: center; border-radius: 50%; color: inherit; transition: background var(--t-base) var(--ease-move); }
 .theme:hover { background: color-mix(in srgb, currentColor 10%, transparent); }
 .theme svg { overflow: visible; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
 .sun { fill: currentColor; stroke: none; transition: r var(--t-gentle) var(--ease-glide); }
-.rays { transform-origin: 12px 12px; transition: transform var(--t-gentle) var(--ease-glide), opacity var(--t-base); }
+.rays { transform-origin: 12px 12px; transition: transform var(--t-gentle) var(--ease-glide), opacity var(--t-base) var(--ease-move); }
 .bite { fill: var(--bg); stroke: none; transform: translate(8px, -8px); transition: transform var(--t-gentle) var(--ease-glide); }
 .header:not([data-solid='1']) .bite { fill: var(--scene-bg); }
 .theme[data-state='dark'] .sun { r: 7px; }
@@ -73,10 +73,12 @@
     /* معتم: القائمة فوق مشهد داكن أو فاتح تبقى نظيفة ومقروءة */
     background: var(--bg); color: var(--text);
     backdrop-filter: blur(22px) saturate(1.4); -webkit-backdrop-filter: blur(22px) saturate(1.4);
-    clip-path: inset(0 0 100% 0); transition: clip-path calc(var(--t-gentle) * 1.6) var(--ease-travel);
+    /* مغلقة: مقصوصة وغير مرئية — فلا تصلها لوحة المفاتيح ولا قارئ الشاشة؛ الإخفاء بعد انتهاء القصّ */
+    clip-path: inset(0 0 100% 0); visibility: hidden;
+    transition: clip-path calc(var(--t-gentle) * 1.6) var(--ease-travel), visibility 0s var(--ease-move) calc(var(--t-gentle) * 1.6);
     box-shadow: 0 1px 0 var(--line);
   }
-  .header[data-open='1'] .nav { clip-path: inset(0 0 0 0); }
+  .header[data-open='1'] .nav { clip-path: inset(0 0 0 0); visibility: visible; transition: clip-path calc(var(--t-gentle) * 1.6) var(--ease-travel), visibility 0s; }
   .header[data-open='1'] { background: var(--bg); color: var(--text); }
   .nav ol { flex-direction: column; gap: 2px; }
   .nav a { font-size: 22px; padding: 12px 6px; inline-size: 100%; }

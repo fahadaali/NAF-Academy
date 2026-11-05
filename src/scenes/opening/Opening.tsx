@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Words } from '@/components/Words'
 import { Emblem } from '@/components/Emblem'
 import { pinProgress, subscribe } from '@/motion/scroll-bus'
-import { clamp01, prefersCalm } from '@/motion/tokens'
+import { clamp01, duration, prefersCalm, timing } from '@/motion/tokens'
 import type { Pointer } from './particles'
 import styles from './Opening.module.css'
 
@@ -33,7 +33,8 @@ export function Opening({ eyebrow, lines, phases, cta, logo, logoAlt = '' }: Pro
     const show = () => setLive(true)
     if (root.classList.contains('opening')) {
       document.addEventListener('academy:unveil', show, { once: true })
-      const fallback = setTimeout(show, 5400)
+      /* احتياط إن لم يصل حدث رفع الستار: بعد سقفه بقليل */
+      const fallback = setTimeout(show, timing.curtainMax + duration.gentle * 2)
       return () => {
         document.removeEventListener('academy:unveil', show)
         clearTimeout(fallback)
@@ -154,7 +155,7 @@ export function Opening({ eyebrow, lines, phases, cta, logo, logoAlt = '' }: Pro
     }
     const w8 = window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number }
     const go = () => { void start() }
-    const idle = () => (w8.requestIdleCallback ? w8.requestIdleCallback(go, { timeout: 1200 }) : setTimeout(go, 300))
+    const idle = () => (w8.requestIdleCallback ? w8.requestIdleCallback(go, { timeout: timing.curtain }) : setTimeout(go, duration.gentle))
     if (document.documentElement.classList.contains('opening')) document.addEventListener('academy:unveil', idle, { once: true })
     else idle()
 

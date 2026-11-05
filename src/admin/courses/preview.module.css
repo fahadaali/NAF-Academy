@@ -2,7 +2,7 @@
 .bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px 20px; border-block-end: 1px solid var(--line); background: var(--surface); }
 .bar strong { margin-inline-end: auto; }
 .state { font-size: 13px; color: var(--muted); }
-.stage { display: grid; justify-items: center; padding: 16px; overflow: hidden; }
+.stage { display: grid; justify-items: center; align-items: start; padding: 16px; overflow: hidden; min-block-size: 0; }
 .frameBox { overflow: hidden; border-radius: var(--radius-m); box-shadow: var(--shadow-2); background: var(--surface); }
 .frame { display: block; border: 0; transform-origin: top right; }
 :root[dir='ltr'] .frame { transform-origin: top left; }

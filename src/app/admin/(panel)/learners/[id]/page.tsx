@@ -35,7 +35,7 @@ export default async function LearnerPage({ params }: { params: Promise<{ id: st
       </Section>
       <Section title="الدورات" desc="التقدّم للتسجيلات النشطة">
         {d.enrolls.length === 0 ? <p className={p.muted}>لا تسجيلات.</p> : (
-          <table className={p.table}>
+          <div className={p.scroll}><table className={p.table}>
             <thead><tr><th>الدورة</th><th>المصدر</th><th>التقدّم</th><th>الحالة</th><th>التاريخ</th></tr></thead>
             <tbody>{d.enrolls.map((x) => (
               <tr key={x.e.id}>
@@ -46,13 +46,13 @@ export default async function LearnerPage({ params }: { params: Promise<{ id: st
                 <td className={`${p.muted} num`}>{when(x.e.createdAt)}</td>
               </tr>
             ))}</tbody>
-          </table>
+          </table></div>
         )}
       </Section>
       {canSales && (
         <Section title="الطلبات">
           {d.orders.length === 0 ? <p className={p.muted}>لا طلبات.</p> : (
-            <table className={p.table}>
+            <div className={p.scroll}><table className={p.table}>
               <thead><tr><th>الطلب</th><th>الحالة</th><th>المبلغ</th><th>التاريخ</th></tr></thead>
               <tbody>{d.orders.map((o) => (
                 <tr key={o.id}>
@@ -62,39 +62,39 @@ export default async function LearnerPage({ params }: { params: Promise<{ id: st
                   <td className={`${p.muted} num`}>{when(o.createdAt)}</td>
                 </tr>
               ))}</tbody>
-            </table>
+            </table></div>
           )}
         </Section>
       )}
       <Section title="الشهادات">
         {d.certs.length === 0 ? <p className={p.muted}>لا شهادات.</p> : (
-          <table className={p.table}><tbody>{d.certs.map((c) => (
+          <div className={p.scroll}><table className={p.table}><tbody>{d.certs.map((c) => (
             <tr key={c.id}>
               <td><strong>{c.courseTitle}</strong></td>
               <td><Badge tone={c.status === 'issued' ? 'open' : c.status === 'revoked' ? 'closed' : 'soon'}>{CERT[c.status] ?? c.status}</Badge></td>
               <td>{c.code ? <a href={`/certificates/${c.code}`} target="_blank" rel="noreferrer" dir="ltr">{c.code} ↗</a> : '—'}</td>
             </tr>
-          ))}</tbody></table>
+          ))}</tbody></table></div>
         )}
       </Section>
       {(d.interest.length > 0 || d.reviews.length > 0) && (
         <Section title="الاهتمام والتقييمات">
-          <table className={p.table}><tbody>
+          <div className={p.scroll}><table className={p.table}><tbody>
             {d.interest.map((x) => <tr key={x.i.id}><td>{x.title}</td><td className={p.muted}>{KIND[x.i.kind] ?? x.i.kind}</td><td className={`${p.muted} num`}>{x.i.notifiedAt ? `أُبلغ ${when(x.i.notifiedAt)}` : 'لم يُبلَّغ بعد'}</td></tr>)}
             {d.reviews.map((x) => <tr key={x.r.id}><td>{x.title}</td><td className="num">{'★'.repeat(x.r.rating)}</td><td className={p.muted}>{x.r.comment || '—'}</td></tr>)}
-          </tbody></table>
+          </tbody></table></div>
         </Section>
       )}
       {canLog && (
         <Section title="الرسائل" desc="آخر 60 رسالة إلى بريده أو جواله">
           {d.messages.length === 0 ? <p className={p.muted}>لا رسائل.</p> : (
-            <table className={p.table}><tbody>{d.messages.map((m) => (
+            <div className={p.scroll}><table className={p.table}><tbody>{d.messages.map((m) => (
               <tr key={m.id}>
                 <td><strong>{m.subject || m.body.slice(0, 60)}</strong><div className={p.muted}>{m.channel === 'email' ? 'بريد' : m.channel === 'sms' ? 'جوال' : 'متصفح'} · {m.kind}</div></td>
                 <td><Badge tone={m.status === 'sent' || m.status === 'outbox' ? 'open' : 'closed'}>{m.status}</Badge></td>
                 <td className={`${p.muted} num`}>{when(m.createdAt)}</td>
               </tr>
-            ))}</tbody></table>
+            ))}</tbody></table></div>
           )}
         </Section>
       )}

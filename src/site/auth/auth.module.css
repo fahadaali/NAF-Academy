@@ -1,9 +1,9 @@
 .box { display: grid; gap: 14px; }
 .switch { display: inline-flex; padding: 4px; border-radius: 999px; background: var(--surface-2); justify-self: start; }
-.switch button { min-block-size: 40px; padding-inline: 18px; border-radius: 999px; font-weight: 600; font-size: 14px; color: var(--muted); transition: background var(--t-base), color var(--t-base); }
+.switch button { min-block-size: 40px; padding-inline: 18px; border-radius: 999px; font-weight: 600; font-size: 14px; color: var(--muted); transition: background var(--t-base) var(--ease-move), color var(--t-base) var(--ease-move); }
 .switch button[aria-selected='true'] { background: var(--on-bg); color: var(--on-fg); }
 .field { display: grid; gap: 6px; font-size: 14px; font-weight: 600; color: var(--text-soft); }
-.input { inline-size: 100%; min-block-size: 54px; padding-inline: 16px; border-radius: var(--radius-m); border: 1px solid var(--line-strong); background: var(--bg); color: var(--text); font-size: 17px; transition: border-color var(--t-base), box-shadow var(--t-base); }
+.input { inline-size: 100%; min-block-size: 54px; padding-inline: 16px; border-radius: var(--radius-m); border: 1px solid var(--line-strong); background: var(--bg); color: var(--text); font-size: 17px; transition: border-color var(--t-base) var(--ease-move), box-shadow var(--t-base) var(--ease-move); }
 .input:focus { outline: none; border-color: var(--gold-3); box-shadow: 0 0 0 4px color-mix(in srgb, var(--gold-3) 16%, transparent); }
 .code { font-size: 30px; letter-spacing: 0.5em; text-align: center; font-weight: 800; }
 .err { color: var(--danger); font-weight: 600; font-size: 14px; }

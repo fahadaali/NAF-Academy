@@ -21,3 +21,6 @@
 .question input[data-err='1'] { border-color: var(--danger); }
 .points { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
 .points input { inline-size: 64px; min-block-size: 34px; text-align: center; }
+
+/* اللمس: أهداف 40px على الأقل */
+@media (pointer: coarse) { .x { inline-size: 40px; block-size: 40px; } }

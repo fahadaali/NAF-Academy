@@ -17,7 +17,11 @@ export default async function PanelLayout({ children }: { children: React.ReactN
   return (
     <div className={styles.shell}>
       <MotionRoot />
-      <Sidebar name={admin.name} role={ROLE_LABEL[admin.role]} mode={admin.mode} perms={perms} brand={await brandView()} />
+      {/* الشريط الجانبي ثابت أثناء التنقّل داخل اللوحة: React يسمّيه أثناء انتقاله وحده (فلا يدخل في حركة الجذر)،
+          ودائرة تبديل الوضع لا تتأثر لأنها انتقال المتصفح لا انتقال React */}
+      <ViewTransition name="admin-nav-swap" default="none">
+        <Sidebar name={admin.name} role={ROLE_LABEL[admin.role]} mode={admin.mode} perms={perms} brand={await brandView()} />
+      </ViewTransition>
       <main id="main" className={styles.main}><PermsProvider perms={perms}><ViewTransition default="page-swap">{children}</ViewTransition></PermsProvider></main>
     </div>
   )

@@ -33,12 +33,12 @@ export function LearnersBoard({ courseId, title, enrolls, interest, cohorts = []
           <Link className="btn ghost" href={`/admin/courses/${courseId}`}>العودة للدورة</Link>
         </>} />
       {list.length === 0 ? <div className={p.empty}>لا تسجيلات بعد.</div> : (
-        <table className={p.table}>
+        <div className={p.scroll}><table className={p.table}>
           <thead><tr><th>المتدرب</th><th>المصدر</th>{cohorts.length > 0 && <th>الدفعة</th>}<th>الطلب</th><th>التاريخ</th><th>الوصول</th><th>الحالة</th></tr></thead>
           <tbody>
             {list.map((x) => (
               <tr key={x.e.id}>
-                <td><Link href={`/admin/learners/${x.l.id}`} className={p.rowLink}>{x.l.name}</Link><div className={p.muted} dir="ltr" style={{ textAlign: 'end' }}>{x.l.email}</div></td>
+                <td><Link href={`/admin/learners/${x.l.id}`} className={p.rowLink}>{x.l.name}</Link><div className={`${p.muted} ${p.ltr}`}>{x.l.email}</div></td>
                 <td>{SOURCE[x.e.source]}{x.tier && <div className={p.muted}>{x.tier}</div>}</td>
                 {cohorts.length > 0 && (
                   <td>
@@ -89,17 +89,17 @@ export function LearnersBoard({ courseId, title, enrolls, interest, cohorts = []
               </tr>
             ))}
           </tbody>
-        </table>
+        </table></div>
       )}
       <h2 style={{ fontSize: 20, margin: '30px 0 12px', display: 'flex', justifyContent: 'space-between' }}>
         المهتمون وقوائم الانتظار <span className="num">({interest.length})</span>
       </h2>
       {interest.length === 0 ? <div className={p.empty}>لا أحد بعد.</div> : (
         <>
-          <table className={p.table}>
+          <div className={p.scroll}><table className={p.table}>
             <thead><tr><th>الاسم</th><th>البريد</th><th>النوع</th><th>التاريخ</th></tr></thead>
-            <tbody>{interest.map((i) => <tr key={i.id}><td>{i.name || '—'}</td><td dir="ltr" style={{ textAlign: 'end' }}>{i.email}</td><td>{KIND[i.kind]}</td><td className={`${p.muted} num`}>{when(i.createdAt)}</td></tr>)}</tbody>
-          </table>
+            <tbody>{interest.map((i) => <tr key={i.id}><td>{i.name || '—'}</td><td className={p.ltr}>{i.email}</td><td>{KIND[i.kind]}</td><td className={`${p.muted} num`}>{when(i.createdAt)}</td></tr>)}</tbody>
+          </table></div>
           <button className="btn ghost" style={{ marginBlockStart: 12 }} onClick={() => downloadCsv('interest.csv', [['الاسم', 'البريد', 'الجوال', 'النوع', 'التاريخ'], ...interest.map((i) => [i.name, i.email, i.phone, KIND[i.kind], i.createdAt])])}>تصدير المهتمين</button>
         </>
       )}

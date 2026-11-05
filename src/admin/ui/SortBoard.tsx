@@ -16,7 +16,7 @@ export function SortBoard({ items, entity }: { items: BoardItem[]; entity: Extra
   const { props, move } = useSortable(list, (next) => { setList(next); start(() => reorder(entity, next.map((x) => x.id))) })
   if (!list.length) return <div className={p.empty}>لا عناصر بعد.</div>
   return (
-    <table className={p.table}>
+    <div className={p.scroll}><table className={p.table}>
       <tbody>
         {list.map((it, i) => (
           <tr key={it.id} {...(write ? props(i) : {})}>
@@ -46,6 +46,6 @@ export function SortBoard({ items, entity }: { items: BoardItem[]; entity: Extra
           </tr>
         ))}
       </tbody>
-    </table>
+    </table></div>
   )
 }

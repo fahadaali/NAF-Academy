@@ -1,10 +1,10 @@
 .outline { display: grid; gap: 18px; }
 .outline h3 { display: flex; gap: 10px; align-items: center; font-size: 15px; font-weight: 700; margin-block-end: 8px; }
-.outline h3 span { inline-size: 26px; block-size: 26px; display: grid; place-items: center; border-radius: 50%; background: var(--night-1); color: var(--gold-4); font-size: 12px; flex: none; }
+.outline h3 span { inline-size: 26px; block-size: 26px; display: grid; place-items: center; border-radius: 50%; background: var(--badge-bg); color: var(--badge-ink); font-size: 12px; flex: none; }
 .outline ol { display: grid; gap: 2px; }
-.row { display: flex; gap: 12px; align-items: center; padding: 10px 12px; border-radius: 12px; transition: background var(--t-base); }
+.row { display: flex; gap: 12px; align-items: center; padding: 10px 12px; border-radius: 12px; transition: background var(--t-base) var(--ease-move); }
 a.row:hover { background: var(--surface-2); }
-li[data-current='1'] .row { background: color-mix(in srgb, var(--gold-3) 14%, transparent); box-shadow: inset 3px 0 0 var(--gold-3); }
+li[data-current='1'] .row { background: color-mix(in srgb, var(--gold-3) 14%, transparent); box-shadow: inset -3px 0 0 var(--gold-3); }
 li[data-locked='1'] .row { opacity: 0.55; }
 .icon { inline-size: 28px; block-size: 28px; flex: none; display: grid; place-items: center; border-radius: 50%; font-size: 12px; background: var(--surface-2); color: var(--text-soft); }
 .icon[data-done='1'] { background: var(--success); color: var(--white); }

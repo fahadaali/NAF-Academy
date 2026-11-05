@@ -118,7 +118,7 @@ export function CohortsPanel({ courseId, items, lessons, canWrite }: { courseId:
 
           <h4 className={c.h}>مواعيد الجلسات</h4>
           {lessons.length === 0 ? <p className={p.muted}>لا جلسات مباشرة أو حضورية في المنهج — أضفها واحفظ الدورة أولاً.</p> : (
-            <table className={p.table}>
+            <div className={p.scroll}><table className={p.table}>
               <thead><tr><th>الجلسة</th><th>البداية</th><th>النهاية</th><th>رابط الانضمام / المكان</th><th>التسجيل</th></tr></thead>
               <tbody>
                 {edit.v.sessions.map((x, i) => {
@@ -136,7 +136,7 @@ export function CohortsPanel({ courseId, items, lessons, canWrite }: { courseId:
                   )
                 })}
               </tbody>
-            </table>
+            </table></div>
           )}
           {msg && <p className={c.err} role="alert">{msg}</p>}
           <div className={c.actions}>

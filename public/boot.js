@@ -2,6 +2,9 @@
    ويرفع الستار الافتتاحي في الرئيسية وحدها — لمن لم يطلب تقليل الحركة ولم يأتِ إلى مرساة.
    ومؤقّتات احتياطية: لا يبقى محتوًى مخفياً أبداً إن تعذّر تحميل الشيفرة. */
 (function () {
+  /* مرآة src/motion/tokens.ts (لا يُستورد هنا): duration.gentle، وtiming.curtainMax = gentle × 15 */
+  var GENTLE = 320
+  var CURTAIN_MAX = GENTLE * 15
   var root = document.documentElement
   try {
     var t = localStorage.getItem('naf-academy-theme')
@@ -12,11 +15,13 @@
   var home = location.pathname === '/'
   if (home && !calm && !location.hash && 'animate' in root) {
     root.classList.add('opening')
-    setTimeout(function () { root.classList.remove('opening') }, 5200)
+    /* سقف الستار: يُرفع ولو لم تصل شيفرته */
+    setTimeout(function () { root.classList.remove('opening') }, CURTAIN_MAX + GENTLE)
   }
+  /* لم يجهز الكشف؟ يظهر كل شيء كما هو بلا حركة */
   setTimeout(function () {
     if (!root.classList.contains('reveal-ready')) root.classList.remove('js')
-  }, root.classList.contains('opening') ? 6000 : 2500)
+  }, root.classList.contains('opening') ? CURTAIN_MAX + GENTLE * 4 : GENTLE * 8)
 
   /* الانتقال بين الصفحات: الأسماء تُعطى لحظة التنقّل وتُزال بعده — فلا تتدخل في دائرة تبديل الوضع.
      الشريط واللوحة الجانبية يبقيان، وغلاف الدورة المنقور يطير إلى رأس صفحتها. */

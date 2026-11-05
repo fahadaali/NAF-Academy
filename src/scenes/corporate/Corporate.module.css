@@ -4,14 +4,14 @@
 .intro h2 { display: block; }
 .body { max-inline-size: 46ch; }
 .steps { display: grid; gap: 10px; margin-block-start: 14px; }
-.steps li { display: flex; align-items: center; gap: 12px; color: var(--muted); transition: color var(--t-gentle); }
-.steps li span { inline-size: 30px; block-size: 30px; display: grid; place-items: center; border-radius: 50%; box-shadow: inset 0 0 0 1px var(--line-strong); font-size: 13px; transition: background var(--t-gentle), color var(--t-gentle), box-shadow var(--t-gentle); }
+.steps li { display: flex; align-items: center; gap: 12px; color: var(--muted); transition: color var(--t-gentle) var(--ease-move); }
+.steps li span { inline-size: 30px; block-size: 30px; display: grid; place-items: center; border-radius: 50%; box-shadow: inset 0 0 0 1px var(--line-strong); font-size: 13px; transition: background var(--t-gentle) var(--ease-move), color var(--t-gentle) var(--ease-move), box-shadow var(--t-gentle) var(--ease-move); }
 .steps li[data-on='1'] { color: var(--text); }
 .steps li[data-on='1'] span { background: var(--gold-3); color: var(--night-1); box-shadow: none; }
 
 .form { position: relative; display: grid; gap: 26px; padding: clamp(22px, 3vw, 38px); border-radius: var(--radius-l); background: var(--surface); box-shadow: var(--shadow-2); border: 1px solid var(--line); overflow: hidden; }
-.field { border: 0; padding: 0; display: grid; gap: 14px; transition: opacity calc(var(--t-gentle) * 1.5) var(--ease-glide), transform calc(var(--t-gentle) * 1.5) var(--ease-glide), filter var(--t-gentle); }
-.field[data-open='0'] { opacity: 0.28; filter: blur(1.5px); pointer-events: none; transform: translateY(8px); }
+.field { border: 0; padding: 0; display: grid; gap: 14px; transition: opacity calc(var(--t-gentle) * 1.5) var(--ease-glide), transform calc(var(--t-gentle) * 1.5) var(--ease-glide); }
+.field[data-open='0'] { opacity: 0.28; pointer-events: none; transform: translateY(8px); }
 .field legend { font-size: 19px; font-weight: 700; margin-block-end: 12px; }
 .chips { display: flex; flex-wrap: wrap; gap: 8px; }
 .chip { position: relative; cursor: pointer; }
@@ -19,7 +19,7 @@
 .chip span {
   display: inline-flex; align-items: center; min-block-size: var(--touch-min); padding-inline: 20px; border-radius: 999px;
   box-shadow: inset 0 0 0 1px var(--line-strong); font-weight: 600;
-  transition: background var(--t-base), color var(--t-base), box-shadow var(--t-base), transform var(--t-base) var(--ease-glide);
+  transition: background var(--t-base) var(--ease-move), color var(--t-base) var(--ease-move), box-shadow var(--t-base) var(--ease-move), transform var(--t-base) var(--ease-glide);
 }
 .chip:hover span { box-shadow: inset 0 0 0 1px var(--gold-3); }
 .chip input:focus-visible + span { outline: 2px solid var(--accent-glow); outline-offset: 3px; }
@@ -29,7 +29,7 @@
 .inputs label { display: grid; gap: 6px; font-size: 14px; color: var(--muted); }
 .inputs input {
   min-block-size: 52px; padding-inline: 16px; border-radius: var(--radius-m); border: 1px solid var(--line-strong);
-  background: var(--bg); color: var(--text); font-size: 16px; transition: border-color var(--t-base), box-shadow var(--t-base);
+  background: var(--bg); color: var(--text); font-size: 16px; transition: border-color var(--t-base) var(--ease-move), box-shadow var(--t-base) var(--ease-move);
 }
 .inputs input:focus { outline: none; border-color: var(--gold-3); box-shadow: 0 0 0 4px color-mix(in srgb, var(--gold-3) 18%, transparent); }
 .field :global(.btn) { justify-self: start; }
@@ -44,13 +44,13 @@
 @keyframes d1 { to { stroke-dashoffset: 0; } }
 
 @media (max-width: 900px) {
-  .grid { grid-template-columns: 1fr; }
+  .grid { grid-template-columns: minmax(0, 1fr); }
   .intro { position: static; }
-  .inputs { grid-template-columns: 1fr; }
+  .inputs { grid-template-columns: minmax(0, 1fr); }
 }
 .trap { position: absolute; inline-size: 1px; block-size: 1px; opacity: 0; pointer-events: none; inset-inline-start: -9999px; }
 .err { color: var(--danger); font-weight: 600; font-size: 14px; }
 /* ملاحظة الطلب: سطر كامل بأسلوب الحقول نفسها */
 .inputs .wide { grid-column: 1 / -1; }
-.inputs textarea { inline-size: 100%; min-block-size: 64px; padding: 10px 14px; border-radius: var(--radius-m); border: 1px solid var(--scene-line); background: transparent; color: inherit; font: inherit; resize: vertical; }
+.inputs textarea { inline-size: 100%; min-block-size: 64px; padding: 10px 14px; border-radius: var(--radius-m); border: 1px solid var(--line-strong); background: transparent; color: inherit; font: inherit; resize: vertical; }
 .inputs textarea:focus { outline: none; border-color: var(--gold-3); box-shadow: 0 0 0 4px color-mix(in srgb, var(--gold-3) 18%, transparent); }

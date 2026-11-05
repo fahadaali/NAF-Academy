@@ -27,18 +27,18 @@ export default async function Reviews({ searchParams }: { searchParams: Promise<
       <PageHead title="التقييمات" sub="لا يظهر تقييم في صفحة الدورة قبل نشره" />
       <div className={p.toolbar}><div className={p.chips}>{F.map(([k, l]) => <a key={k} href={`?s=${k}`} className={p.chip} aria-current={(status === k) ? 'page' : undefined}>{l} <span className="num">{n.get(k) ?? 0}</span></a>)}</div></div>
       {rows.length === 0 ? <div className={p.empty}>لا تقييمات هنا.</div> : (
-        <table className={p.table}>
+        <div className={p.scroll}><table className={p.table}>
           <thead><tr><th>التقييم</th><th>الدورة</th><th>التعليق</th><th>يظهر باسم</th><th /></tr></thead>
           <tbody>{rows.map(({ r, course, email, name }) => (
             <tr key={r.id}>
               <td className="num" aria-label={`${r.rating} من 5`}>{'★'.repeat(r.rating)}<span className={p.muted}>{'★'.repeat(5 - r.rating)}</span></td>
               <td>{course.replace(/~\d/g, '')}<div className={`${p.muted} num`}>{when(r.updatedAt)}</div></td>
               <td style={{ maxInlineSize: 420 }}>{r.comment || <span className={p.muted}>—</span>}</td>
-              <td>{r.display}<div className={p.muted} dir="ltr" style={{ textAlign: 'end' }}>{name} · {email}</div></td>
+              <td>{r.display}<div className={`${p.muted} ${p.ltr}`}>{name} · {email}</div></td>
               <td><Moderate id={r.id} status={r.status} /></td>
             </tr>
           ))}</tbody>
-        </table>
+        </table></div>
       )}
     </>
   )

@@ -29,12 +29,12 @@ export function TeamBoard({ members, mode, meId, instructors = [] }: { members: 
       </Section>
       {msg && <p role="alert" style={{ color: 'var(--danger)', fontWeight: 600, marginBlockEnd: 12 }}>{msg}</p>}
       {members.length === 0 ? <div className={p.empty}>لا أعضاء بعد.</div> : (
-        <table className={p.table}>
+        <div className={p.scroll}><table className={p.table}>
           <thead><tr><th>العضو</th><th>الدور</th><th>الحالة</th><th>الصلاحيات</th><th><span className="sr-only">إجراءات</span></th></tr></thead>
           <tbody>
             {members.map((m) => (
               <tr key={m.userId}>
-                <td><strong>{m.displayName || m.email}</strong><div className={p.muted} dir="ltr" style={{ textAlign: 'end' }}>{m.email}</div></td>
+                <td><strong>{m.displayName || m.email}</strong><div className={`${p.muted} ${p.ltr}`}>{m.email}</div></td>
                 <td>
                   <select aria-label="الدور" className={p.search} style={{ minInlineSize: 0, minBlockSize: 36 }} value={m.role} onChange={(e) => act(() => setMemberRole(m.userId, e.target.value as Role))}>
                     {!(ROLES as readonly string[]).includes(m.role) && <option value={m.role} disabled>بانتظار التفعيل — اختر دوراً</option>}
@@ -53,7 +53,7 @@ export function TeamBoard({ members, mode, meId, instructors = [] }: { members: 
               </tr>
             ))}
           </tbody>
-        </table>
+        </table></div>
       )}
     </>
   )

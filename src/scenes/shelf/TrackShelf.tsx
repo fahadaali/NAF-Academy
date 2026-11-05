@@ -7,6 +7,7 @@ import { Words } from '@/components/Words'
 import { Picture } from '@/components/Picture'
 import type { SectionHead } from '@/content/home-defaults'
 import styles from './TrackShelf.module.css'
+import { prefersCalm } from '@/motion/tokens'
 
 export function TrackShelf({ tracks, head }: { tracks: Track[]; head: SectionHead }) {
   const rail = useRef<HTMLDivElement>(null)
@@ -67,7 +68,7 @@ export function TrackShelf({ tracks, head }: { tracks: Track[]; head: SectionHea
     const el = rail.current
     if (!el) return
     const card = el.querySelector<HTMLElement>('[data-card]')
-    el.scrollBy({ left: dir * ((card?.offsetWidth ?? 300) + 24), behavior: 'smooth' })
+    el.scrollBy({ left: dir * ((card?.offsetWidth ?? 300) + 24), behavior: prefersCalm() ? 'auto' : 'smooth' })
   }
 
   return (

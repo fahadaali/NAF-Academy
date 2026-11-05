@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from 'next'
 import { brandView } from '@/server/brand'
-import Script from 'next/script'
 import './globals.css'
 import { SwRegister } from '@/components/SwRegister'
 import { siteUrl } from '@/server/site'
@@ -41,7 +40,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="ar" dir="rtl" data-scroll-behavior="smooth" suppressHydrationWarning>
       <head>
-        <Script src="/boot.js" strategy="beforeInteractive" />
+        {/* سكربت عادي يحجب الرسم لحظةً (أقل من 1KB): الوضع المختار و.js والستار ومستمع pagereveal قبل أول رسم.
+            Script beforeInteractive في App Router لا يعمل إلا قبيل الترطيب — بعد الرسم، فيومض الوضع ويقفز الكشف */}
+        {/* eslint-disable-next-line @next/next/no-sync-scripts */}
+        <script src="/boot.js" />
         <link rel="preload" href="/fonts/riyal.woff2" as="font" type="font/woff2" crossOrigin="" />
       </head>
       <body>

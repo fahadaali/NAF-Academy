@@ -22,7 +22,7 @@ export default async function Templates() {
   return (
     <>
       <PageHead title="قوالب الشهادات" sub="الشهادة الصادرة تحفظ قالبها لحظة الإصدار — تعديل القالب لا يغيّر ما صدر" actions={<><a className="btn ghost" href="/admin/certificates">الشهادات</a><a className="btn" href="/admin/certificates/templates/new">+ قالب جديد</a></>} />
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 18 }}>
+      <div className={p.cards}>
         {rows.map((t) => (
           <a key={t.id} href={`/admin/certificates/templates/${t.id}`} style={{ display: 'grid', gap: 10 }}>
             <CertificateView design={mergeDesign(t.design)} data={SAMPLE} brand={brand} images={imgs.get(t.id)} />

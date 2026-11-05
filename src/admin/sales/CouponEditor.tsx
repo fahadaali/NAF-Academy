@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { generateBatch, saveCoupon, type CouponInput } from './actions'
 import { DateTime, Field, Grid, Input, Money, PageHead, SaveBar, Section, Segmented, Switch } from '@/admin/ui/kit'
+import p from '@/admin/ui/panel.module.css'
 
 type Opt = { id: string; title: string }
 
@@ -85,10 +86,9 @@ export function CouponEditor({ id, initial, courses, tracks }: { id: string | nu
 export function Chips({ items, on, toggle, error }: { items: Opt[]; on: string[]; toggle: (id: string) => void; error?: string }) {
   return (
     <div>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+      <div className={p.chips}>
         {items.map((i) => (
-          <button key={i.id} type="button" onClick={() => toggle(i.id)} aria-pressed={on.includes(i.id)}
-            style={{ minBlockSize: 38, paddingInline: 14, borderRadius: 999, fontSize: 14, fontWeight: 600, boxShadow: on.includes(i.id) ? 'none' : 'inset 0 0 0 1px var(--line-strong)', background: on.includes(i.id) ? 'var(--night-1)' : 'transparent', color: on.includes(i.id) ? 'var(--gold-4)' : 'inherit' }}>
+          <button key={i.id} type="button" className={p.chip} onClick={() => toggle(i.id)} aria-pressed={on.includes(i.id)}>
             {i.title.replace(/~\d?/g, '')}
           </button>
         ))}

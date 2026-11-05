@@ -12,6 +12,7 @@ export const curve = {
   glide: [0.22, 0.82, 0.2, 1],
   travel: [0.65, 0, 0.25, 1],
 } as const satisfies Record<string, Curve>
+/* في CSS وحده: --ease-steady (linear) للدوران المستمر، و--ease-blink (steps(2)) لوميض العدّاد المتقطّع */
 
 /* توقيتات مركّبة */
 export const timing = {
@@ -23,6 +24,16 @@ export const timing = {
   curtainMax: d.gentle * 15, // سقف احتياطي
   flip: d.gentle * 2, // تقليب المجلدات
   themeSweep: d.gentle * 2 + d.base, // 860 دائرة تبديل الوضع
+  notice: d.gentle * 6, // 1920 رسالة مؤقتة («نُسخ الرابط»)
+} as const
+
+/* خطوات التتابع (بين عنصر وتاليه) — مرآتها في tokens.css: --stagger-* (مشتقة من --t-fast) */
+export const stagger = {
+  fine: d.fast / 8, // ~18 أعمدة الرسوم الكثيفة
+  row: d.fast / 3, // ~47 صفوف الجداول والقوائم
+  word: d.fast / 2.8, // ~50 الكلمات
+  item: d.fast / 2, // 70 البطاقات والعناصر
+  step: d.fast * 0.64, // ~90 درجات المشاهد
 } as const
 
 /* حلقات محيطة بطيئة (نبض، تنفّس، انجراف، دوران) — زخرفة لا تحمل معنى، وتتوقف مع تقليل الحركة.

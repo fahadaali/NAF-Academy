@@ -29,7 +29,8 @@ export function CodeLogin({ channels, onDone, compact, initialEmail = '' }: { ch
     if (!r.ok) return setError(r.error ?? 'تعذّر الإرسال')
     setSentTo(r.target!)
     setWait(60)
-    setTimeout(() => codeRef.current?.focus(), 50)
+    /* بعد رسم الحقل */
+    requestAnimationFrame(() => codeRef.current?.focus())
   }
   const verify = async (c = code) => {
     if (c.length !== 6) return

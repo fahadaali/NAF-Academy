@@ -34,7 +34,7 @@ export default async function Messages() {
       {tracking && stats.length > 0 && (
         <section className={p.block}>
           <h2 className={p.h2}>آخر 30 يوماً <span className={p.muted}>· {sup.n} عنوان مكتوم (ارتداد دائم أو شكوى)</span></h2>
-          <table className={p.table}>
+          <div className={p.scroll}><table className={p.table}>
             <thead><tr><th>الرسالة</th><th>المرسَل</th><th>التسليم</th><th>الفتح</th><th>النقر</th><th>الارتداد</th></tr></thead>
             <tbody className="num">{stats.map((x) => (
               <tr key={x.kind}>
@@ -42,14 +42,14 @@ export default async function Messages() {
                 <td>{pct(Number(x.delivered), x.n)}</td><td>{pct(Number(x.opened), x.n)}</td><td>{pct(Number(x.clicked), x.n)}</td><td>{pct(Number(x.bounced), x.n)}</td>
               </tr>
             ))}</tbody>
-          </table>
+          </table></div>
         </section>
       )}
       {muted.length > 0 && (
         <section className={p.block}>
           <h2 className={p.h2}>العناوين المكتومة <span className="num">({sup.n})</span></h2>
           <p className={p.muted}>لا يُرسل إليها أي بريد — ولا رمز الدخول — حتى يُرفع الكتم. الإشعارات داخل المنصة تصل أصحابها كما هي.</p>
-          <table className={p.table}>
+          <div className={p.scroll}><table className={p.table}>
             <thead><tr><th>العنوان</th><th>السبب</th><th>منذ</th><th /></tr></thead>
             <tbody>{muted.map((m) => (
               <tr key={m.email}>
@@ -59,11 +59,11 @@ export default async function Messages() {
                 <td>{canChannels && <Unsuppress email={m.email} />}</td>
               </tr>
             ))}</tbody>
-          </table>
+          </table></div>
         </section>
       )}
       {rows.length === 0 ? <div className={p.empty}>لا رسائل بعد.</div> : (
-        <table className={p.table}>
+        <div className={p.scroll}><table className={p.table}>
           <thead><tr><th>الوقت</th><th>إلى</th><th>الرسالة</th><th>الحالة</th></tr></thead>
           <tbody>{rows.map((r) => (
             <tr key={r.id}>
@@ -81,7 +81,7 @@ export default async function Messages() {
               </td>
             </tr>
           ))}</tbody>
-        </table>
+        </table></div>
       )}
     </>
   )

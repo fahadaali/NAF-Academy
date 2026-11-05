@@ -29,7 +29,7 @@ export default async function Audit({ searchParams }: { searchParams: Promise<{ 
     <>
       <PageHead title="سجل التعديلات" sub={only ? `${ACTION[only] ?? only} — آخر 300` : 'من غيّر ماذا ومتى — آخر 300 عملية'}
         actions={only ? <a className="btn ghost" href="/admin/audit">كل العمليات</a> : <a className="btn ghost" href="/admin/audit?action=needs_attention">ما يحتاج تدخّلاً</a>} />
-      <table className={p.table}>
+      <div className={p.scroll}><table className={p.table}>
         <thead><tr><th>الوقت</th><th>المستخدم</th><th>العملية</th><th>العنصر</th></tr></thead>
         <tbody>
           {rows.map((r) => (
@@ -42,7 +42,7 @@ export default async function Audit({ searchParams }: { searchParams: Promise<{ 
             </tr>
           ))}
         </tbody>
-      </table>
+      </table></div>
     </>
   )
 }

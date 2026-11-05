@@ -1,0 +1,28 @@
+/* افتتاحية الصفحات الداخلية وصفحة المدرب — بدل الأنماط المضمّنة (الألوان والمقاسات من الرموز) */
+.hero {
+  position: relative; overflow: hidden; background: var(--scene-bg); color: var(--scene-text);
+  padding-block: calc(var(--header-h) + clamp(44px, 9vh, 100px)) clamp(44px, 8vh, 90px);
+}
+.glyph {
+  position: absolute; inset-inline-start: 4%; inset-block-end: -28%; font-family: var(--font-display); font-weight: 900;
+  font-size: clamp(260px, 34vw, 520px); line-height: 1; color: transparent;
+  -webkit-text-stroke: 1.2px color-mix(in srgb, var(--gold-3) 40%, transparent);
+}
+.inner { position: relative; display: grid; gap: 16px; justify-items: start; }
+.eyebrow { color: var(--gold-4); }
+.lead { color: var(--scene-muted); font-size: var(--fs-statement); max-inline-size: 56ch; }
+
+.links { display: flex; gap: 14px; flex-wrap: wrap; }
+.links a { color: var(--gold-4); font-weight: 600; min-block-size: 40px; display: inline-flex; align-items: center; }
+.person { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr)); gap: clamp(28px, 5vw, 50px); padding-block: 60px 100px; align-items: start; }
+.portrait {
+  position: relative; aspect-ratio: 4 / 4.6; border-radius: var(--radius-l); overflow: hidden; max-inline-size: 420px;
+  background: radial-gradient(70% 60% at 50% 40%, var(--night-3), var(--night-1));
+  display: grid; place-items: center; color: var(--gold-3); font-family: var(--font-display); font-size: 120px;
+}
+.about { display: grid; gap: 22px; }
+.highlights { display: grid; gap: 10px; }
+.highlights li { padding: 14px 18px; border-radius: var(--radius-m); background: var(--surface); border: 1px solid var(--line); font-weight: 600; }
+.courses { background: var(--surface-2); padding-block: 60px 100px; }
+.courses h2 { margin-block-end: 26px; }
+.cards { display: flex; flex-wrap: wrap; gap: 22px; }

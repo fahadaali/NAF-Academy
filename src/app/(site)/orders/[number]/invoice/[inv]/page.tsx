@@ -19,7 +19,8 @@ export default async function Invoice({ params, searchParams }: { params: Promis
   const o = await orderForBuyer(number, t)
   const invoice = o?.invoices.find((i) => i.number === inv)
   if (!o || !invoice) notFound()
-  const qr = await QRCode.toString(invoice.qr, { type: 'svg', margin: 0, errorCorrectionLevel: 'M', color: { dark: '#0b1520', light: '#00000000' } })
+  /* الرمز بلون النص (currentColor) — يُولَّد بأسود مؤقت ثم يُستبدل، فلا قيمة لون في الصفحة */
+  const qr = (await QRCode.toString(invoice.qr, { type: 'svg', margin: 0, errorCorrectionLevel: 'M', color: { dark: '#000000', light: '#00000000' } })).replaceAll('#000000', 'currentColor')
   const credit = invoice.kind === 'credit_note'
   const exVat = invoice.total - invoice.vat
   const brand = await brandView()
@@ -45,7 +46,7 @@ export default async function Invoice({ params, searchParams }: { params: Promis
         </dl>
         <div className={s.parties}>
           <section><h2>البائع</h2><p>{invoice.seller.name}</p><p className="num">الرقم الضريبي: {invoice.seller.vatNumber || '—'}</p>{invoice.seller.crNumber && <p className="num">السجل التجاري: {invoice.seller.crNumber}</p>}<p>{invoice.seller.address}</p></section>
-          <section><h2>المشتري</h2><p>{invoice.buyer.org || invoice.buyer.name}</p>{invoice.buyer.org && <p>{invoice.buyer.name}</p>}<p dir="ltr" style={{ textAlign: 'end' }}>{invoice.buyer.email}</p>{invoice.buyer.vatNumber && <p className="num">الرقم الضريبي: {invoice.buyer.vatNumber}</p>}</section>
+          <section><h2>المشتري</h2><p>{invoice.buyer.org || invoice.buyer.name}</p>{invoice.buyer.org && <p>{invoice.buyer.name}</p>}<p className={s.email}>{invoice.buyer.email}</p>{invoice.buyer.vatNumber && <p className="num">الرقم الضريبي: {invoice.buyer.vatNumber}</p>}</section>
         </div>
         <table className={`num ${s.lines}`}>
           <thead><tr><th>البيان</th><th>الكمية</th><th>السعر</th><th>الإجمالي</th></tr></thead>

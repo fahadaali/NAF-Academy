@@ -73,13 +73,13 @@ export function ContractsPanel({ orgId, items, courses }: { orgId: string; items
             </header>
             <div className={`${c.usage} num`}><span className={c.bar}><i style={{ transform: `scaleX(${Math.min(1, it.used / it.row.seats)})` }} /></span>{it.used} / {it.row.seats} مقعد</div>
             {it.seats.length > 0 && (
-              <table className={p.table}>
+              <div className={p.scroll}><table className={p.table}>
                 <thead><tr><th>المشارك</th><th>الدورة</th><th /></tr></thead>
                 <tbody>{it.seats.map((x) => (
-                  <tr key={x.id}><td>{x.name}<div className={p.muted} dir="ltr" style={{ textAlign: 'end' }}>{x.email}</div></td><td>{x.course}</td>
+                  <tr key={x.id}><td>{x.name}<div className={`${p.muted} ${p.ltr}`}>{x.email}</div></td><td>{x.course}</td>
                     <td><button className={p.iconBtn} onClick={async () => { if (confirm(`تحرير مقعد ${x.email}؟ يُلغى تسجيله ويعود المقعد للعقد.`)) { const r = await releaseContractSeat(x.id); if (!r.ok) setMsg(r.error ?? ''); else router.refresh() } }}>تحرير</button></td></tr>
                 ))}</tbody>
-              </table>
+              </table></div>
             )}
             {it.state === 'active' && it.used < it.row.seats && (
               seat.contract === it.row.id ? (

@@ -1,5 +1,5 @@
 .card {
-  position: relative; display: grid; grid-template-rows: auto 1fr; inline-size: clamp(290px, 28vw, 370px);
+  position: relative; display: grid; grid-template-rows: auto 1fr; inline-size: clamp(min(290px, 100%), 28vw, 370px);
   border-radius: var(--radius-l); background: var(--surface); border: 1px solid var(--line); overflow: hidden;
   box-shadow: var(--shadow-1); transition: transform var(--t-gentle) var(--ease-glide), box-shadow var(--t-gentle) var(--ease-glide);
 }
@@ -40,7 +40,7 @@
 .title { font-size: 21px; font-weight: 800; line-height: 1.35; }
 .title a { background: linear-gradient(currentColor, currentColor) no-repeat 100% 100% / 0 1.5px; transition: background-size var(--t-gentle) var(--ease-glide); }
 .title a:hover { background-size: 100% 1.5px; }
-.meta { display: grid; grid-template-columns: repeat(3, auto); justify-content: start; gap: 6px 22px; font-size: 14px; }
+.meta { display: flex; flex-wrap: wrap; gap: 6px 22px; font-size: 14px; }
 .meta dt { font-size: 12px; color: var(--muted); }
 .meta dd { font-weight: 600; }
 .meta small { display: block; font-weight: 400; color: var(--muted); font-size: 12px; }

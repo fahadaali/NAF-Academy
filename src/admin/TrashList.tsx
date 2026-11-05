@@ -14,7 +14,7 @@ export function TrashList({ items }: { items: Item[] }) {
   if (!list.length) return <div className={p.empty}>سلة المحذوفات فارغة.</div>
   const drop = (it: Item) => setList((l) => l.filter((x) => !(x.id === it.id && x.entity === it.entity)))
   return (
-    <table className={p.table}>
+    <div className={p.scroll}><table className={p.table}>
       <thead><tr><th>العنصر</th><th>النوع</th><th>حُذف</th><th /></tr></thead>
       <tbody>
         {list.map((it) => (
@@ -38,6 +38,6 @@ export function TrashList({ items }: { items: Item[] }) {
           </tr>
         ))}
       </tbody>
-    </table>
+    </table></div>
   )
 }

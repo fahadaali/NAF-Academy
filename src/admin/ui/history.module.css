@@ -18,3 +18,6 @@
 .diff th, .diff td { padding: 8px; border-block-end: 1px solid var(--line); text-align: start; vertical-align: top; word-break: break-word; }
 .diff thead th { color: var(--muted); font-weight: 600; }
 .err { color: var(--danger); font-size: 14px; }
+
+/* اللمس: أهداف 40px على الأقل */
+@media (pointer: coarse) { .x { inline-size: 40px; block-size: 40px; } }

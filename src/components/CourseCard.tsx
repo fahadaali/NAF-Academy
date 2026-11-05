@@ -17,8 +17,9 @@ export function CourseCard({ course: c, track, instructor, still }: Props) {
   const href = still ? undefined : `/courses/${c.slug}`
   return (
     <article className={styles.card} data-status={st.tone} data-dim={st.dim ? '1' : '0'}>
-      <a href={href} className={styles.cover} data-vt-cover={href} data-tone={track?.tone ?? 'gold'} aria-label={c.title}>
-        {c.cover ? <span className={styles.photo} aria-hidden="true"><Picture media={c.cover} /></span> : <span className={styles.glyph} aria-hidden="true">{track?.glyph}</span>}
+      <a href={href} className={styles.cover} data-tone={track?.tone ?? 'gold'} aria-label={c.title}>
+        {/* الصورة وحدها تطير إلى رأس صفحة الدورة — لا الشارات والحالة فوقها */}
+        {c.cover ? <span className={styles.photo} data-vt-cover={href} aria-hidden="true"><Picture media={c.cover} /></span> : <span className={styles.glyph} data-vt-cover={href} aria-hidden="true">{track?.glyph}</span>}
         <span className={styles.chips}>
           <span className={styles.chip}>{modeLabel[c.mode]}</span>
           <span className={styles.chip}>{levelLabel[c.level]}</span>

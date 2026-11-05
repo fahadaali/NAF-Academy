@@ -37,20 +37,20 @@ export function OrdersTable({ rows }: { rows: Row[] }) {
         </div>
       </div>
       {shown.length === 0 ? <div className={p.empty}>لا طلبات.</div> : (
-        <table className={p.table}>
+        <div className={p.scroll}><table className={p.table}>
           <thead><tr><th>الطلب</th><th>المشتري</th><th>الدورة</th><th>الإجمالي</th><th>الحالة</th></tr></thead>
           <tbody>
             {shown.map((o) => (
               <tr key={o.id}>
                 <td><Link href={`/admin/orders/${o.id}`} className={`${p.rowLink} num`}>{o.number}</Link><div className={`${p.muted} num`}>{when(o.createdAt)}</div></td>
-                <td>{o.buyer.name}<div className={p.muted} dir="ltr" style={{ textAlign: 'end' }}>{o.buyer.email}</div></td>
+                <td>{o.buyer.name}<div className={`${p.muted} ${p.ltr}`}>{o.buyer.email}</div></td>
                 <td>{o.items.map((i) => <div key={i.id}>{i.title.replace(/~\d?/g, '')}{i.quantity > 1 && <span className={`${p.muted} num`}> × {i.quantity}</span>}</div>)}</td>
                 <td className="num">{sar(o.total)}{o.couponCode && <div className={p.muted} dir="ltr">{o.couponCode}</div>}</td>
                 <td><Badge tone={ORDER_TONE[o.status]}>{ORDER_LABEL[o.status]}</Badge><div className={p.muted}>{METHOD_LABEL[o.method]}</div></td>
               </tr>
             ))}
           </tbody>
-        </table>
+        </table></div>
       )}
     </>
   )

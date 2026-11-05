@@ -32,10 +32,10 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
         <Link href="/admin/instructors" className={p.stat}><strong data-count>{instructors.length}</strong><span>مدرب</span></Link>
         <Link href="/admin/media" className={p.stat}><strong data-count>{media.length}</strong><span>صورة</span></Link>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 18 }}>
+      <div className={p.cards}>
         <section>
           <h2 style={{ fontSize: 18, marginBlockEnd: 10 }}>تبدأ قريباً</h2>
-          <table className={p.table}><tbody>
+          <div className={p.scroll}><table className={p.table}><tbody>
             {upcoming.length === 0 && <tr><td className={p.muted}>لا مواعيد قادمة.</td></tr>}
             {upcoming.map((c) => (
               <tr key={c.id}>
@@ -43,15 +43,15 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
                 <td><Badge tone={c.status}>{STATUS_LABEL[c.status]}</Badge></td>
               </tr>
             ))}
-          </tbody></table>
+          </tbody></table></div>
         </section>
         <section>
           <h2 style={{ fontSize: 18, marginBlockEnd: 10 }}>آخر التعديلات</h2>
-          <table className={p.table}><tbody>
+          <div className={p.scroll}><table className={p.table}><tbody>
             {log.map((e) => (
               <tr key={e.id}><td><strong>{e.actor}</strong> <span className={p.muted}>· {e.summary}</span><div className={`${p.muted} num`}>{new Date(e.at).toLocaleString('ar-SA-u-nu-latn', { timeZone: 'Asia/Riyadh', dateStyle: 'medium', timeStyle: 'short' })}</div></td></tr>
             ))}
-          </tbody></table>
+          </tbody></table></div>
           {canAudit && <Link href="/admin/audit" className={p.muted} style={{ display: 'inline-block', marginBlockStart: 8 }}>السجل كاملاً ←</Link>}
         </section>
       </div>

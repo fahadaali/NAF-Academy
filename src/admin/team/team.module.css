@@ -12,3 +12,6 @@
 .perm select { min-block-size: 34px; border-radius: 8px; border: 1px solid var(--line-strong); background: var(--bg); color: var(--text); font: inherit; font-size: 13px; }
 .err { color: var(--danger); font-weight: 600; }
 .dActions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* اللمس: أهداف 40px على الأقل */
+@media (pointer: coarse) { .permsBtn, .perm select { min-block-size: 40px; } }

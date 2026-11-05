@@ -1,12 +1,14 @@
 'use client'
 /* ميل خفيف يتبع المؤشر — للفأرة فقط، ويهدأ عند الخروج. */
 import { useRef, type ReactNode } from 'react'
+import { prefersCalm } from '@/motion/tokens'
 
 export function Tilt({ children, className = '' }: { children: ReactNode; className?: string }) {
   const ref = useRef<HTMLDivElement>(null)
   const raf = useRef(0)
   const onMove = (e: React.PointerEvent) => {
-    if (e.pointerType !== 'mouse') return
+    /* للفأرة فقط، ولا ميل مع تقليل الحركة */
+    if (e.pointerType !== 'mouse' || prefersCalm()) return
     const el = ref.current
     if (!el) return
     const r = el.getBoundingClientRect()
@@ -16,8 +18,8 @@ export function Tilt({ children, className = '' }: { children: ReactNode; classN
     raf.current = requestAnimationFrame(() => {
       el.style.setProperty('--rx', `${(-y * 6).toFixed(2)}deg`)
       el.style.setProperty('--ry', `${(x * 8).toFixed(2)}deg`)
-      el.style.setProperty('--gx', `${((x + 0.5) * 100).toFixed(1)}%`)
-      el.style.setProperty('--gy', `${((y + 0.5) * 100).toFixed(1)}%`)
+      el.style.setProperty('--mx', `${(e.clientX - r.left).toFixed(0)}px`)
+      el.style.setProperty('--my', `${(e.clientY - r.top).toFixed(0)}px`)
     })
   }
   const onLeave = () => {

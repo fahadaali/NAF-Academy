@@ -27,7 +27,7 @@
 .qrBox { display: block; inline-size: 100%; aspect-ratio: 1; padding: 0.5cqw; background: var(--c-plate); color: var(--c-plate-ink); border-radius: 2px; }
 .qrBox svg { display: block; inline-size: 100%; block-size: 100%; }
 .qrBox[data-ph='1'] { background: repeating-conic-gradient(var(--c-plate-ink) 0 25%, var(--c-plate) 0 50%) 0 0 / 22% 22%; }
-.qr small { font-family: var(--font); font-size: 1cqw; letter-spacing: 0.04em; }
+.qr small { font-family: var(--font); font-size: max(1cqw, 8px); letter-spacing: 0.04em; } /* رمز التحقق مقروء على الجوال */
 
 /* رأس الشهادة بشعارين متجاورين بالارتفاع نفسه (2.4 من مقاس العنصر) */
 .logos { display: grid; justify-items: center; gap: 0.35em; padding-block-start: 1.9cqw; }

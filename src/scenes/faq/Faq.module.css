@@ -1,6 +1,6 @@
 .faq { padding-block: clamp(80px, 14vh, 160px); background: var(--bg); }
 .grid { display: grid; grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr); gap: clamp(28px, 5vw, 72px); align-items: start; }
-@media (max-width: 860px) { .grid { grid-template-columns: 1fr; } }
+@media (max-width: 860px) { .grid { grid-template-columns: minmax(0, 1fr); } }
 .title { display: block; margin-block-start: 12px; }
 .list { display: grid; gap: 10px; }
 .item { border-radius: var(--radius-m); background: var(--surface); border: 1px solid var(--line); }

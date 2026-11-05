@@ -12,7 +12,7 @@
 .groupTitle { font-size: 11.5px; letter-spacing: 0.04em; opacity: 0.5; padding: 0 12px 6px; }
 .nav a {
   display: flex; align-items: center; gap: 10px; min-block-size: 42px; padding-inline: 12px; border-radius: 10px;
-  font-size: 15px; font-weight: 500; opacity: 0.78; transition: background var(--t-base), opacity var(--t-base), color var(--t-base);
+  font-size: 15px; font-weight: 500; opacity: 0.78; transition: background var(--t-base) var(--ease-move), opacity var(--t-base) var(--ease-move), color var(--t-base) var(--ease-move);
 }
 .nav a:hover { opacity: 1; background: color-mix(in srgb, var(--white) 5%, transparent); }
 .nav a[aria-current='page'] { opacity: 1; background: color-mix(in srgb, var(--gold-3) 14%, transparent); color: var(--gold-4); }
@@ -60,8 +60,10 @@
 .stat span { color: var(--muted); font-size: 14px; }
 .empty { padding: 40px; text-align: center; color: var(--muted); background: var(--surface); border-radius: var(--radius-l); border: 1px dashed var(--line-strong); }
 
-/* الجوال: الجداول العريضة تُمرَّر أفقياً داخل إطارها، لا الصفحة كلها (بعد القاعدة الأساسية لتغلبها) */
-@media (max-width: 900px) { .table { display: block; overflow-x: auto; max-inline-size: 100%; } }
+/* الجداول العريضة تُمرَّر أفقياً داخل إطارها في كل المقاسات — html وbody بـ overflow-x: clip فلا تمرير للصفحة،
+   وما يتجاوز يُقصّ بدل أن يُمرَّر لولا هذا الإطار */
+.scroll { overflow-x: auto; max-inline-size: 100%; overscroll-behavior-x: contain; }
+.scroll > .table { min-inline-size: 100%; }
 
 /* الحركة: بطاقات الأرقام تتتابع وتتصاعد أرقامها، وصفوف الجداول تصعد واحداً بعد واحد (globals.css) */
 .stats { composes: stagger from global; }
@@ -87,3 +89,7 @@
 .alert { padding: 12px 16px; border-radius: var(--radius-m); background: color-mix(in srgb, var(--danger) 12%, transparent); color: var(--danger); font-weight: 600; margin-block-end: 16px; }
 .alert a { color: inherit; text-decoration: underline; }
 .notice { padding: 12px 16px; border-radius: var(--radius-m); background: var(--surface-2); font-weight: 600; margin-block-end: 16px; }
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr)); gap: 18px; }
+
+/* اللمس: أهداف 40px على الأقل */
+@media (pointer: coarse) { .iconBtn, .chip, .select { min-block-size: 40px; } }

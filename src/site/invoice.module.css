@@ -19,17 +19,26 @@
 .lines { inline-size: 100%; border-collapse: collapse; font-size: 14px; }
 .lines th { text-align: start; background: var(--night-1); color: var(--parchment); padding: 10px 12px; font-weight: 600; }
 .lines td { padding: 12px; border-block-end: 1px solid var(--ivory-2); }
-.lines td:not(:first-child), .lines th:not(:first-child) { text-align: end; inline-size: 110px; }
-.foot { display: flex; justify-content: space-between; align-items: end; gap: 24px; }
+.lines td:not(:first-child), .lines th:not(:first-child) { text-align: end; inline-size: 110px; white-space: nowrap; }
+.foot { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: end; gap: 24px; }
 .qr { inline-size: 128px; block-size: 128px; }
 .qr svg { inline-size: 100%; block-size: 100%; }
-.totals { display: grid; gap: 8px; min-inline-size: 300px; }
+.totals { display: grid; gap: 8px; inline-size: min(100%, 300px); }
 .totals > div { display: flex; justify-content: space-between; gap: 20px; font-size: 14px; }
 .grand { padding-block-start: 10px; border-block-start: 2px solid var(--ink-1); font-size: 17px !important; font-weight: 800; }
 .note { font-size: 12px; color: var(--ink-3); text-align: center; }
-@media (max-width: 640px) { .meta { grid-template-columns: 1fr 1fr; } .parties { grid-template-columns: 1fr; } .foot { flex-direction: column-reverse; align-items: stretch; } }
+@media (max-width: 640px) { .meta { grid-template-columns: 1fr 1fr; } .parties { grid-template-columns: minmax(0, 1fr); } .foot { flex-direction: column-reverse; align-items: stretch; } }
 @media print {
   :global(header), :global(footer), .toolbar { display: none !important; }
   .page { padding: 0; background: var(--white); }
   .sheet { box-shadow: none; inline-size: 100%; }
 }
+
+/* الجوال: البنود تُمرَّر أفقياً داخل الفاتورة لا تُقصّ، والوصف ينكسر */
+@media (max-width: 560px) {
+  .lines { display: block; overflow-x: auto; }
+  .lines td:first-child { min-inline-size: 160px; overflow-wrap: anywhere; }
+  .lines td:not(:first-child), .lines th:not(:first-child) { inline-size: auto; }
+  .sheet { padding: 20px; }
+}
+.email { direction: ltr; text-align: end; overflow-wrap: anywhere; }
