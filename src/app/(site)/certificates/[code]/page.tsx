@@ -24,7 +24,7 @@ export default async function Certificate({ params }: P) {
   const valid = c.status === 'issued'
   const url = verifyUrl(c.code!)
   return (
-    <main className={`wrap ${st.page}`}>
+    <div className={`wrap ${st.page}`}>
       <div className={st.status} data-valid={valid ? '1' : '0'} role="status">
         <span aria-hidden="true">{valid ? '✓' : '✕'}</span>
         <div>
@@ -50,6 +50,6 @@ export default async function Certificate({ params }: P) {
           <a className={st.badge} href={`/certificates/${c.code}/badge`}>Open Badge</a>
         </div>
       )}
-    </main>
+    </div>
   )
 }

@@ -121,3 +121,8 @@
   .prose ul { display: grid; gap: 6px; padding-inline-start: 22px; }
   .prose li::marker { color: var(--gold-3); }
 }
+
+/* هيكل التحميل — نبض شفافية فقط، ويتوقف مع تقليل الحركة */
+.skeleton { background: var(--surface-2); animation: skeleton-pulse calc(var(--t-gentle) * 5) ease-in-out infinite alternate; }
+@keyframes skeleton-pulse { to { opacity: 0.55; } }
+@media (prefers-reduced-motion: reduce) { .skeleton { animation: none; } }

@@ -3,7 +3,7 @@
 .video[data-theater='1'] { margin-inline: calc(var(--gutter) * -1); }
 .done { color: var(--success); font-weight: 700; }
 .panel { display: grid; gap: 12px; align-content: start; padding: 18px 20px; border-radius: var(--radius-l); background: var(--surface); border: 1px solid var(--line); }
-.panel h3 { font-size: 17px; }
+.panel h2 { font-size: 17px; }
 .muted { color: var(--muted); font-size: 14px; }
 .chapters { display: grid; gap: 2px; }
 .chapters button { display: flex; gap: 12px; inline-size: 100%; text-align: start; padding: 8px 10px; border-radius: 10px; font-size: 14.5px; }

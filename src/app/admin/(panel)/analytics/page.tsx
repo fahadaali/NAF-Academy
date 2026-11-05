@@ -23,7 +23,7 @@ export default async function Analytics({ searchParams }: { searchParams: Promis
     <>
       <PageHead title="التحليلات" sub="الزيارات تُعدّ بلا ملفات تعريف ولا هوية، وتحترم «عدم التتبع» في المتصفح" />
       <div className={p.toolbar} role="group" aria-label="المدة">
-        <div className={p.chips}>{RANGES.map(([n, l]) => <a key={n} href={link(n)} className={p.chip} aria-pressed={range === n}>{l}</a>)}</div>
+        <div className={p.chips}>{RANGES.map(([n, l]) => <a key={n} href={link(n)} className={p.chip} aria-current={(range === n) ? 'page' : undefined}>{l}</a>)}</div>
       </div>
 
       <div className={p.stats}>

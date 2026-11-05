@@ -25,7 +25,7 @@ export function VideoWorkspace(p: { slug: string; lessonId: string; kind: 'strea
       <div className={w.side}>
         {p.chapters.length > 0 && (
           <section className={w.panel}>
-            <h3>الفصول</h3>
+            <h2>الفصول</h2>
             <ol role="list" className={w.chapters}>
               {p.chapters.map((c) => <li key={c.at}><button onClick={() => api.current?.seek(c.at)}><span className="num">{formatTime(c.at)}</span>{c.title}</button></li>)}
             </ol>
@@ -45,7 +45,7 @@ export function Notes({ slug, lessonId, api }: { slug: string; lessonId: string;
   useEffect(() => { load() }, [load])
   return (
     <section className={w.panel}>
-      <h3>ملاحظاتي</h3>
+      <h2>ملاحظاتي</h2>
       <div className={w.compose}>
         <textarea value={text} onChange={(e) => setText(e.target.value)} placeholder={api ? 'اكتب ملاحظة — تُحفظ عند الدقيقة الحالية' : 'اكتب ملاحظة'} rows={2} aria-label="ملاحظة جديدة"
           onFocus={() => api?.current?.pause()} />
@@ -77,7 +77,7 @@ export function Questions({ slug, lessonId }: { slug: string; lessonId: string }
   useEffect(() => { load() }, [load])
   return (
     <section className={w.panel}>
-      <h3>أسئلة حول الدرس</h3>
+      <h2>أسئلة حول الدرس</h2>
       <div className={w.compose}>
         <textarea value={text} onChange={(e) => setText(e.target.value)} placeholder="اسأل المدرب — يصلك الجواب هنا" rows={2} aria-label="سؤال جديد" />
         <button className="btn ghost" disabled={text.trim().length < 5} onClick={async () => {

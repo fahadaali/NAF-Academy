@@ -27,7 +27,7 @@ export default async function Certificates({ searchParams }: { searchParams: Pro
     <>
       <PageHead title="الشهادات" sub="تُفحص الشروط تلقائياً بعد كل تقدّم — اعتمد ما بانتظار المراجعة" actions={<a className="btn ghost" href="/admin/certificates/templates">القوالب</a>} />
       <div className={p.toolbar}>
-        <div className={p.chips}>{F.map(([k, l]) => <a key={k} href={`?s=${k}${q.c ? `&c=${q.c}` : ''}`} className={p.chip} aria-pressed={status === k}>{l} <span className="num">{n.get(k) ?? 0}</span></a>)}</div>
+        <div className={p.chips}>{F.map(([k, l]) => <a key={k} href={`?s=${k}${q.c ? `&c=${q.c}` : ''}`} className={p.chip} aria-current={(status === k) ? 'page' : undefined}>{l} <span className="num">{n.get(k) ?? 0}</span></a>)}</div>
         <span style={{ flex: 1 }} />
         <Recheck courses={courses.map((c) => ({ id: c.id, title: c.title.replace(/~\d/g, '') }))} />
       </div>

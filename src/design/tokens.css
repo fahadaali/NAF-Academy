@@ -56,7 +56,8 @@
   --accent-strong: #6f5320;
   --accent-glow: var(--gold-3);
   --secondary: var(--olive-1);
-  --danger: var(--ember);
+  /* أغمق من ember قليلاً ليبلغ 4.5:1 للنص الصغير على الخلفيات الفاتحة */
+  --danger: #9e4430;
   /* أدوار دلالية تتبدّل في الوضعين */
   --on-bg: var(--night-1);
   --on-fg: var(--gold-4);
@@ -136,6 +137,8 @@
     --success: var(--olive-3);
     --info: #86a0bd;
     --warn: #e39a7e;
+  --danger: #e39a7e;
+    --danger: #e39a7e;
     --glass: rgb(11 21 32 / 0.82);
     --scene-bg: var(--night-0);
     --shadow-1: 0 1px 2px rgb(0 0 0 / 0.3), 0 4px 16px rgb(0 0 0 / 0.25);

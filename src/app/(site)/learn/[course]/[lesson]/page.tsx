@@ -48,7 +48,7 @@ export default async function LessonPage({ params }: { params: Promise<{ course:
         <Outline slug={slug} modules={ctx.modules} current={l.id} />
       </aside>
 
-      <main className={st.main}>
+      <div className={st.main}>
         <header className={st.head}>
           <span className="eyebrow">{!enrolled && l.preview ? 'معاينة مجانية' : `الدرس ${i + 1} من ${flat.length}`}</span>
           <h1>{l.title}</h1>
@@ -132,7 +132,7 @@ export default async function LessonPage({ params }: { params: Promise<{ course:
           {prev ? <a href={`/learn/${slug}/${prev.id}`}>→ {prev.title}</a> : <span />}
           {next ? <a href={`/learn/${slug}/${next.id}`}>{next.title} ←</a> : <span />}
         </nav>
-      </main>
+      </div>
     </div>
   )
 }

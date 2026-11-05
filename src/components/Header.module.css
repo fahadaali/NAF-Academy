@@ -37,7 +37,7 @@
 }
 @keyframes grow { from { transform: scaleX(0); } }
 .idx { font-size: 11px; color: var(--gold-3); }
-.header[data-solid='1']:not([data-night='1']) .idx { color: var(--accent-strong); }
+.header:not([data-night='1']) .idx { color: var(--accent-strong); }
 
 .actions { display: flex; align-items: center; gap: 10px; }
 .theme { inline-size: 42px; block-size: 42px; display: grid; place-items: center; border-radius: 50%; color: inherit; transition: background var(--t-base); }
@@ -70,15 +70,18 @@
   .login { display: none; }
   .nav {
     position: fixed; inset: var(--header-h) 0 auto 0; padding: 18px var(--gutter) 28px;
-    background: var(--glass); color: var(--text);
+    /* معتم: القائمة فوق مشهد داكن أو فاتح تبقى نظيفة ومقروءة */
+    background: var(--bg); color: var(--text);
     backdrop-filter: blur(22px) saturate(1.4); -webkit-backdrop-filter: blur(22px) saturate(1.4);
     clip-path: inset(0 0 100% 0); transition: clip-path calc(var(--t-gentle) * 1.6) var(--ease-travel);
     box-shadow: 0 1px 0 var(--line);
   }
   .header[data-open='1'] .nav { clip-path: inset(0 0 0 0); }
-  .header[data-open='1'] { background: var(--glass); color: var(--text); }
+  .header[data-open='1'] { background: var(--bg); color: var(--text); }
   .nav ol { flex-direction: column; gap: 2px; }
   .nav a { font-size: 22px; padding: 12px 6px; inline-size: 100%; }
+  /* لوحة القائمة بخلفية الصفحة لا بخلفية المشهد — الأرقام تتبعها */
+  .nav .idx, .header[data-night='1'] .nav .idx { color: var(--accent-strong); }
 }
 @media (max-width: 560px) {
   .cta { display: none !important; }

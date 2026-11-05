@@ -11,7 +11,7 @@ export default async function Unsubscribe({ searchParams }: { searchParams: Prom
   const t = (await searchParams).t ?? ''
   const email = readOptout(t)
   return (
-    <main className="wrap" style={{ paddingBlock: 'calc(var(--header-h) + 64px) 120px', maxInlineSize: 640, display: 'grid', gap: 18 }}>
+    <div className="wrap" style={{ paddingBlock: 'calc(var(--header-h) + 64px) 120px', maxInlineSize: 640, display: 'grid', gap: 18 }}>
       <span className="eyebrow">تفضيلات الرسائل</span>
       <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(30px, 4vw, 44px)', fontWeight: 900 }}>رسائل أكاديمية ناف</h1>
       {email ? (
@@ -20,6 +20,6 @@ export default async function Unsubscribe({ searchParams }: { searchParams: Prom
           <UnsubscribeForm token={t} initial={await isOptedOut(email)} />
         </>
       ) : <p>الرابط غير صالح. استخدم الرابط الموجود أسفل الرسالة، أو غيّر التفضيل من ملفك في مساحة التعلّم.</p>}
-    </main>
+    </div>
   )
 }

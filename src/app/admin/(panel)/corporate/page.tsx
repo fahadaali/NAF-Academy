@@ -24,8 +24,8 @@ export default async function CorporateRequests({ searchParams }: { searchParams
       <PageHead title="طلبات المؤسسات" sub="من نموذج «للمؤسسات» في الرئيسية — تابع كل طلب حتى التعاقد" actions={<a className="btn ghost" href="/admin/organizations">حسابات المؤسسات</a>} />
       <Section title="التبليغ" desc="من يصله بريد عند وصول طلب جديد"><NotifyForm initial={cfg.notify} /></Section>
       <div className={p.toolbar}><div className={p.chips}>
-        <a href="?" className={p.chip} aria-pressed={!status}>الكل <span className="num">{[...n.values()].reduce((a, b) => a + b, 0)}</span></a>
-        {CORP_STATUS.map((k) => <a key={k} href={`?s=${k}`} className={p.chip} aria-pressed={status === k}>{STATUS[k]} <span className="num">{n.get(k) ?? 0}</span></a>)}
+        <a href="?" className={p.chip} aria-current={(!status) ? 'page' : undefined}>الكل <span className="num">{[...n.values()].reduce((a, b) => a + b, 0)}</span></a>
+        {CORP_STATUS.map((k) => <a key={k} href={`?s=${k}`} className={p.chip} aria-current={(status === k) ? 'page' : undefined}>{STATUS[k]} <span className="num">{n.get(k) ?? 0}</span></a>)}
       </div></div>
       {rows.length === 0 ? <div className={p.empty}>لا طلبات بعد.</div> : (
         <div className={c.list}>

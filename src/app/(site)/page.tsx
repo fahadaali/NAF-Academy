@@ -1,4 +1,6 @@
 import { Curtain } from '@/components/Curtain'
+import { ldJson, organization, website } from '@/lib/seo'
+import { siteUrl } from '@/server/site'
 import { CourseCard } from '@/components/CourseCard'
 import { Opening } from '@/scenes/opening/Opening'
 import { Ladder } from '@/scenes/ladder/Ladder'
@@ -36,6 +38,7 @@ export default async function Home() {
 
   return (
     <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: ldJson([organization(siteUrl() ?? ''), website(siteUrl() ?? '')]) }} />
       <Curtain />
       <Opening {...home.hero} />
       {home.sections.filter((x) => x.visible).map((x) => (

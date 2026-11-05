@@ -1,4 +1,6 @@
 import type { Metadata } from 'next'
+import { breadcrumbs, ldJson, person } from '@/lib/seo'
+import { siteUrl } from '@/server/site'
 import { notFound } from 'next/navigation'
 import { catalog, instructorDetail } from '@/server/queries'
 import { CourseCard } from '@/components/CourseCard'
@@ -14,7 +16,7 @@ export async function generateStaticParams() {
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const d = await instructorDetail((await params).slug)
-  return d ? { title: d.person.name, description: d.person.title } : {}
+  return d ? { title: d.person.name, description: d.person.title, alternates: { canonical: `/instructors/${d.person.slug}` } } : {}
 }
 
 export default async function InstructorPage({ params }: { params: Promise<{ slug: string }> }) {
@@ -23,6 +25,7 @@ export default async function InstructorPage({ params }: { params: Promise<{ slu
   const { person: p, courses, tracks, instructors } = d
   return (
     <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: ldJson([person(siteUrl() ?? '', { slug: p.slug, name: p.name, title: p.title, image: p.photo ? `${siteUrl() ?? ''}${p.photo.url}` : undefined }), breadcrumbs(siteUrl() ?? '', [['الرئيسية', '/'], [p.name, `/instructors/${p.slug}`]])]) }} />
       <PageHero eyebrow={p.title} title={p.name}>
         {p.links && p.links.length > 0 && (
           <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>

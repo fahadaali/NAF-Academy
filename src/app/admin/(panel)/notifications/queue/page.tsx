@@ -24,7 +24,7 @@ export default async function Queue({ searchParams }: { searchParams: Promise<{ 
   return (
     <>
       <PageHead title="طابور الرسائل" sub="ما جُدول وما أُرسل ولماذا تُخطّيت رسالة" actions={<><a className="btn ghost" href="/admin/notifications">القوالب</a><RunNow /></>} />
-      <div className={p.toolbar}><div className={p.chips}>{F.map(([k, l]) => <a key={k} href={`?s=${k}`} className={p.chip} aria-pressed={status === k}>{l} <span className="num">{c.get(k) ?? 0}</span></a>)}</div></div>
+      <div className={p.toolbar}><div className={p.chips}>{F.map(([k, l]) => <a key={k} href={`?s=${k}`} className={p.chip} aria-current={(status === k) ? 'page' : undefined}>{l} <span className="num">{c.get(k) ?? 0}</span></a>)}</div></div>
       {rows.length === 0 ? <div className={p.empty}>لا رسائل هنا.</div> : (
         <table className={p.table}>
           <thead><tr><th>الموعد</th><th>الرسالة</th><th>إلى</th><th>الحالة</th><th /></tr></thead>

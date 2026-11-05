@@ -78,7 +78,7 @@ export const mergeRules = (v: Partial<CertRules> | null | undefined): CertRules 
 
 /** ألوان الشهادة — مرآة لرموز الهوية (ملف PDF لا يقرأ متغيرات CSS) */
 export const TONES = {
-  ivory: { bg: '#f8f4ea', ink: '#0b1520', soft: '#4a5560', gold: '#a8823f', line: '#d9cba5' },
+  ivory: { bg: '#f8f4ea', ink: '#0b1520', soft: '#4a5560', gold: '#7d5f26', line: '#d9cba5' },
   night: { bg: '#0b1520', ink: '#f3ecdc', soft: '#b9b2a2', gold: '#d4b06a', line: '#3a4654' },
 } as const
 

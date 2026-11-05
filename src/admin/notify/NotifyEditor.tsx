@@ -40,7 +40,7 @@ export function NotifyEditor({ initial, staffEmail }: { initial: NotifySettings;
           </button>
           {(['transactional', 'engagement', 'marketing'] as Category[]).map((c) => (
             <div key={c} className={n.group}>
-              <h3>{CAT[c]}</h3>
+              <h2>{CAT[c]}</h2>
               {EVENTS.filter((e) => EVENT_META[e].category === c).map((e) => (
                 <button key={e} className={n.item} aria-current={pick === e ? 'true' : undefined} data-off={v.templates[e].enabled ? '0' : '1'} data-err={bad(e) ? '1' : '0'} onClick={() => setPick(e)}>
                   <span>{EVENT_META[e].label}</span><small>{v.templates[e].enabled ? EVENT_META[e].hint : 'موقوفة'}</small>

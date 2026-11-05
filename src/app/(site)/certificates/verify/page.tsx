@@ -17,7 +17,7 @@ export default async function Verify({ searchParams }: { searchParams: Promise<{
     missing = true
   }
   return (
-    <main className={`wrap ${st.verify}`}>
+    <div className={`wrap ${st.verify}`}>
       <span className="eyebrow">الشهادات</span>
       <Words as="h1" text="تحقّ~3ق من شهادة" className={st.h1} />
       <p>اكتب رقم الشهادة المطبوع أسفلها، أو امسح رمز QR الموجود عليها.</p>
@@ -26,6 +26,6 @@ export default async function Verify({ searchParams }: { searchParams: Promise<{
         <button className="btn">تحقّق</button>
       </form>
       {missing && <p className={st.miss} role="alert">لا توجد شهادة صادرة بهذا الرقم. تأكّد من الأحرف والأرقام.</p>}
-    </main>
+    </div>
   )
 }

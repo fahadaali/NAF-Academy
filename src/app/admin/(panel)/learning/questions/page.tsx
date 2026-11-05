@@ -12,8 +12,8 @@ export default async function Questions({ searchParams }: { searchParams: Promis
     <>
       <PageHead title="أسئلة المتدربين" sub="ما يُكتب تحت الدروس — الإجابة تظهر للسائل تحت الدرس" actions={<a className="btn ghost" href="/admin/learning">الواجبات</a>} />
       <div className={p.toolbar}><div className={p.chips}>
-        <a href="?" className={p.chip} aria-pressed={!done}>بلا إجابة</a>
-        <a href="?done=1" className={p.chip} aria-pressed={done}>أُجيب عنها</a>
+        <a href="?" className={p.chip} aria-current={(!done) ? 'page' : undefined}>بلا إجابة</a>
+        <a href="?done=1" className={p.chip} aria-current={(done) ? 'page' : undefined}>أُجيب عنها</a>
       </div></div>
       {rows.length === 0 ? <div className={p.empty}>{done ? 'لا إجابات بعد.' : 'لا أسئلة معلّقة.'}</div> : (
         <div className={r.list}>

@@ -16,7 +16,7 @@ export default async function Submissions({ searchParams }: { searchParams: Prom
   return (
     <>
       <PageHead title="الواجبات" sub={`${n.submissions} بانتظار المراجعة · ${n.questions} سؤالاً بلا إجابة`} actions={<a className="btn ghost" href="/admin/learning/questions">أسئلة المتدربين</a>} />
-      <div className={p.toolbar}><div className={p.chips}>{F.map(([k, l]) => <a key={k} href={`?s=${k}`} className={p.chip} aria-pressed={status === k}>{l}</a>)}</div></div>
+      <div className={p.toolbar}><div className={p.chips}>{F.map(([k, l]) => <a key={k} href={`?s=${k}`} className={p.chip} aria-current={(status === k) ? 'page' : undefined}>{l}</a>)}</div></div>
       {rows.length === 0 ? <div className={p.empty}>لا تسليمات هنا.</div> : (
         <div className={r.list}>
           {rows.map(({ sub, learner, lesson, course, file }) => (

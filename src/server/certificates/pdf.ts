@@ -1,77 +1,20 @@
 import 'server-only'
-/* توليد ملف PDF للشهادة داخل Worker بلا متصفح.
+/* توليد ملف PDF للشهادة داخل Worker بلا متصفح (النص من vector-text.ts).
    النص يُرسم مسارات متجهة من fontkit مباشرة: التشكيل العربي والوصل والحركات والكشيدة كما يرسمها الخط تماماً،
    بلا اعتماد على تضمين الخط في PDF (pdf-lib يُسقط بدائل التشكيل السياقية). والملف صغير (~10 ك.ب).
    fontkit يرتّب المقطع العربي بصرياً لكنه يقلب الأرقام واللاتينية داخله، فنقسّم السطر مقاطع ونرصّها من اليمين. */
 import { PDFDocument, degrees, rgb, type PDFPage } from 'pdf-lib'
-import fontkit from '@pdf-lib/fontkit'
 import QRCode from 'qrcode'
 import { PAGE, TONES, type CertDesign } from '@/lib/certificate'
 import { parse, render } from '@/motion/kashida'
 import { EMBLEM } from '@/components/Emblem'
-import { cfEnv } from '../runtime'
+import { bidiRuns, FONTS, loadFont, shape, widthOf, type Font, type Fonts } from '../vector-text'
 import { getObject } from '../storage'
-
-type Font = {
-  unitsPerEm: number
-  layout(t: string): { glyphs: { path: { scale(x: number, y: number): { translate(x: number, y: number): { toSVG(): string } } } }[]; positions: { xAdvance: number; xOffset: number; yOffset: number }[] }
-}
-const FONTS = { display: 'display-bold.woff2', sans: 'sans-regular.woff2' } as const
-type Fonts = Record<keyof typeof FONTS, Font>
-const cache = new Map<string, Font>()
-
-async function loadFont(file: string): Promise<Font> {
-  const hit = cache.get(file)
-  if (hit) return hit
-  let bytes: Uint8Array | null = null
-  const assets = cfEnv()?.ASSETS as { fetch(r: Request): Promise<Response> } | undefined
-  if (assets) {
-    const r = await assets.fetch(new Request(`https://assets.local/cert-fonts/${file}`))
-    if (r.ok) bytes = new Uint8Array(await r.arrayBuffer())
-  }
-  if (!bytes) {
-    const { readFile } = await import('node:fs/promises')
-    bytes = new Uint8Array(await readFile(`${process.cwd()}/public/cert-fonts/${file}`))
-  }
-  const f = fontkit.create(Buffer.from(bytes)) as unknown as Font
-  cache.set(file, f)
-  return f
-}
 
 const hex = (h: string) => rgb(parseInt(h.slice(1, 3), 16) / 255, parseInt(h.slice(3, 5), 16) / 255, parseInt(h.slice(5, 7), 16) / 255)
 
-/** مقاطع السطر بالترتيب المنطقي: اللاتيني والأرقام مقطع، والباقي عربي */
-export function bidiRuns(text: string): { text: string; ltr: boolean }[] {
-  const out: { text: string; ltr: boolean }[] = []
-  const re = /[A-Za-z0-9](?:[A-Za-z0-9.,:/@\-–]*[A-Za-z0-9])?/g
-  let last = 0
-  for (const m of text.matchAll(re)) {
-    if (m.index! > last) out.push({ text: text.slice(last, m.index), ltr: false })
-    out.push({ text: m[0], ltr: true })
-    last = m.index! + m[0].length
-  }
-  if (last < text.length) out.push({ text: text.slice(last), ltr: false })
-  return out
-}
-
-/** مسار مقطع واحد بوحدات الخط، وعرضه */
-function shape(font: Font, text: string) {
-  const run = font.layout(text)
-  let pen = 0
-  const parts: string[] = []
-  run.glyphs.forEach((g, i) => {
-    const p = run.positions[i]
-    parts.push(g.path.scale(1, -1).translate(pen + p.xOffset, -p.yOffset).toSVG())
-    pen += p.xAdvance
-  })
-  return { d: parts.join(' '), w: pen }
-}
-
 type Draw = { x: number; y: number; size: number; font: Font; color: string; align?: 'center' | 'right' | 'left'; rtl?: boolean }
 
-function widthOf(text: string, font: Font, size: number) {
-  return bidiRuns(text).reduce((a, r) => a + shape(font, r.text).w, 0) * (size / font.unitsPerEm)
-}
 
 /** يرسم سطراً — x وy بنقاط الصفحة (y من الأعلى، على خط الأساس)، والمحاذاة حول x. يعيد العرض */
 function line(page: PDFPage, text: string, o: Draw) {
@@ -207,3 +150,5 @@ export async function certificatePdf(design: CertDesign, d: CertData): Promise<U
   }
   return doc.save()
 }
+
+export { bidiRuns }
