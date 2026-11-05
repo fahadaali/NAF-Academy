@@ -1,0 +1,91 @@
+/* مولّد — لا يُحرَّر. خط ثمانية (15 ملفاً) */
+@font-face {
+  font-family: 'Thmanyah Sans';
+  src: url('../fonts/thmanyah/thmanyahsans-Black.woff2') format('woff2');
+  font-weight: 900;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Thmanyah Sans';
+  src: url('../fonts/thmanyah/thmanyahsans-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Thmanyah Sans';
+  src: url('../fonts/thmanyah/thmanyahsans-Light.woff2') format('woff2');
+  font-weight: 300;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Thmanyah Sans';
+  src: url('../fonts/thmanyah/thmanyahsans-Medium.woff2') format('woff2');
+  font-weight: 500;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Thmanyah Sans';
+  src: url('../fonts/thmanyah/thmanyahsans-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Thmanyah Display';
+  src: url('../fonts/thmanyah/thmanyahserifdisplay-Black.woff2') format('woff2');
+  font-weight: 900;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Thmanyah Display';
+  src: url('../fonts/thmanyah/thmanyahserifdisplay-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Thmanyah Display';
+  src: url('../fonts/thmanyah/thmanyahserifdisplay-Light.woff2') format('woff2');
+  font-weight: 300;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Thmanyah Display';
+  src: url('../fonts/thmanyah/thmanyahserifdisplay-Medium.woff2') format('woff2');
+  font-weight: 500;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Thmanyah Display';
+  src: url('../fonts/thmanyah/thmanyahserifdisplay-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Thmanyah Text';
+  src: url('../fonts/thmanyah/thmanyahseriftext-Black.woff2') format('woff2');
+  font-weight: 900;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Thmanyah Text';
+  src: url('../fonts/thmanyah/thmanyahseriftext-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Thmanyah Text';
+  src: url('../fonts/thmanyah/thmanyahseriftext-Light.woff2') format('woff2');
+  font-weight: 300;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Thmanyah Text';
+  src: url('../fonts/thmanyah/thmanyahseriftext-Medium.woff2') format('woff2');
+  font-weight: 500;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Thmanyah Text';
+  src: url('../fonts/thmanyah/thmanyahseriftext-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-display: swap;
+}
