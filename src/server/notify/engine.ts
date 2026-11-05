@@ -58,6 +58,13 @@ export async function onEnrolled(enrollmentId: string) {
 
 /** بعد اكتمال درس — تهنئة منتصف الدورة وإكمالها */
 export async function onProgress(learnerId: string, courseId: string) {
+  /* الشهادة أولاً: فحص الشروط مستقل عن رسائل التهنئة */
+  try {
+    const { checkCertificate } = await import('../certificates')
+    await checkCertificate(learnerId, courseId)
+  } catch (e) {
+    console.error('certificate check', e)
+  }
   try {
     const p = await progressOf([{ learnerId, courseId }])
     const pct = p.get(`${learnerId}:${courseId}`)?.pct ?? 0
@@ -72,6 +79,17 @@ export async function onProgress(learnerId: string, courseId: string) {
   } catch (e) {
     console.error('onProgress', e)
   }
+}
+
+/** بعد إصدار شهادة — رسالة «صدرت شهادتك» بالبريد والجوال */
+export async function onCertificate(certificateId: string) {
+  const [c] = await db.select({ c: s.certificates, l: s.learners }).from(s.certificates).innerJoin(s.learners, eq(s.learners.id, s.certificates.learnerId)).where(eq(s.certificates.id, certificateId))
+  if (!c) return
+  const base = { event: 'certificate_issued', learnerId: c.l.id, courseId: c.c.courseId, ref: { certificateId }, sendAt: iso(new Date()) }
+  const rows: Omit<Row, 'id'>[] = [{ ...base, key: `cert:${certificateId}:email`, channel: 'email', to: c.l.email }]
+  if (c.l.phone) rows.push({ ...base, key: `cert:${certificateId}:sms`, channel: 'sms', to: c.l.phone })
+  await enqueue(rows)
+  await dispatch(new Date(), { keys: rows.map((x) => x.key) })
 }
 
 /** نسبة الإنجاز لمجموعة (متدرب، دورة): الدروس المكتملة والجلسات المحضورة من كل الدروس */
@@ -257,7 +275,7 @@ async function contextFor(n: typeof s.notifications.$inferSelect, site: string, 
     const [l] = id ? await db.select().from(s.lessons).where(eq(s.lessons.id, id)) : []
     return l ?? null
   }
-  const needEnrolled = ['enrolled', 'session_reminder', 'session_followup', 'drip_unlocked', 'inactive_nudge', 'halfway', 'completed', 'certificate_issued'].includes(ev)
+  const needEnrolled = ['enrolled', 'session_reminder', 'session_followup', 'drip_unlocked', 'inactive_nudge', 'halfway', 'completed'].includes(ev)
   if (needEnrolled && !(await enrollmentActive(n.learnerId, n.courseId))) return { ok: false, reason: 'التسجيل لم يعد فعّالاً' }
 
   switch (ev) {
@@ -313,6 +331,12 @@ async function contextFor(n: typeof s.notifications.$inferSelect, site: string, 
       if (await enrollmentActive(n.learnerId, course.id)) return { ok: false, reason: 'سجّل في الدورة' }
       const coupon = n.ref.last && cfg.cartCoupon ? cfg.cartCoupon : ''
       Object.assign(vars, { name: o.buyer.name.split(/\s+/)[0] ?? '', coupon, link: `${site}/courses/${course.slug}/enroll${coupon ? `?coupon=${encodeURIComponent(coupon)}` : ''}` })
+      break
+    }
+    case 'certificate_issued': {
+      const [c] = await db.select().from(s.certificates).where(eq(s.certificates.id, String(n.ref.certificateId)))
+      if (!c || c.status !== 'issued' || !c.code) return { ok: false, reason: 'الشهادة غير صادرة' }
+      Object.assign(vars, { code: c.code, link: `${site}/certificates/${c.code}` })
       break
     }
     default:

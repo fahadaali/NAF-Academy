@@ -1,0 +1,30 @@
+/* الألوان تأتي من القالب (--c-*) لأن الشهادة وثيقة بهوية ثابتة لا تتبع الوضع الداكن للموقع */
+.page { position: relative; container-type: inline-size; inline-size: 100%; aspect-ratio: 842 / 595; background: var(--c-bg); color: var(--c-ink); overflow: hidden; border-radius: 6px; box-shadow: var(--shadow-2); user-select: none; }
+.frame { position: absolute; inset: 3.4%; inset-block: 3.4%; border: 0.17cqw solid var(--c-gold); }
+.frame::after { content: ''; position: absolute; inset: 0.7cqw; border: 0.07cqw solid var(--c-line); }
+.block { position: absolute; transform: translate(-50%, -78%); text-align: center; white-space: nowrap; line-height: 1.25; }
+.block[data-edit='1'] { cursor: grab; outline: 1px dashed transparent; outline-offset: 0.6cqw; border-radius: 4px; }
+.block[data-edit='1']:hover { outline-color: color-mix(in srgb, var(--c-gold) 60%, transparent); }
+.block[data-active='1'] { outline: 1.5px solid var(--c-gold) !important; }
+.brand { display: grid; justify-items: center; font-family: var(--font-display); }
+.brand strong { font-size: 1em; font-weight: 700; }
+.brand small { font-family: var(--font); font-size: 0.62em; color: var(--c-gold); }
+.emblem { inline-size: 2.2em !important; block-size: 2.2em !important; color: var(--c-ink); margin-block-end: 0.2em; }
+.title { display: grid; justify-items: center; font-family: var(--font-display); font-weight: 700; }
+.title small { font-family: var(--font); font-size: 0.22em; letter-spacing: 0.12em; color: var(--c-gold); margin-block-start: 0.1em; font-weight: 400; }
+.soft { font-family: var(--font); color: var(--c-soft); }
+.name { font-family: var(--font-display); font-weight: 700; padding-inline: 0.6em; border-block-end: 0.08cqw solid var(--c-gold); padding-block-end: 0.05em; }
+.course { display: grid; justify-items: center; font-family: var(--font-display); font-weight: 700; }
+.course span { font-family: var(--font); font-weight: 400; font-size: 0.72em; color: var(--c-soft); }
+.date { display: grid; justify-items: center; font-family: var(--font); font-variant-numeric: tabular-nums; }
+.date small { color: var(--c-soft); font-size: 0.9em; }
+.signs { display: flex; gap: 2.4em; font-family: var(--font); }
+.signs > div { display: grid; justify-items: center; min-inline-size: 11em; }
+.signs i { display: block; inline-size: 100%; block-size: 0; border-block-start: 0.07cqw solid var(--c-line); margin-block-end: 0.5em; }
+.signs strong { font-family: var(--font-display); }
+.signs small { color: var(--c-soft); font-size: 0.85em; }
+.qr { display: grid; justify-items: center; gap: 0.6cqw; transform: translateY(28%); }
+.qrBox { display: block; inline-size: 100%; aspect-ratio: 1; padding: 0.5cqw; background: var(--c-plate); color: var(--c-plate-ink); border-radius: 2px; }
+.qrBox svg { display: block; inline-size: 100%; block-size: 100%; }
+.qrBox[data-ph='1'] { background: repeating-conic-gradient(var(--c-plate-ink) 0 25%, var(--c-plate) 0 50%) 0 0 / 22% 22%; }
+.qr small { font-family: var(--font); font-size: 1cqw; letter-spacing: 0.04em; }

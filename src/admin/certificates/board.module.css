@@ -1,0 +1,19 @@
+.bulk { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; margin-block-end: 14px; }
+.bulk label { display: inline-flex; gap: 8px; align-items: center; font-weight: 600; font-size: 14px; }
+.list { display: grid; gap: 12px; }
+.card { display: grid; gap: 10px; padding: 18px 20px; border-radius: var(--radius-l); background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow-1); }
+.card[data-sel='1'] { border-color: var(--gold-3); }
+.head { display: flex; gap: 14px; align-items: start; flex-wrap: wrap; }
+.head input, .bulk input { inline-size: 18px; block-size: 18px; accent-color: var(--gold-3); margin-block-start: 3px; }
+.who { display: grid; flex: 1 1 200px; }
+.who small, .course small { color: var(--muted); font-size: 13px; }
+.course { display: grid; text-align: end; font-weight: 600; }
+.criteria { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13.5px; }
+.criteria li { display: inline-flex; gap: 6px; align-items: center; color: var(--text-soft); }
+.criteria span { font-weight: 900; color: var(--success); }
+.criteria li[data-met='0'] span { color: var(--danger); }
+.criteria small { color: var(--muted); }
+.reason { font-size: 13.5px; padding: 8px 12px; border-radius: var(--radius-s); background: var(--surface-2); }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.recheck { display: inline-flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.recheck select { min-block-size: 44px; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--surface); color: var(--text); padding-inline: 14px; max-inline-size: 260px; }

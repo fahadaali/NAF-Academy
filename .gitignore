@@ -12,3 +12,4 @@ next-env.d.ts
 .dev.vars
 public/email-fonts
 .cf
+public/cert-fonts

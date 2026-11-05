@@ -3,7 +3,7 @@ import { usePathname } from 'next/navigation'
 import { logoutAction } from '@/site/auth-actions'
 import s from './learn.module.css'
 
-const items = [{ href: '/learn', label: 'دوراتي' }, { href: '/learn/orders', label: 'طلباتي وفواتيري' }, { href: '/learn/profile', label: 'ملفي' }]
+const items = [{ href: '/learn', label: 'دوراتي' }, { href: '/learn/certificates', label: 'شهاداتي' }, { href: '/learn/orders', label: 'طلباتي وفواتيري' }, { href: '/learn/profile', label: 'ملفي' }]
 
 export function LearnNav() {
   const path = usePathname()

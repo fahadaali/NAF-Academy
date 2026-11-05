@@ -3,7 +3,7 @@
 import { writeFileSync } from 'node:fs'
 import { createClient } from '@libsql/client'
 
-const TABLES = ['media', 'tracks', 'instructors', 'courses', 'course_instructors', 'modules', 'lessons', 'price_tiers', 'group_rules', 'settings']
+const TABLES = ['media', 'tracks', 'instructors', 'courses', 'course_instructors', 'modules', 'lessons', 'price_tiers', 'group_rules', 'settings', 'certificate_templates']
 const db = createClient({ url: process.env.DATABASE_URL ?? 'file:.data/academy.db' })
 const q = (v: unknown) => (v === null || v === undefined ? 'NULL' : typeof v === 'number' || typeof v === 'bigint' ? String(v) : `'${String(v).replace(/'/g, "''")}'`)
 const out: string[] = ['-- بذرة محتوى أكاديمية ناف (مولّدة)']

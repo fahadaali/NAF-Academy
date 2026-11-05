@@ -60,6 +60,7 @@ export const instructors = sqliteTable('instructors', {
 
 import { COURSE_STATUS, DELIVERY, LESSON_TYPE, LEVEL } from '../../lib/enums'
 import type { Assignment, Attachment, Chapter, Drip, Quiz, VideoSource } from '../../lib/learning-types'
+import type { CertDesign, CertRules, Criterion } from '../../lib/certificate'
 export { COURSE_STATUS, DELIVERY, LESSON_TYPE, LEVEL }
 
 export type Faq = { q: string; a: string }
@@ -103,6 +104,7 @@ export const courses = sqliteTable(
     sequential: integer('sequential', { mode: 'boolean' }).notNull().default(false),
     /** نسبة المشاهدة التي يُعدّ بها الفيديو مكتملاً */
     completeAt: integer('complete_at').notNull().default(90),
+    certificate: text('certificate', { mode: 'json' }).$type<CertRules>().notNull().default(sql`'{}'`),
     sortOrder: integer('sort_order').notNull().default(0),
     /** رابط معاينة سري للمسودات */
     previewToken: text('preview_token').notNull(),
@@ -589,5 +591,42 @@ export const notifyOptouts = sqliteTable('notify_optouts', {
   email: text('email').primaryKey(),
   createdAt: stamps.createdAt,
 })
+
+/* ───────── الشهادات ───────── */
+
+export const certificateTemplates = sqliteTable('certificate_templates', {
+  id: id(),
+  name: text('name').notNull(),
+  design: text('design', { mode: 'json' }).$type<CertDesign>().notNull(),
+  isDefault: integer('is_default', { mode: 'boolean' }).notNull().default(false),
+  ...stamps,
+  deletedAt: text('deleted_at'),
+})
+
+export const CERT_STATUS = ['pending', 'issued', 'rejected', 'revoked'] as const
+
+export const certificates = sqliteTable('certificates', {
+  id: id(),
+  /** رمز التحقق العام — يُولَّد عند الإصدار */
+  code: text('code').unique(),
+  learnerId: text('learner_id').notNull().references(() => learners.id),
+  courseId: text('course_id').notNull().references(() => courses.id),
+  status: text('status', { enum: CERT_STATUS }).notNull().default('pending'),
+  /** لقطة عند الإصدار: لا تتغير الشهادة إن تغيّر الاسم أو الدورة أو القالب لاحقاً */
+  name: text('name').notNull(),
+  courseTitle: text('course_title').notNull(),
+  hours: real('hours').notNull().default(0),
+  criteria: text('criteria', { mode: 'json' }).$type<Criterion[]>().notNull().default(sql`'[]'`),
+  templateId: text('template_id'),
+  design: text('design', { mode: 'json' }).$type<CertDesign>(),
+  pdfKey: text('pdf_key'),
+  issuedAt: text('issued_at'),
+  decidedBy: text('decided_by'),
+  reason: text('reason').notNull().default(''),
+  revokedAt: text('revoked_at'),
+  ...stamps,
+}, (t) => [uniqueIndex('cert_learner_course').on(t.learnerId, t.courseId), index('cert_status_idx').on(t.status)])
+
+export type CertificateRow = typeof certificates.$inferSelect
 
 export type LessonFull = typeof lessons.$inferSelect

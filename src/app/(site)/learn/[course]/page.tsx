@@ -8,6 +8,9 @@ import { joinWindow } from '@/lib/learning'
 import { modeLabel } from '@/lib/course-meta'
 import { plain } from '@/motion/kashida'
 import { Words } from '@/components/Words'
+import { and, eq } from 'drizzle-orm'
+import { db, schema as s } from '@/server/db'
+import { evaluate } from '@/server/certificates'
 import st from '@/site/learn/course.module.css'
 
 export const dynamic = 'force-dynamic'
@@ -21,6 +24,10 @@ export default async function CourseHome({ params }: { params: Promise<{ course:
   if (!ctx) notFound()
   if (!ctx.enrollment) redirect(`/courses/${slug}`)
   const { course, modules, pct, resumeId, upcoming } = ctx
+  const [cert, [issued]] = await Promise.all([
+    evaluate(me.id, course.id),
+    db.select().from(s.certificates).where(and(eq(s.certificates.learnerId, me.id), eq(s.certificates.courseId, course.id))),
+  ])
   return (
     <>
       <header className={st.hero} data-surface="night">
@@ -38,6 +45,20 @@ export default async function CourseHome({ params }: { params: Promise<{ course:
       </header>
       <div className={`wrap ${st.body}`}>
         <div className={st.main}>
+          {cert && cert.rules.enabled && (
+            <section className={st.box} aria-labelledby="cert-h">
+              <h2 id="cert-h">الشهادة</h2>
+              {issued?.status === 'issued' ? (
+                <p className={st.certDone}>✓ صدرت شهادتك — <a href={`/certificates/${issued.code}`}>عرضها وتنزيلها</a></p>
+              ) : issued?.status === 'pending' ? (
+                <p className={st.certWait}>استوفيت الشروط — بانتظار اعتماد الأكاديمية.</p>
+              ) : (
+                <ul className={st.criteria} role="list">
+                  {cert.criteria.map((c) => <li key={c.key} data-met={c.met ? '1' : '0'}><span aria-hidden="true">{c.met ? '✓' : '○'}</span>{c.label}<small className="num">{c.detail}</small></li>)}
+                </ul>
+              )}
+            </section>
+          )}
           {upcoming.length > 0 && (
             <section className={st.box}>
               <h2>الجلسات القادمة</h2>

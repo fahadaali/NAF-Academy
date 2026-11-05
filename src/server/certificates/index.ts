@@ -1,0 +1,156 @@
+import 'server-only'
+/* الشهادات — فحص الشروط، والطلب «بانتظار المراجعة» أو الإصدار التلقائي، والإصدار بلقطة ثابتة وملف PDF،
+   ثم رسالة «صدرت شهادتك». يُستدعى الفحص بعد كل تقدّم (onProgress) ومن زر «أعد الفحص» في اللوحة. */
+import { randomInt, randomUUID } from 'node:crypto'
+import { and, asc, desc, eq, inArray, isNotNull, isNull } from 'drizzle-orm'
+import { db, schema as s } from '../db'
+import { putObject, getObject } from '../storage'
+import { siteUrl } from '../site'
+import { audit } from '../audit'
+import { certCode, DEFAULT_DESIGN, evaluateRules, mergeDesign, mergeRules, type CertDesign } from '@/lib/certificate'
+import { formatHijri } from '@/lib/dates'
+import { certificatePdf } from './pdf'
+
+const nowIso = () => new Date().toISOString()
+
+/** القالب المعتمد لدورة: قالبها إن وُجد، وإلا الافتراضي */
+export async function designFor(templateId: string | null): Promise<{ id: string | null; design: CertDesign }> {
+  const rows = await db.select().from(s.certificateTemplates).where(isNull(s.certificateTemplates.deletedAt)).orderBy(desc(s.certificateTemplates.isDefault), asc(s.certificateTemplates.createdAt))
+  const t = rows.find((r) => r.id === templateId) ?? rows[0]
+  return t ? { id: t.id, design: mergeDesign(t.design) } : { id: null, design: DEFAULT_DESIGN }
+}
+
+/** أرقام المتدرب في الدورة وتقييم الشروط */
+export async function evaluate(learnerId: string, courseId: string) {
+  const [course] = await db.select().from(s.courses).where(eq(s.courses.id, courseId))
+  if (!course) return null
+  const rules = mergeRules(course.certificate)
+  const lessons = await db.select({ id: s.lessons.id, type: s.lessons.type }).from(s.lessons).innerJoin(s.modules, eq(s.modules.id, s.lessons.moduleId)).where(eq(s.modules.courseId, courseId))
+  const ids = lessons.map((l) => l.id)
+  const [prog, att] = ids.length
+    ? await Promise.all([
+      db.select({ lessonId: s.lessonProgress.lessonId }).from(s.lessonProgress).where(and(eq(s.lessonProgress.learnerId, learnerId), inArray(s.lessonProgress.lessonId, ids), isNotNull(s.lessonProgress.completedAt))),
+      db.select({ lessonId: s.attendance.lessonId }).from(s.attendance).where(and(eq(s.attendance.learnerId, learnerId), inArray(s.attendance.lessonId, ids))),
+    ])
+    : [[], []]
+  const done = new Set(prog.map((p) => p.lessonId))
+  const here = new Set(att.map((a) => a.lessonId))
+  const session = (t: string) => t === 'live' || t === 'onsite'
+  const completable = lessons.filter((l) => !session(l.type))
+  const sessions = lessons.filter((l) => session(l.type))
+  const quizzes = lessons.filter((l) => l.type === 'quiz')
+  const assignments = lessons.filter((l) => l.type === 'assignment')
+  const r = evaluateRules(rules, {
+    completable: completable.length, completed: completable.filter((l) => done.has(l.id)).length,
+    sessions: sessions.length, attended: sessions.filter((l) => here.has(l.id)).length,
+    quizzes: quizzes.length, quizzesPassed: quizzes.filter((l) => done.has(l.id)).length,
+    assignments: assignments.length, assignmentsAccepted: assignments.filter((l) => done.has(l.id)).length,
+  })
+  return { course, rules, ...r }
+}
+
+/** يفحص المتدرب ويُنشئ طلب الشهادة إن استوفى — أو يصدرها فوراً إن كان الاعتماد تلقائياً */
+export async function checkCertificate(learnerId: string, courseId: string, by = 'system') {
+  const [en] = await db.select().from(s.enrollments).where(and(eq(s.enrollments.learnerId, learnerId), eq(s.enrollments.courseId, courseId), eq(s.enrollments.status, 'active')))
+  if (!en) return null
+  const ev = await evaluate(learnerId, courseId)
+  if (!ev?.eligible) return null
+  const [existing] = await db.select().from(s.certificates).where(and(eq(s.certificates.learnerId, learnerId), eq(s.certificates.courseId, courseId)))
+  if (existing) return existing
+  const [learner] = await db.select().from(s.learners).where(eq(s.learners.id, learnerId))
+  const id = randomUUID()
+  const ins = await db.insert(s.certificates).values({
+    id, learnerId, courseId, name: learner?.name || learner?.email || '', courseTitle: ev.course.title.replace(/~\d/g, ''),
+    hours: ev.course.hours, criteria: ev.criteria, templateId: ev.rules.templateId,
+  }).onConflictDoNothing().returning()
+  if (!ins.length) return null
+  await audit(by, 'eligible', 'certificate', id, `${learner?.email} · ${ev.course.title}`)
+  if (ev.rules.autoApprove) return issueCertificate(id, 'اعتماد تلقائي')
+  return ins[0]
+}
+
+/** إصدار: رمز، ولقطة القالب، وملف PDF، ورسالة */
+export async function issueCertificate(id: string, by: string) {
+  const [c] = await db.select().from(s.certificates).where(eq(s.certificates.id, id))
+  if (!c || c.status === 'issued' || c.status === 'revoked') return c ?? null
+  const { id: tid, design } = await designFor(c.templateId)
+  const issuedAt = nowIso()
+  let code = ''
+  for (let i = 0; i < 5 && !code; i++) {
+    const k = certCode(randomInt)
+    const [dup] = await db.select({ id: s.certificates.id }).from(s.certificates).where(eq(s.certificates.code, k))
+    if (!dup) code = k
+  }
+  const [row] = await db.update(s.certificates).set({ status: 'issued', code, issuedAt, design, templateId: tid, decidedBy: by, reason: '', updatedAt: issuedAt })
+    .where(and(eq(s.certificates.id, id), inArray(s.certificates.status, ['pending', 'rejected']))).returning()
+  if (!row) return c
+  await storePdf(row)
+  await audit(by, 'issue', 'certificate', id, `${code} · ${row.name}`)
+  try {
+    const { onCertificate } = await import('../notify/engine')
+    await onCertificate(row.id)
+  } catch (e) {
+    console.error('certificate notify', e)
+  }
+  return row
+}
+
+const dateAr = (iso: string) => new Intl.DateTimeFormat('ar-SA-u-nu-latn-ca-gregory', { timeZone: 'Asia/Riyadh', day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(iso))
+const hijriAr = (iso: string) => `${formatHijri(iso)} ${new Intl.DateTimeFormat('ar-SA-u-nu-latn-ca-islamic-umalqura', { timeZone: 'Asia/Riyadh', year: 'numeric' }).format(new Date(iso)).replace(/[^\d]/g, '')}`
+
+export const verifyUrl = (code: string) => `${siteUrl() ?? ''}/certificates/${code}`
+
+export async function renderPdf(c: typeof s.certificates.$inferSelect, design?: CertDesign) {
+  return certificatePdf(design ?? c.design ?? DEFAULT_DESIGN, {
+    name: c.name, course: c.courseTitle, hours: c.hours, date: dateAr(c.issuedAt ?? nowIso()), hijri: hijriAr(c.issuedAt ?? nowIso()),
+    code: c.code ?? 'NAF-XXXX-XXXX', verifyUrl: verifyUrl(c.code ?? ''),
+  })
+}
+
+async function storePdf(c: typeof s.certificates.$inferSelect) {
+  const bytes = await renderPdf(c)
+  const key = `cert-${c.id}.pdf`
+  await putObject(key, bytes, 'application/pdf')
+  await db.update(s.certificates).set({ pdfKey: key }).where(eq(s.certificates.id, c.id))
+  return bytes
+}
+
+/** ملف الشهادة: المخزّن، أو يُعاد توليده من اللقطة إن غاب */
+export async function certificatePdfBytes(c: typeof s.certificates.$inferSelect) {
+  if (c.pdfKey) {
+    const b = await getObject(c.pdfKey)
+    if (b) return b
+  }
+  return storePdf(c)
+}
+
+export async function regeneratePdf(id: string) {
+  const [c] = await db.select().from(s.certificates).where(eq(s.certificates.id, id))
+  if (c?.status === 'issued') await storePdf(c)
+}
+
+/** إعادة فحص كل مسجّلي دورة — بعد تعديل شروطها */
+export async function recheckCourse(courseId: string, by: string) {
+  const en = await db.select({ learnerId: s.enrollments.learnerId }).from(s.enrollments).where(and(eq(s.enrollments.courseId, courseId), eq(s.enrollments.status, 'active')))
+  let n = 0
+  for (const e of en) if (await checkCertificate(e.learnerId, courseId, by)) n++
+  return n
+}
+
+export async function certificateByCode(code: string) {
+  const [r] = await db.select({ c: s.certificates, slug: s.courses.slug }).from(s.certificates).innerJoin(s.courses, eq(s.courses.id, s.certificates.courseId))
+    .where(eq(s.certificates.code, code.trim().toUpperCase()))
+  return r ?? null
+}
+
+/** بيانات العرض في الصفحة (مع رمز QR بصيغة SVG) */
+export async function viewData(c: typeof s.certificates.$inferSelect) {
+  const QRCode = (await import('qrcode')).default
+  const at = c.issuedAt ?? nowIso()
+  const qrSvg = c.code
+    ? (await QRCode.toString(verifyUrl(c.code), { type: 'svg', margin: 0, errorCorrectionLevel: 'M' })).replace(/fill="#ffffff"/gi, 'fill="transparent"').replace(/#000000/g, 'currentColor')
+    : undefined
+  return { name: c.name, course: c.courseTitle, hours: c.hours, date: dateAr(at), hijri: hijriAr(at), code: c.code ?? 'NAF-XXXX-XXXX', qrSvg }
+}
+
+export { dateAr, hijriAr }

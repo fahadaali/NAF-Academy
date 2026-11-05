@@ -15,3 +15,11 @@
 .sType { font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 999px; background: var(--on-bg); color: var(--on-fg); }
 .live { font-size: 13px; font-weight: 800; color: var(--danger); animation: pulse 1.4s infinite; }
 @keyframes pulse { 50% { opacity: 0.5; } }
+.criteria { display: grid; gap: 8px; }
+.criteria li { display: flex; gap: 10px; align-items: center; }
+.criteria li span { inline-size: 24px; block-size: 24px; flex: none; display: grid; place-items: center; border-radius: 50%; background: var(--surface-2); color: var(--muted); font-weight: 900; font-size: 13px; }
+.criteria li[data-met='1'] span { background: var(--success); color: var(--on-fg); }
+.criteria small { margin-inline-start: auto; color: var(--muted); font-size: 13px; }
+.certDone { font-weight: 700; color: var(--success); }
+.certDone a { text-decoration: underline; text-underline-offset: 3px; }
+.certWait { color: var(--accent-strong); font-weight: 600; }

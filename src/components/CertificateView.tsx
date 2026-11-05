@@ -1,0 +1,45 @@
+/* عرض الشهادة في الصفحة — نفس المواضع والمقاسات النسبية لملف PDF (الصفحة 842×595 نقطة).
+   المقاسات بوحدة cqw فيتناسب العرض مع أي عرض حاوية. */
+import { BLOCKS, PAGE, TONES, type BlockKey, type CertDesign } from '@/lib/certificate'
+import { parse, render } from '@/motion/kashida'
+import { Emblem } from './Emblem'
+import c from './certificate.module.css'
+
+export type CertViewData = { name: string; course: string; hours: number; date: string; hijri: string; code: string; qrSvg?: string }
+
+const cq = (pt: number) => `${(pt / PAGE.w) * 100}cqw`
+
+export function CertificateView({ design, data, onPick, active, dragRef }: {
+  design: CertDesign; data: CertViewData
+  /** للمحرّر: بدء سحب عنصر */
+  onPick?: (k: BlockKey, e: React.PointerEvent) => void
+  active?: BlockKey | null
+  dragRef?: React.Ref<HTMLDivElement>
+}) {
+  const T = TONES[design.tone]
+  const B = design.blocks
+  const vars = { '--c-bg': T.bg, '--c-ink': T.ink, '--c-soft': T.soft, '--c-gold': T.gold, '--c-line': T.line, '--c-plate': TONES.ivory.bg, '--c-plate-ink': TONES.ivory.ink } as React.CSSProperties
+  const at = (k: BlockKey, children: React.ReactNode) => B[k].show && (
+    <div key={k} className={c.block} data-active={active === k ? '1' : '0'} data-edit={onPick ? '1' : '0'} style={{ left: `${B[k].x}%`, top: `${B[k].y}%` }}
+      onPointerDown={onPick ? (e) => onPick(k, e) : undefined}>{children}</div>
+  )
+  const nodes: Record<BlockKey, React.ReactNode> = {
+    brand: at('brand', <div className={c.brand} style={{ fontSize: cq(B.brand.size) }}><Emblem size={0} className={c.emblem} /><strong>أكاديمية ناف</strong><small>للتدريب القانوني</small></div>),
+    title: at('title', <div className={c.title} style={{ fontSize: cq(B.title.size) }}>{render(parse(design.title), 1)}{design.english && <small>CERTIFICATE OF COMPLETION</small>}</div>),
+    lead: at('lead', <div className={c.soft} style={{ fontSize: cq(B.lead.size) }}>{design.lead}</div>),
+    name: at('name', <div className={c.name} style={{ fontSize: cq(B.name.size) }}>{data.name}</div>),
+    course: at('course', <div className={c.course} style={{ fontSize: cq(B.course.size) }}><span>{design.courseLead}</span><strong>{data.course}</strong></div>),
+    hours: at('hours', data.hours > 0 && <div className={c.soft} style={{ fontSize: cq(B.hours.size) }}>{design.hoursText.replace(/\{\{\s*hours\s*\}\}/g, String(data.hours))}</div>),
+    date: at('date', <div className={c.date} style={{ fontSize: cq(B.date.size) }}><span>صدرت في {data.date}</span><small>الموافق {data.hijri}</small></div>),
+    signatures: at('signatures', <div className={c.signs} style={{ fontSize: cq(B.signatures.size) }}>{design.signatories.map((s, i) => <div key={i}><i /><strong>{s.name}</strong><small>{s.title}</small></div>)}</div>),
+    qr: at('qr', <div className={c.qr} style={{ inlineSize: cq(B.qr.size) }}>
+      {data.qrSvg ? <span className={c.qrBox} dangerouslySetInnerHTML={{ __html: data.qrSvg }} /> : <span className={c.qrBox} data-ph="1" />}
+      <small dir="ltr">{data.code}</small></div>),
+  }
+  return (
+    <div className={c.page} style={vars} ref={dragRef} role="img" aria-label={`شهادة إتمام ${data.course} — ${data.name}`}>
+      <div className={c.frame} />
+      {BLOCKS.map((k) => nodes[k])}
+    </div>
+  )
+}

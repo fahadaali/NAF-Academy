@@ -18,11 +18,12 @@ import {
 import { MediaPicker, urlOf } from '@/admin/ui/MediaPicker'
 import { STATUS_HINT, STATUS_LABEL, STATUS_ORDER } from './labels'
 import { LessonDetail } from './LessonDetail'
+import { DEFAULT_RULES } from '@/lib/certificate'
 import styles from './editor.module.css'
 
 const TABS = [
   ['basics', 'الأساسيات'], ['pricing', 'التسعير والعروض'], ['schedule', 'الموعد والمكان'], ['content', 'المحتوى'],
-  ['curriculum', 'المنهج'], ['people', 'المدربون'], ['publish', 'النشر والظهور'],
+  ['curriculum', 'المنهج'], ['certificate', 'الشهادة'], ['people', 'المدربون'], ['publish', 'النشر والظهور'],
 ] as const
 type Tab = (typeof TABS)[number][0]
 
@@ -40,9 +41,10 @@ type Props = {
   tracks: TrackRow[]
   instructors: InstructorRow[]
   media: Media[]
+  templates: { id: string; name: string }[]
 }
 
-export function CourseEditor({ id, initial, previewToken, tracks, instructors, media }: Props) {
+export function CourseEditor({ id, initial, previewToken, tracks, instructors, media, templates }: Props) {
   const router = useRouter()
   const [v, setV] = useState<CourseInput>(initial)
   const [saved, setSaved] = useState(JSON.stringify(initial))
@@ -229,6 +231,34 @@ export function CourseEditor({ id, initial, previewToken, tracks, instructors, m
             </>
           )}
 
+          {tab === 'certificate' && (() => {
+            const c = v.certificate ?? DEFAULT_RULES
+            const setC = (p: Partial<typeof c>) => set('certificate', { ...c, ...p })
+            return (
+              <Section title="شهادة الإتمام" desc="تُفحص الشروط تلقائياً بعد كل تقدّم، ثم تنتظر المراجعة أو تُصدر فوراً">
+                <Switch checked={c.enabled} onChange={(enabled) => setC({ enabled })} label={c.enabled ? 'الدورة تمنح شهادة' : 'بلا شهادة'} />
+                {c.enabled && (
+                  <Grid>
+                    <Field label="نسبة إكمال الدروس %" hint="الفيديو والمقالات والملفات والاختبارات والواجبات" error={err('certificate.lessonsPct')}>
+                      <Input type="number" dir="ltr" min={0} max={100} value={c.lessonsPct} onChange={(e) => setC({ lessonsPct: Number(e.target.value) })} />
+                    </Field>
+                    <Field label="نسبة حضور الجلسات %" hint="المباشرة والحضورية — 0 بلا شرط حضور" error={err('certificate.attendancePct')}>
+                      <Input type="number" dir="ltr" min={0} max={100} value={c.attendancePct} onChange={(e) => setC({ attendancePct: Number(e.target.value) })} />
+                    </Field>
+                    <Field label="الاختبارات"><Switch checked={c.quizzes} onChange={(quizzes) => setC({ quizzes })} label="النجاح في كل الاختبارات" /></Field>
+                    <Field label="الواجبات"><Switch checked={c.assignments} onChange={(assignments) => setC({ assignments })} label="قبول كل الواجبات" /></Field>
+                    <Field label="الاعتماد" hint="بلا مراجعة: تُصدر فور استيفاء الشروط">
+                      <Switch checked={c.autoApprove} onChange={(autoApprove) => setC({ autoApprove })} label={c.autoApprove ? 'اعتماد تلقائي' : 'بعد مراجعة الفريق'} />
+                    </Field>
+                    <Field label="قالب الشهادة">
+                      <Select value={c.templateId ?? ''} onChange={(x) => setC({ templateId: x || null })} options={[{ value: '', label: 'القالب الافتراضي' }, ...templates.map((t) => ({ value: t.id, label: t.name }))]} />
+                    </Field>
+                  </Grid>
+                )}
+              </Section>
+            )
+          })()}
+
           {tab === 'people' && (
             <Section title="المدربون" desc="بالترتيب — الأول يظهر في البطاقة">
               <InstructorPicker all={instructors} value={v.instructorIds} onChange={(x) => set('instructorIds', x)} media={media} />
@@ -291,6 +321,7 @@ function tabOf(key: string): Tab {
   if (/price|compare|sale|free|tiers|groupRules/.test(key)) return 'pricing'
   if (/starts|ends|seats|city|venue|hours/.test(key)) return 'schedule'
   if (/curriculum/.test(key)) return 'curriculum'
+  if (/certificate/.test(key)) return 'certificate'
   if (/publish|seo/.test(key)) return 'publish'
   if (/outcomes|audience|requirements|faq|description/.test(key)) return 'content'
   return 'basics'

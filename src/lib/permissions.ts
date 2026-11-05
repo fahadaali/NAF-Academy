@@ -14,7 +14,7 @@ export const ROLE_HINT: Record<Role, string> = {
   owner: 'كل شيء، بما فيه الفريق وإعدادات الدفع والحذف النهائي',
   content: 'الدورات والمسارات والمدربون والصور والصفحة الرئيسية وقوالب الرسائل',
   finance: 'الطلبات والاسترداد والكوبونات وتقارير المبيعات',
-  instructor: 'مسجّلو الدورات، وتقييم الواجبات، والرد على الأسئلة، وتسجيل الحضور',
+  instructor: 'مسجّلو الدورات، وتقييم الواجبات، والرد على الأسئلة، وتسجيل الحضور، واعتماد الشهادات',
   support: 'الاطلاع على الطلبات والمسجّلين، والطلب اليدوي وتخصيص المقاعد',
 }
 
@@ -23,15 +23,15 @@ export const PERMS = [
   'sales.read', 'sales.orders', 'sales.refund', 'sales.coupons', 'payments.manage',
   'channels.manage', 'messages.read', 'learners.read',
   'trash.purge', 'team.manage', 'audit.read',
-  'learning.review', 'attendance.mark', 'notify.manage',
+  'learning.review', 'attendance.mark', 'notify.manage', 'certificates.manage',
 ] as const
 export type Perm = (typeof PERMS)[number]
 
 const MATRIX: Record<Role, Perm[]> = {
   owner: [...PERMS],
-  content: ['content.read', 'content.write', 'site.write', 'learners.read', 'audit.read', 'learning.review', 'attendance.mark', 'notify.manage'],
+  content: ['content.read', 'content.write', 'site.write', 'learners.read', 'audit.read', 'learning.review', 'attendance.mark', 'notify.manage', 'certificates.manage'],
   finance: ['content.read', 'sales.read', 'sales.orders', 'sales.refund', 'sales.coupons', 'learners.read', 'messages.read', 'audit.read'],
-  instructor: ['content.read', 'learners.read', 'learning.review', 'attendance.mark'],
+  instructor: ['content.read', 'learners.read', 'learning.review', 'attendance.mark', 'certificates.manage'],
   support: ['content.read', 'sales.read', 'sales.orders', 'learners.read', 'messages.read', 'attendance.mark'],
 }
 

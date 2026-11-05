@@ -35,3 +35,10 @@ if (files.length) {
   mkdirSync('public/email-fonts', { recursive: true })
   for (const [from, to] of Object.entries(mail)) if (existsSync(`${dir}/${from}`)) copyFileSync(`${dir}/${from}`, `public/email-fonts/${to}`)
 }
+
+/* نسخة للشهادات (PDF): يقرؤها fontkit ويرسم الحروف مسارات، في public/cert-fonts (لا تُرفع) */
+const cert = { 'thmanyahserifdisplay-Bold.woff2': 'display-bold.woff2', 'thmanyahsans-Regular.woff2': 'sans-regular.woff2' }
+if (files.length) {
+  mkdirSync('public/cert-fonts', { recursive: true })
+  for (const [from, to] of Object.entries(cert)) if (existsSync(`${dir}/${from}`)) copyFileSync(`${dir}/${from}`, `public/cert-fonts/${to}`)
+}

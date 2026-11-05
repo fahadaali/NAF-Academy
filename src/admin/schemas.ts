@@ -1,6 +1,7 @@
 /* مخططات التحقق — مشتركة بين المحرّر (رسائل الخطأ) والخادم (الحماية). */
 import { z } from 'zod'
 import { COURSE_STATUS, DELIVERY, LESSON_TYPE, LEVEL, TONES } from '@/lib/enums'
+import { DEFAULT_RULES } from '@/lib/certificate'
 
 const slug = z
   .string()
@@ -30,6 +31,15 @@ const quizQuestion = z.object({
   points: z.number().int().min(1).max(100).optional(),
 }).refine((q) => q.correct.every((c) => q.options.some((o) => o.id === c)), { message: 'الإجابة الصحيحة ليست من الخيارات', path: ['correct'] })
   .refine((q) => q.kind === 'multi' || q.correct.length === 1, { message: 'إجابة صحيحة واحدة لهذا النوع', path: ['correct'] })
+export const certRulesInput = z.object({
+  enabled: z.boolean(),
+  lessonsPct: z.number().int().min(0).max(100),
+  attendancePct: z.number().int().min(0).max(100),
+  quizzes: z.boolean(),
+  assignments: z.boolean(),
+  autoApprove: z.boolean(),
+  templateId: z.string().nullable(),
+})
 export const quizInput = z.object({
   passPct: z.number().int().min(1).max(100),
   attempts: z.number().int().min(1).max(50).nullable(),
@@ -114,6 +124,7 @@ export const courseInput = z
     featured: z.boolean(),
     sequential: z.boolean().default(false),
     completeAt: z.number().int().min(50).max(100).default(90),
+    certificate: certRulesInput.default(DEFAULT_RULES),
     seoTitle: text(120),
     seoDescription: text(300),
     instructorIds: z.array(z.string()).max(12),

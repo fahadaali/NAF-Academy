@@ -10,6 +10,7 @@ import * as s from '../src/server/db/schema'
 import { corporate, courses, hero, instructors, ladder, stats, tracks } from '../src/content/seed'
 import { DEFAULT_HOME } from '../src/content/home-defaults'
 import { EMPTY_ASSIGNMENT, EMPTY_QUIZ, type Quiz } from '../src/lib/learning-types'
+import { DEFAULT_DESIGN } from '../src/lib/certificate'
 
 const url = process.env.DATABASE_URL ?? 'file:.data/academy.db'
 if (url.startsWith('file:')) {
@@ -105,6 +106,7 @@ for (const [i, c] of courses.entries()) {
   }
 }
 
+await db.insert(s.certificateTemplates).values({ id: randomUUID(), name: 'القالب الافتراضي', design: DEFAULT_DESIGN, isDefault: true })
 await db.insert(s.coupons).values({ id: randomUUID(), code: 'WELCOME10', label: 'ترحيب — كوبون تجريبي', kind: 'percent', value: 10, maxPerLearner: 1, stackWithSale: true })
 await db.insert(s.settings).values({ key: 'home', value: { ...DEFAULT_HOME, hero, ladder, stats, corporate } })
 await db.insert(s.auditLog).values({ actor: 'system', action: 'seed', entity: 'site', entityId: '-', summary: 'بذر المحتوى المبدئي' })

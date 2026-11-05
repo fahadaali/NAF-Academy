@@ -15,6 +15,8 @@ const groups: { title: string; items: { href: string; label: string; icon: strin
     { href: '/admin/media', label: 'مكتبة الصور', icon: '▣', perm: 'content.write' },
     { href: '/admin/learning', label: 'الواجبات والأسئلة', icon: '✎', perm: 'learning.review' },
     { href: '/admin/learning/sessions', label: 'الجلسات والحضور', icon: '⌖', perm: 'attendance.mark' },
+    { href: '/admin/certificates', label: 'الشهادات', icon: '✪', perm: 'certificates.manage' },
+    { href: '/admin/certificates/templates', label: 'قوالب الشهادات', icon: '▭', perm: 'certificates.manage' },
   ] },
   { title: 'المبيعات', items: [
     { href: '/admin/sales', label: 'لوحة المبيعات', icon: '◔', perm: 'sales.read' },
