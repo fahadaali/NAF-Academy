@@ -36,17 +36,19 @@ export async function courseForEdit(id: string) {
 
 export async function trashed() {
   await requireAdmin()
-  const [courses, tracks, instructors, media] = await Promise.all([
+  const [courses, tracks, instructors, media, coupons] = await Promise.all([
     db.select({ id: s.courses.id, name: s.courses.title, at: s.courses.deletedAt }).from(s.courses).where(isNotNull(s.courses.deletedAt)),
     db.select({ id: s.tracks.id, name: s.tracks.title, at: s.tracks.deletedAt }).from(s.tracks).where(isNotNull(s.tracks.deletedAt)),
     db.select({ id: s.instructors.id, name: s.instructors.name, at: s.instructors.deletedAt }).from(s.instructors).where(isNotNull(s.instructors.deletedAt)),
     db.select({ id: s.media.id, name: s.media.alt, at: s.media.deletedAt }).from(s.media).where(isNotNull(s.media.deletedAt)),
+    db.select({ id: s.coupons.id, name: s.coupons.code, at: s.coupons.deletedAt }).from(s.coupons).where(isNotNull(s.coupons.deletedAt)),
   ])
   return [
     ...courses.map((x) => ({ ...x, entity: 'course' as const, label: 'دورة' })),
     ...tracks.map((x) => ({ ...x, entity: 'track' as const, label: 'مسار' })),
     ...instructors.map((x) => ({ ...x, entity: 'instructor' as const, label: 'مدرب' })),
     ...media.map((x) => ({ ...x, entity: 'media' as const, label: 'صورة' })),
+    ...coupons.map((x) => ({ ...x, entity: 'coupon' as const, label: 'كوبون' })),
   ].sort((a, b) => String(b.at).localeCompare(String(a.at)))
 }
 

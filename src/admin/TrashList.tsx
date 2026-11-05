@@ -25,8 +25,10 @@ export function TrashList({ items }: { items: Item[] }) {
                 <button className={`${p.iconBtn} ${p.danger}`} onClick={() => {
                   const c = prompt(`حذف «${it.name}» نهائياً لا يمكن التراجع عنه.\nاكتب كلمة: حذف`)
                   if (c !== 'حذف') return
-                  drop(it)
-                  start(() => purge(it.entity, it.id, c))
+                  start(async () => {
+                    const r = await purge(it.entity, it.id, c)
+                    if (r.ok) drop(it); else alert(r.error)
+                  })
                 }}>حذف نهائي</button>
               </div>
             </td>

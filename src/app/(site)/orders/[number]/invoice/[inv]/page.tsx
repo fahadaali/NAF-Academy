@@ -50,7 +50,7 @@ export default async function Invoice({ params, searchParams }: { params: Promis
           <div className={s.qr} dangerouslySetInnerHTML={{ __html: qr }} aria-label="رمز الفاتورة الضريبية" />
           <dl className={`num ${s.totals}`}>
             <div><dt>الإجمالي غير شامل الضريبة</dt><dd>{formatAmount(exVat)} ر.س</dd></div>
-            <div><dt>ضريبة القيمة المضافة 15%</dt><dd>{formatAmount(invoice.vat)} ر.س</dd></div>
+            <div><dt>ضريبة القيمة المضافة {o.order.vatRate}%</dt><dd>{formatAmount(invoice.vat)} ر.س</dd></div>
             <div className={s.grand}><dt>{credit ? 'المبلغ المسترد' : 'الإجمالي شامل الضريبة'}</dt><dd>{formatAmount(invoice.total)} ر.س</dd></div>
           </dl>
         </div>

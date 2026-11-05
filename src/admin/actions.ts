@@ -2,7 +2,7 @@
 /* إجراءات اللوحة — كل إجراء: جلسة ← تحقق ← كتابة ← سجل ← إعادة توليد الصفحات العامة. */
 import { randomUUID } from 'node:crypto'
 import { revalidatePath } from 'next/cache'
-import { and, eq, inArray, isNotNull, isNull } from 'drizzle-orm'
+import { and, count, eq, inArray, isNotNull, isNull } from 'drizzle-orm'
 import { imageSize } from 'image-size'
 import { db, schema as s } from '@/server/db'
 import { requireAdmin } from '@/server/auth'
@@ -11,7 +11,7 @@ import { deleteObject, putObject } from '@/server/storage'
 import type { HomeContent } from '@/content/home-defaults'
 import type { CourseStatus } from '@/content/types'
 import {
-  courseInput, errorsOf, instructorInput, trackInput,
+  courseInput, errorsOf, homeInput, instructorInput, trackInput,
   type CourseInput, type InstructorInput, type Result, type TrackInput,
 } from './schemas'
 
@@ -154,7 +154,7 @@ export async function saveInstructor(id: string | null, raw: InstructorInput): P
 
 /* ───────── الحذف الناعم والاسترجاع ───────── */
 
-const tables = { course: s.courses, track: s.tracks, instructor: s.instructors, media: s.media } as const
+const tables = { course: s.courses, track: s.tracks, instructor: s.instructors, media: s.media, coupon: s.coupons } as const
 export type Entity = keyof typeof tables
 
 export async function trash(entity: Entity, id: string) {
@@ -173,17 +173,42 @@ export async function restore(entity: Entity, id: string) {
   refresh()
 }
 
-/** حذف نهائي — من صفحة المحذوفات فقط وبعد تأكيد صريح */
-export async function purge(entity: Entity, id: string, confirm: string) {
+/** حذف نهائي — من صفحة المحذوفات فقط وبعد تأكيد صريح. يفكّ الارتباطات أولاً،
+    ويرفض حذف دورة لها طلبات أو تسجيلات (تُؤرشف بدلاً من ذلك) حفاظاً على السجل المالي. */
+export async function purge(entity: Entity, id: string, confirm: string): Promise<{ ok: boolean; error?: string }> {
   const admin = await requireAdmin()
-  if (confirm !== 'حذف') return
+  if (confirm !== 'حذف') return { ok: false, error: 'لم يُؤكَّد الحذف' }
   const t = tables[entity]
   const [row] = await db.select().from(t).where(and(eq(t.id, id), isNotNull(t.deletedAt)))
-  if (!row) return
-  if (entity === 'media') await deleteObject((row as typeof s.media.$inferSelect).key)
+  if (!row) return { ok: false, error: 'العنصر غير موجود في المحذوفات' }
+  if (entity === 'course') {
+    const [sold] = await db.select({ n: count() }).from(s.orderItems).where(eq(s.orderItems.courseId, id))
+    const [enr] = await db.select({ n: count() }).from(s.enrollments).where(eq(s.enrollments.courseId, id))
+    if (sold.n || enr.n) return { ok: false, error: 'للدورة طلبات أو تسجيلات — استرجعها وأرشفها بدلاً من حذفها نهائياً' }
+    const mods = await db.select({ id: s.modules.id }).from(s.modules).where(eq(s.modules.courseId, id))
+    if (mods.length) await db.delete(s.lessons).where(inArray(s.lessons.moduleId, mods.map((m) => m.id)))
+    await db.delete(s.modules).where(eq(s.modules.courseId, id))
+    await db.delete(s.priceTiers).where(eq(s.priceTiers.courseId, id))
+    await db.delete(s.groupRules).where(eq(s.groupRules.courseId, id))
+    await db.delete(s.interest).where(eq(s.interest.courseId, id))
+    await db.delete(s.courseInstructors).where(eq(s.courseInstructors.courseId, id))
+  }
+  if (entity === 'coupon') {
+    const [used] = await db.select({ n: count() }).from(s.couponRedemptions).where(eq(s.couponRedemptions.couponId, id))
+    if (used.n) return { ok: false, error: 'استُخدم هذا الكوبون في طلبات — يبقى في السجل موقوفاً ولا يُحذف نهائياً' }
+  }
+  if (entity === 'track') await db.update(s.courses).set({ trackId: null }).where(eq(s.courses.trackId, id))
+  if (entity === 'instructor') await db.delete(s.courseInstructors).where(eq(s.courseInstructors.instructorId, id))
+  if (entity === 'media') {
+    await db.update(s.courses).set({ coverId: null }).where(eq(s.courses.coverId, id))
+    await db.update(s.tracks).set({ coverId: null }).where(eq(s.tracks.coverId, id))
+    await db.update(s.instructors).set({ photoId: null }).where(eq(s.instructors.photoId, id))
+    await deleteObject((row as typeof s.media.$inferSelect).key)
+  }
   await db.delete(t).where(eq(t.id, id))
   await audit(admin.name, 'purge', entity, id, 'حذف نهائي', row)
   refresh()
+  return { ok: true }
 }
 
 /* ───────── الوسائط ───────── */
@@ -233,8 +258,9 @@ export async function listMedia() {
 
 export async function saveHome(value: HomeContent): Promise<{ ok: boolean; message?: string }> {
   const admin = await requireAdmin()
-  if (!value?.hero?.lines?.length || !Array.isArray(value.sections)) return { ok: false, message: 'محتوى غير مكتمل' }
-  const clean = JSON.parse(JSON.stringify(value)) as HomeContent
+  const p = homeInput.safeParse(value)
+  if (!p.success) return { ok: false, message: Object.values(errorsOf(p.error))[0] ?? 'محتوى غير صالح' }
+  const clean = p.data as HomeContent
   await db.insert(s.settings).values({ key: 'home', value: clean }).onConflictDoUpdate({ target: s.settings.key, set: { value: clean, updatedAt: now() } })
   await audit(admin.name, 'update', 'home', 'home', 'الصفحة الرئيسية', clean)
   refresh()

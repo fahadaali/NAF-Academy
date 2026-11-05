@@ -7,7 +7,7 @@ import styles from './login.module.css'
 export default function Login() {
   const [state, action, pending] = useActionState(login, {})
   return (
-    <div className={styles.page}>
+    <main id="main" className={styles.page}>
       <form action={action} className={styles.card}>
         <Emblem size={56} className={styles.mark} />
         <h1 className={styles.title}>لوحة الأكاديمية</h1>
@@ -17,6 +17,6 @@ export default function Login() {
         {state?.error && <p className={styles.error} role="alert">{state.error}</p>}
         <button className="btn" disabled={pending}>{pending ? 'جارٍ الدخول…' : 'دخول'}</button>
       </form>
-    </div>
+    </main>
   )
 }

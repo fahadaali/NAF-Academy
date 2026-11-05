@@ -80,9 +80,9 @@ export function HomeEditor({ initial }: { initial: HomeContent }) {
       <Section title="الأرقام" desc="تتصاعد عند الظهور">
         {v.stats.map((st, i) => (
           <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center' }} {...stats.props(i)}>
-            <Input style={{ maxInlineSize: 120 }} dir="ltr" type="number" value={st.value} onChange={(e) => up((o) => ({ ...o, stats: o.stats.map((x, k) => (k === i ? { ...x, value: Number(e.target.value) } : x)) }))} />
-            <Input style={{ maxInlineSize: 80 }} placeholder="+ أو ٪" value={st.suffix ?? ''} onChange={(e) => up((o) => ({ ...o, stats: o.stats.map((x, k) => (k === i ? { ...x, suffix: e.target.value } : x)) }))} />
-            <Input placeholder="التسمية" value={st.label} onChange={(e) => up((o) => ({ ...o, stats: o.stats.map((x, k) => (k === i ? { ...x, label: e.target.value } : x)) }))} />
+            <Input aria-label="الرقم" style={{ maxInlineSize: 120 }} dir="ltr" type="number" value={st.value} onChange={(e) => up((o) => ({ ...o, stats: o.stats.map((x, k) => (k === i ? { ...x, value: Number(e.target.value) } : x)) }))} />
+            <Input aria-label="اللاحقة" style={{ maxInlineSize: 80 }} placeholder="+ أو ٪" value={st.suffix ?? ''} onChange={(e) => up((o) => ({ ...o, stats: o.stats.map((x, k) => (k === i ? { ...x, suffix: e.target.value } : x)) }))} />
+            <Input aria-label="التسمية" placeholder="التسمية" value={st.label} onChange={(e) => up((o) => ({ ...o, stats: o.stats.map((x, k) => (k === i ? { ...x, label: e.target.value } : x)) }))} />
             <RowTools i={i} n={v.stats.length} move={stats.move} onRemove={() => up((o) => ({ ...o, stats: o.stats.filter((_, k) => k !== i) }))} />
           </div>
         ))}

@@ -27,8 +27,7 @@
 
 .couponRow { display: flex; gap: 10px; }
 .couponRow .input { max-inline-size: 280px; letter-spacing: 0.08em; font-weight: 700; }
-.ok { color: var(--olive-1); font-weight: 700; font-size: 14.5px; animation: in var(--t-gentle) var(--ease-glide); }
-:global([data-theme='dark']) .ok { color: var(--olive-3); }
+.ok { color: var(--success); font-weight: 700; font-size: 14.5px; animation: in var(--t-gentle) var(--ease-glide); }
 .err { color: var(--danger); font-weight: 600; font-size: 14px; font-style: normal; animation: in var(--t-gentle) var(--ease-glide); }
 @keyframes in { from { opacity: 0; transform: translateY(-4px); } }
 
@@ -53,8 +52,7 @@
 .lines dt { color: var(--text-soft); }
 .lines dd { display: flex; gap: 8px; align-items: baseline; font-weight: 700; }
 .lines s { color: var(--muted); font-weight: 400; font-size: 13.5px; }
-.minus dd { color: var(--olive-1); }
-:global([data-theme='dark']) .minus dd { color: var(--olive-3); }
+.minus dd { color: var(--success); }
 .total { display: flex; justify-content: space-between; align-items: baseline; font-size: 17px; font-weight: 700; }
 .totalNum { font-size: 34px; font-weight: 900; letter-spacing: -0.01em; }
 .total strong { font-size: 30px; font-family: var(--font-display); color: var(--accent); }

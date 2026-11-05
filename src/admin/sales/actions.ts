@@ -175,6 +175,8 @@ export async function assignSeat(grantId: string, email: string, name: string): 
   if (!e.success) return { ok: false, error: 'بريد غير صالح' }
   const [g] = await db.select().from(s.seatGrants).where(and(eq(s.seatGrants.id, grantId), isNull(s.seatGrants.enrollmentId)))
   if (!g) return { ok: false, error: 'المقعد مخصّص من قبل' }
+  const [ord] = await db.select({ status: s.orders.status }).from(s.orders).where(eq(s.orders.id, g.orderId))
+  if (!ord || !['paid', 'partially_refunded'].includes(ord.status)) return { ok: false, error: 'لا يمكن تخصيص مقاعد طلب غير مدفوع أو مسترد' }
   const learner = await upsertLearner({ name: name.trim() || e.data.split('@')[0], email: e.data, phone: '', org: '', vatNumber: '' })
   const [dup] = await db.select().from(s.enrollments).where(and(eq(s.enrollments.learnerId, learner.id), eq(s.enrollments.courseId, g.courseId), eq(s.enrollments.status, 'active')))
   if (dup) return { ok: false, error: 'هذا المشارك مسجّل في الدورة من قبل' }

@@ -10,6 +10,8 @@ export type DB = ReturnType<typeof make>
 function make() {
   const url = process.env.DATABASE_URL ?? 'file:.data/academy.db'
   const client = createClient({ url })
+  /* D1 يفرض المفاتيح الأجنبية — نفرضها محلياً أيضاً كي لا يختلف السلوك */
+  void client.execute('PRAGMA foreign_keys = ON')
   return drizzle(client, { schema })
 }
 

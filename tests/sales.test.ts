@@ -88,3 +88,72 @@ test('الدفع المطفأ يقفل الطلب المدفوع', async () => {
   const r = await m.placeOrder({ slug: 'c1', quantity: 1, buyer: { ...buyer, email: 'q@q.sa' }, attendSelf: true })
   assert.equal(r.ok, false)
 })
+
+test('دفعة طلب لا تُستعمل لطلب آخر', async () => {
+  const { setSetting, DEFAULT_PAYMENTS } = await import('../src/server/settings')
+  await setSetting('payments', { ...DEFAULT_PAYMENTS, enabled: true })
+  await db.insert(s.courses).values({ id: 'c2', slug: 'c2', title: 'دورة ٢', status: 'open', price: 50000, previewToken: 'y' })
+  const a = await m.placeOrder({ slug: 'c2', quantity: 1, buyer: { ...buyer, email: 'a1@x.sa' }, attendSelf: true })
+  const b = await m.placeOrder({ slug: 'c2', quantity: 1, buyer: { ...buyer, email: 'b1@x.sa' }, attendSelf: true })
+  assert.ok(a.ok && b.ok)
+  if (!a.ok || !b.ok) return
+  const payA = `mock_${a.order.id}_${a.order.total}_paid`
+  assert.equal((await m.confirmPayment(payA, b.order.id)).outcome, 'mismatch')
+  assert.equal((await m.confirmPayment(payA, a.order.id)).outcome, 'paid')
+  const [bAfter] = await db.select().from(s.orders).where((await import('drizzle-orm')).eq(s.orders.id, b.order.id))
+  assert.equal(bAfter.status, 'pending')
+})
+
+test('كوبون الاستخدام الواحد لا يُحجز مرتين بالتوازي', async () => {
+  await db.insert(s.coupons).values({ id: 'k3', code: 'ONCE', kind: 'percent', value: 20, maxUses: 1, stackWithSale: true })
+  const first = await m.placeOrder({ slug: 'c2', quantity: 1, code: 'ONCE', buyer: { ...buyer, email: 'o1@x.sa' }, attendSelf: true })
+  assert.ok(first.ok)
+  const second = await m.placeOrder({ slug: 'c2', quantity: 1, code: 'ONCE', buyer: { ...buyer, email: 'o2@x.sa' }, attendSelf: true })
+  assert.equal(second.ok, false)
+})
+
+test('الدفع بعد انتهاء المهلة وقد اكتمل العدد يُسترد ولا يُسجَّل', async () => {
+  const { eq } = await import('drizzle-orm')
+  await db.insert(s.courses).values({ id: 'c3', slug: 'c3', title: 'دورة ٣', status: 'open', price: 10000, seatsTotal: 1, previewToken: 'z' })
+  const late = await m.placeOrder({ slug: 'c3', quantity: 1, buyer: { ...buyer, email: 'late@x.sa' }, attendSelf: true })
+  assert.ok(late.ok)
+  if (!late.ok) return
+  await db.update(s.orders).set({ expiresAt: '2000-01-01T00:00:00Z' }).where(eq(s.orders.id, late.order.id))
+  const winner = await m.placeOrder({ slug: 'c3', quantity: 1, buyer: { ...buyer, email: 'win@x.sa' }, attendSelf: true })
+  assert.ok(winner.ok)
+  if (!winner.ok) return
+  await m.confirmPayment(`mock_${winner.order.id}_${winner.order.total}_paid`, winner.order.id)
+  const r = await m.confirmPayment(`mock_${late.order.id}_${late.order.total}_paid`, late.order.id)
+  assert.equal(r.outcome, 'mismatch')
+  const enr = (await db.select().from(s.enrollments).where(eq(s.enrollments.courseId, 'c3')))
+  assert.equal(enr.length, 1)
+  const log = await db.select().from(s.auditLog).where(eq(s.auditLog.entityId, late.order.id))
+  assert.ok(log.some((l) => l.action === 'auto_refund'))
+})
+
+test('التنفيذ المنقطع يُستأنف دون ازدواج', async () => {
+  const { eq } = await import('drizzle-orm')
+  const r = await m.placeOrder({ slug: 'c2', quantity: 1, buyer: { ...buyer, email: 'resume@x.sa' }, attendSelf: true })
+  assert.ok(r.ok)
+  if (!r.ok) return
+  await m.confirmPayment(`mock_${r.order.id}_${r.order.total}_paid`, r.order.id)
+  await db.delete(s.enrollments).where(eq(s.enrollments.orderId, r.order.id))
+  await db.delete(s.invoices).where(eq(s.invoices.orderId, r.order.id))
+  await db.update(s.orders).set({ fulfilledAt: null }).where(eq(s.orders.id, r.order.id))
+  await m.finalizeOrder(r.order.id, { method: 'gateway' })
+  await m.finalizeOrder(r.order.id, { method: 'gateway' })
+  assert.equal((await db.select().from(s.enrollments).where(eq(s.enrollments.orderId, r.order.id))).length, 1)
+  assert.equal((await db.select().from(s.invoices).where(eq(s.invoices.orderId, r.order.id))).length, 1)
+})
+
+test('استردادان متزامنان لا يتجاوزان الإجمالي', async () => {
+  const r = await m.placeOrder({ slug: 'c2', quantity: 1, buyer: { ...buyer, email: 'rr@x.sa' }, attendSelf: true })
+  assert.ok(r.ok)
+  if (!r.ok) return
+  await m.confirmPayment(`mock_${r.order.id}_${r.order.total}_paid`, r.order.id)
+  const res = await Promise.all([m.refundOrder(r.order.id, 30000, 'a', false, 't'), m.refundOrder(r.order.id, 30000, 'b', false, 't')])
+  assert.equal(res.filter((x) => x.ok).length, 1)
+  const { eq } = await import('drizzle-orm')
+  const [o] = await db.select().from(s.orders).where(eq(s.orders.id, r.order.id))
+  assert.equal(o.refunded, 30000)
+})

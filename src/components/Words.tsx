@@ -30,7 +30,8 @@ export function Words({ text, as: Tag = 'span', className = '', delay = 0, manua
     if (li < lines.length - 1) out.push(<br key={`br-${li}`} />)
   })
   return (
-    <Tag id={id} className={`words ${manual ? 'manual' : 'reveal'} ${className}`} style={{ ['--d' as string]: delay }} aria-label={plain(lines.join(' '))}>
+    <Tag id={id} className={`words ${manual ? 'manual' : 'reveal'} ${className}`} style={{ ['--d' as string]: delay }}>
+      <span className="sr-only">{plain(lines.join(' '))}</span>
       <span aria-hidden="true">{out}</span>
     </Tag>
   )

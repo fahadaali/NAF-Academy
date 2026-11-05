@@ -130,3 +130,22 @@ export function errorsOf(e: z.ZodError): Errors {
   }
   return out
 }
+
+/* محتوى الرئيسية */
+const t = (max: number) => z.string().max(max)
+export const homeInput = z.object({
+  hero: z.object({
+    eyebrow: t(80), lines: z.array(t(60)).min(1, 'سطر واحد على الأقل').max(5),
+    phases: z.array(z.object({ at: z.number().min(0).max(1), text: t(120) })).max(4),
+    cta: z.object({ label: t(40), href: z.string().max(200).regex(/^(\/|#|https:\/\/)/, 'رابط يبدأ بـ / أو # أو https') }),
+  }),
+  ladder: z.object({
+    title: t(80),
+    steps: z.array(z.object({ level: z.enum(LEVEL), name: t(40), title: t(40), body: t(400), gains: z.array(t(120)).max(8) })).length(3),
+  }),
+  stats: z.array(z.object({ value: z.number().min(0).max(1e9), suffix: t(6).optional(), label: t(60) })).max(8),
+  corporate: z.object({ title: t(120), body: t(600), sizes: z.array(t(20)).max(8), interests: z.array(t(40)).max(12) }),
+  sections: z.array(z.object({ key: z.enum(['ladder', 'tracks', 'courses', 'instructors', 'impact', 'corporate']), visible: z.boolean() })).length(6),
+  heads: z.record(z.string(), z.object({ eyebrow: t(60), title: t(160) })),
+  footer: z.object({ title: t(120), cta: t(40) }),
+})

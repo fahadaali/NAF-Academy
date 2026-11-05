@@ -26,7 +26,7 @@
 .nav ol { display: flex; gap: 6px; }
 .nav a {
   position: relative; display: inline-flex; align-items: baseline; gap: 6px;
-  padding: 8px 12px; border-radius: 999px; font-size: 15px; font-weight: 500; opacity: 0.78;
+  padding: 8px 12px; border-radius: 999px; font-size: 15px; font-weight: 500; opacity: 0.88;
   transition: opacity var(--t-base), background var(--t-base);
 }
 .nav a:hover { opacity: 1; background: color-mix(in srgb, currentColor 8%, transparent); }
@@ -37,6 +37,7 @@
 }
 @keyframes grow { from { transform: scaleX(0); } }
 .idx { font-size: 11px; color: var(--gold-3); }
+.header[data-solid='1']:not([data-night='1']) .idx { color: var(--accent-strong); }
 
 .actions { display: flex; align-items: center; gap: 10px; }
 .theme { inline-size: 42px; block-size: 42px; display: grid; place-items: center; border-radius: 50%; color: inherit; transition: background var(--t-base); }

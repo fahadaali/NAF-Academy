@@ -1,11 +1,13 @@
 'use server'
 import { redirect } from 'next/navigation'
 import { adminPassword, createSession, destroySession, safeEqual } from '@/server/auth'
+import { limited } from '@/server/ratelimit'
 
 export async function login(_: unknown, form: FormData): Promise<{ error?: string }> {
   const expected = adminPassword()
   const given = String(form.get('password') ?? '')
   if (!expected) return { error: 'لم تُضبط كلمة مرور اللوحة في البيئة.' }
+  if (await limited('login', 8, 15 * 60e3)) return { error: 'محاولات كثيرة — حاول بعد ربع ساعة.' }
   /* تأخير ثابت يبطئ التخمين */
   await new Promise((r) => setTimeout(r, 400))
   if (!safeEqual(given, expected)) return { error: 'كلمة المرور غير صحيحة.' }

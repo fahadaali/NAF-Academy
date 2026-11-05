@@ -36,7 +36,7 @@ export function CouponsTable({ rows }: { rows: Row[] }) {
       </div>
       {shown.length === 0 ? <div className={p.empty}>لا كوبونات بعد — أنشئ أول كوبون أو دفعة أكواد لمؤسسة.</div> : (
         <table className={p.table}>
-          <thead><tr><th>الرمز</th><th>الخصم</th><th>الاستخدام</th><th>الإيراد / الخصم</th><th>الحالة</th><th /></tr></thead>
+          <thead><tr><th>الرمز</th><th>الخصم</th><th>الاستخدام</th><th>الإيراد / الخصم</th><th>الحالة</th><th><span className="sr-only">إجراءات</span></th></tr></thead>
           <tbody>
             {shown.map((c) => {
               const st = state(c)

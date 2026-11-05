@@ -22,8 +22,7 @@ export interface Gateway {
 export type GatewayStatus = { configured: boolean; kind: Gateway['kind'] | null; mode: Gateway['mode'] | null; problem?: string }
 
 /** البوابة التجريبية لا تعمل إلا بموافقة صريحة، وتظهر بتحذير في اللوحة */
-const mockAllowed = () =>
-  process.env.PAYMENTS_GATEWAY === 'mock' && (process.env.NODE_ENV !== 'production' || process.env.MOCK_GATEWAY_LOCAL_ONLY === 'yes')
+const mockAllowed = () => process.env.PAYMENTS_GATEWAY === 'mock' && process.env.NODE_ENV !== 'production'
 
 export function gatewayStatus(): GatewayStatus {
   if (mockAllowed()) return { configured: true, kind: 'mock', mode: 'mock' }

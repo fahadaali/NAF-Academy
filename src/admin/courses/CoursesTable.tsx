@@ -41,7 +41,7 @@ export function CoursesTable({ courses, tracks, media }: { courses: CourseRow[];
             <button key={s} className={p.chip} aria-pressed={status === s} onClick={() => setStatus(s)}>{STATUS_LABEL[s]} <span className="num">{n}</span></button>
           ))}
         </div>
-        <select className={p.search} style={{ minInlineSize: 180 }} value={track} onChange={(e) => setTrack(e.target.value)}>
+        <select aria-label="المسار" className={p.search} style={{ minInlineSize: 180 }} value={track} onChange={(e) => setTrack(e.target.value)}>
           <option value="all">كل المسارات</option>
           {tracks.map((t) => <option key={t.id} value={t.id}>{t.title}</option>)}
         </select>
@@ -49,7 +49,7 @@ export function CoursesTable({ courses, tracks, media }: { courses: CourseRow[];
 
       {shown.length === 0 ? <div className={p.empty}>لا دورات مطابقة.</div> : (
         <table className={p.table}>
-          <thead><tr><th>الدورة</th><th>الحالة</th><th>النمط</th><th>الموعد</th><th>السعر</th><th /></tr></thead>
+          <thead><tr><th>الدورة</th><th>الحالة</th><th>النمط</th><th>الموعد</th><th>السعر</th><th><span className="sr-only">إجراءات</span></th></tr></thead>
           <tbody>
             {shown.map((c) => {
               const i = list.indexOf(c)

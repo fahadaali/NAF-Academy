@@ -1,7 +1,7 @@
 /* مخطط قاعدة البيانات — SQLite (libsql محلياً، Cloudflare D1 في النشر؛ المخطط نفسه).
    المبالغ بالهللة. التواريخ نص ISO. القوائم JSON. الحذف ناعم (deletedAt). */
 import { sql } from 'drizzle-orm'
-import { index, integer, primaryKey, real, sqliteTable, text } from 'drizzle-orm/sqlite-core'
+import { index, integer, primaryKey, real, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core'
 
 const id = () => text('id').primaryKey()
 const stamps = {
@@ -241,7 +241,7 @@ export const couponRedemptions = sqliteTable(
     amount: integer('amount').notNull(),
     ...stamps,
   },
-  (t) => [index('redemptions_coupon_idx').on(t.couponId)],
+  (t) => [index('redemptions_coupon_idx').on(t.couponId), uniqueIndex('redemptions_order_uq').on(t.orderId)],
 )
 
 export const ORDER_STATUS = ['pending', 'paid', 'failed', 'canceled', 'expired', 'refunded', 'partially_refunded'] as const
@@ -270,6 +270,10 @@ export const orders = sqliteTable(
     expiresAt: text('expires_at'),
     paidAt: text('paid_at'),
     note: text('note').notNull().default(''),
+    /** نسبة الضريبة وقت الطلب — الفاتورة تتبعها لا الإعداد الحالي */
+    vatRate: real('vat_rate').notNull().default(15),
+    /** اكتمال تنفيذ الطلب بعد الدفع (التسجيل والفاتورة) — يُعاد التنفيذ إن انقطع */
+    fulfilledAt: text('fulfilled_at'),
     /** في الطلب الجماعي: هل يحضر المشتري بنفسه (يأخذ أول مقعد) */
     attendSelf: integer('attend_self', { mode: 'boolean' }).notNull().default(true),
     createdBy: text('created_by').notNull().default('web'),

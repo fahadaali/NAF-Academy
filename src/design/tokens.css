@@ -49,11 +49,18 @@
   --muted: #5b6470;
   --line: rgb(20 32 43 / 0.12);
   --line-strong: rgb(20 32 43 / 0.22);
-  --accent: var(--gold-1);
+  /* أغمق قليلاً من gold-1 ليتجاوز 4.5:1 على كل الأسطح الفاتحة */
+  --accent: #7d5f26;
   --accent-strong: #6f5320;
   --accent-glow: var(--gold-3);
   --secondary: var(--olive-1);
   --danger: var(--ember);
+  /* أدوار دلالية تتبدّل في الوضعين */
+  --on-bg: var(--night-1);
+  --on-fg: var(--gold-4);
+  --success: var(--olive-1);
+  --info: #41678c;
+  --warn: var(--ember);
   --scrim: rgb(7 14 22 / 0.62);
   --glass: rgb(253 251 246 / 0.84);
 
@@ -122,6 +129,11 @@
     --accent: var(--gold-4);
     --accent-strong: var(--gold-5);
     --secondary: var(--olive-3);
+    --on-bg: var(--gold-3);
+    --on-fg: var(--night-1);
+    --success: var(--olive-3);
+    --info: #86a0bd;
+    --warn: #e39a7e;
     --glass: rgb(11 21 32 / 0.82);
     --scene-bg: var(--night-0);
     --shadow-1: 0 1px 2px rgb(0 0 0 / 0.3), 0 4px 16px rgb(0 0 0 / 0.25);
@@ -141,6 +153,11 @@
   --accent: var(--gold-4);
   --accent-strong: var(--gold-5);
   --secondary: var(--olive-3);
+  --on-bg: var(--gold-3);
+  --on-fg: var(--night-1);
+  --success: var(--olive-3);
+  --info: #86a0bd;
+  --warn: #e39a7e;
   --glass: rgb(11 21 32 / 0.82);
   --scene-bg: var(--night-0);
   --shadow-1: 0 1px 2px rgb(0 0 0 / 0.3), 0 4px 16px rgb(0 0 0 / 0.25);

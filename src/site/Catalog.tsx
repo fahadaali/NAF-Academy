@@ -46,6 +46,7 @@ export function Catalog({ courses, tracks, instructors, initialTrack = 'all' }: 
           {chip(openOnly, 'التسجيل مفتوح فقط', () => setOpenOnly((x) => !x), 'open')}
         </div>
       </div>
+      <h2 className="sr-only">نتائج البحث</h2>
       <p className={`${s.count} num`} role="status">{shown.length} دورة</p>
       <div className={s.grid} key={key}>
         {shown.length === 0 && <p className={s.none}>لا دورات بهذه المواصفات الآن — جرّب فلتراً آخر.</p>}

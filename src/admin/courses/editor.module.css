@@ -3,8 +3,7 @@
 .tabs { display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; margin-block-end: 16px; padding: 4px; border-radius: 999px; background: var(--surface); border: 1px solid var(--line); position: sticky; inset-block-start: 10px; z-index: 15; box-shadow: var(--shadow-1); }
 .tabs button { position: relative; white-space: nowrap; min-block-size: 40px; padding-inline: 16px; border-radius: 999px; font-size: 14px; font-weight: 600; color: var(--muted); transition: background var(--t-base), color var(--t-base); }
 .tabs button:hover { color: var(--text); }
-.tabs button[aria-selected='true'] { background: var(--night-1); color: var(--gold-4); }
-:global([data-theme='dark']) .tabs button[aria-selected='true'] { background: var(--gold-3); color: var(--night-1); }
+.tabs button[aria-selected='true'] { background: var(--on-bg); color: var(--on-fg); }
 .tabs button[data-err='1']::after { content: ''; position: absolute; inset-block-start: 8px; inset-inline-end: 8px; inline-size: 7px; block-size: 7px; border-radius: 50%; background: var(--danger); }
 
 .preview { position: sticky; inset-block-start: 10px; display: grid; gap: 12px; }

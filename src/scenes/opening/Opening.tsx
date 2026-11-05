@@ -47,11 +47,13 @@ export function Opening({ eyebrow, lines, phases, cta }: Props) {
     if (!sec || !cv || !st) return
     const calm = prefersCalm()
     const small = matchMedia('(max-width: 720px)').matches
-    const field = makeField(calm ? 900 : small ? 1300 : 2400)
-    const renderer = makeRenderer(cv)
-    if (!renderer) return
+    const nav = navigator as Navigator & { deviceMemory?: number }
+    const modest = (nav.hardwareConcurrency ?? 8) <= 4 || (nav.deviceMemory ?? 8) <= 4
+    const field = makeField(calm ? 900 : modest ? 1100 : small ? 1300 : 2400)
+    let renderer: ReturnType<typeof makeRenderer> = null
     let w = 0, h = 0, dpr = 1
     const size = () => {
+      if (!renderer) return
       const r = st.getBoundingClientRect()
       dpr = Math.min(window.devicePixelRatio || 1, 2)
       w = r.width
@@ -61,9 +63,7 @@ export function Opening({ eyebrow, lines, phases, cta }: Props) {
       renderer.resize(cv.width, cv.height)
       layoutField(field, { w, h })
     }
-    size()
     const ro = new ResizeObserver(size)
-    ro.observe(st)
 
     let p = 0
     let rect: DOMRect | null = null
@@ -101,6 +101,7 @@ export function Opening({ eyebrow, lines, phases, cta }: Props) {
       ptr.x += (target.x - ptr.x) * 0.12
       ptr.y += (target.y - ptr.y) * 0.12
       ptr.on += (target.on - ptr.on) * 0.08
+      if (!renderer) return
       stepField(field, p, t, ptr, dpr)
       renderer.draw(field, cv.width, cv.height)
       if (visible && !calm) raf = requestAnimationFrame(loop)
@@ -108,13 +109,30 @@ export function Opening({ eyebrow, lines, phases, cta }: Props) {
     const io = new IntersectionObserver(([e]) => {
       visible = e.isIntersecting
       cancelAnimationFrame(raf)
-      if (visible) raf = requestAnimationFrame(loop)
+      if (visible && renderer) raf = requestAnimationFrame(loop)
     })
-    io.observe(st)
-    if (calm) requestAnimationFrame(loop)
+
+    /* المشهد الثقيل يُبنى بعد أول رسم وفي وقت الفراغ — لا يزاحم تحميل الصفحة */
+    let started = false
+    const start = () => {
+      if (started) return
+      started = true
+      renderer = makeRenderer(cv)
+      if (!renderer) return
+      size()
+      ro.observe(st)
+      io.observe(st)
+      if (calm) requestAnimationFrame(loop)
+    }
+    const w8 = window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number }
+    const idle = () => (w8.requestIdleCallback ? w8.requestIdleCallback(start, { timeout: 1200 }) : setTimeout(start, 300))
+    if (document.documentElement.classList.contains('opening')) document.addEventListener('academy:unveil', idle, { once: true })
+    else idle()
 
     return () => {
       off()
+      started = true
+      document.removeEventListener('academy:unveil', idle)
       ro.disconnect()
       io.disconnect()
       cancelAnimationFrame(raf)

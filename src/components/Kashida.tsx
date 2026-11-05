@@ -92,15 +92,16 @@ export function Kashida({ text, active, delay = timing.reveal * 0.55, boost = 1.
   const shown = render(pieces, k)
   const ss = fathaFeature(pieces, k)
   return (
-    <span
-      ref={ref}
-      className={`kashida ${className}`}
-      style={ss ? { fontFeatureSettings: `${ss}, 'swsh' var(--swsh, 0)` } : undefined}
-      aria-hidden={decorative ? true : undefined}
-      aria-label={decorative ? undefined : plain(text)}
-      role={decorative ? undefined : 'text'}
-    >
-      {shown}
-    </span>
+    <>
+      {!decorative && <span className="sr-only">{plain(text)}</span>}
+      <span
+        ref={ref}
+        className={`kashida ${className}`}
+        style={ss ? { fontFeatureSettings: `${ss}, 'swsh' var(--swsh, 0)` } : undefined}
+        aria-hidden="true"
+      >
+        {shown}
+      </span>
+    </>
   )
 }
