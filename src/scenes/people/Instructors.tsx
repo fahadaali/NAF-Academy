@@ -10,7 +10,7 @@ export function Instructors({ people }: { people: Instructor[] }) {
     <section id="instructors" className={styles.people} aria-labelledby="people-title">
       <div className="wrap">
         <span className="eyebrow">المدربون</span>
-        <Words as="h2" id="people-title" text="يعلّمك من مارس، لا من حفظ." className={`scene-title ${styles.title}`} />
+        <Words as="h2" id="people-title" text="يعلّمك من مارس، لا من حف~3ظ." className={`scene-title ${styles.title}`} />
         <ul role="list" className={styles.grid}>
           {shown.map((p, i) => (
             <li key={p.slug} className={`reveal ${styles.item}`} data-display={p.display} style={{ ['--d' as string]: i }}>

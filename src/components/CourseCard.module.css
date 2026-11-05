@@ -17,7 +17,7 @@
 .cover[data-tone='ember'] { --a: #2a1712; --b: #4a2a1e; --g: #e39a7e; }
 .cover[data-tone='ivory'] { --a: #1b2a3a; --b: #2c4058; --g: var(--gold-5); }
 .glyph {
-  position: absolute; inset-inline-start: 8%; inset-block-end: -18%; font-size: 180px; font-weight: 900; line-height: 1;
+  position: absolute; inset-inline-start: 8%; inset-block-end: -18%; font-family: var(--font-display); font-size: 180px; font-weight: 900; line-height: 1;
   color: transparent; -webkit-text-stroke: 1.2px var(--g); opacity: 0.8;
   transition: transform calc(var(--t-gentle) * 2) var(--ease-glide);
 }

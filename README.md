@@ -24,5 +24,6 @@ npm run check    # الأنواع والاختبارات
 
 ## الخط
 
-ضع ملفات خط ثمانية في `public/fonts/` بهذه الأسماء:
-`thmanyah-regular.woff2` · `thmanyah-medium.woff2` · `thmanyah-bold.woff2` · `thmanyah-black.woff2`
+خط ثمانية **لا يُرفع إلى المستودع** (الترخيص يمنع إتاحته للتنزيل). ضع ملفات woff2 الأصلية كما هي في
+`src/fonts/thmanyah/` بأسمائها الأصلية (`thmanyahsans-Bold.woff2` …)، ثم `npm run dev` يولّد تعريفاتها تلقائياً.
+بدونها يعمل الموقع بالخط الاحتياطي. في النشر تُوفَّر الملفات من مخزن خاص قبل البناء.

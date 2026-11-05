@@ -24,7 +24,7 @@
 .panel[data-state='past'] { opacity: 0; transform: translate3d(0, -40px, 0) scale(0.94); filter: blur(4px); pointer-events: none; }
 .num { font-size: 64px; font-weight: 900; line-height: 1; color: transparent; -webkit-text-stroke: 1.2px var(--gold-2); }
 .kicker { font-size: var(--fs-eyebrow); color: var(--accent); font-weight: 600; }
-.name { font-size: clamp(34px, 4.4vw, 60px); font-weight: 900; }
+.name { font-family: var(--font-display); font-size: clamp(38px, 5vw, 68px); font-weight: 900; line-height: 1.2; }
 .body { color: var(--text-soft); font-size: var(--fs-statement); line-height: 1.6; }
 .gains { display: grid; gap: 8px; margin-block-start: 10px; }
 .gains li {

@@ -73,7 +73,7 @@ export function TrackShelf({ tracks }: { tracks: Track[] }) {
       <div className={`wrap ${styles.head}`}>
         <div>
           <span className="eyebrow">ستة مسارات</span>
-          <Words as="h2" id="tracks-title" text="اختر مسارك، وابدأ من درجتك." className="scene-title" />
+          <Words as="h2" id="tracks-title" text="اختر مس~3ارك، وابدأ من درجتك." className="scene-title" />
         </div>
         <div className={styles.arrows}>
           <button onClick={() => nudge(1)} aria-label="السابق">

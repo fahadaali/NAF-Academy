@@ -9,7 +9,10 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "test": "node --import tsx --test \"tests/**/*.test.ts\"",
-    "check": "npm run -s typecheck && npm run -s test"
+    "check": "npm run -s typecheck && npm run -s test",
+    "predev": "node scripts/setup-fonts.mjs",
+    "prebuild": "node scripts/setup-fonts.mjs",
+    "pretypecheck": "node scripts/setup-fonts.mjs"
   },
   "dependencies": {
     "@emran-alhaddad/saudi-riyal-font": "^1.1.0",

@@ -3,30 +3,9 @@
    المرجع الوحيد للألوان والمقاسات. منصة خارجية: لا علاقة لها بـ naf-ui.
    ============================================================ */
 
-@font-face {
-  font-family: 'Thmanyah';
-  src: url('/fonts/thmanyah-regular.woff2') format('woff2');
-  font-weight: 400;
-  font-display: swap;
-}
-@font-face {
-  font-family: 'Thmanyah';
-  src: url('/fonts/thmanyah-medium.woff2') format('woff2');
-  font-weight: 500;
-  font-display: swap;
-}
-@font-face {
-  font-family: 'Thmanyah';
-  src: url('/fonts/thmanyah-bold.woff2') format('woff2');
-  font-weight: 700;
-  font-display: swap;
-}
-@font-face {
-  font-family: 'Thmanyah';
-  src: url('/fonts/thmanyah-black.woff2') format('woff2');
-  font-weight: 900;
-  font-display: swap;
-}
+/* خط ثمانية: يولّده scripts/setup-fonts.mjs (الملفات خارج المستودع بحكم الترخيص) */
+@import './fonts.generated.css';
+
 @font-face {
   font-family: 'Riyal';
   src: url('/fonts/riyal.woff2') format('woff2');
@@ -85,7 +64,11 @@
   --scene-line: rgb(239 233 219 / 0.12);
 
   /* — الخط — */
-  --font: 'Thmanyah', 'Thmanyah Fallback', system-ui, -apple-system, 'Segoe UI', 'Noto Sans Arabic', sans-serif;
+  --font-fallback: system-ui, -apple-system, 'Segoe UI', 'Noto Sans Arabic', sans-serif;
+  /* ثمانية بثلاث عائلات: العرض للعناوين الكبرى، والنصي للقراءة الطويلة، واللاتيني الرقمي للواجهة */
+  --font: 'Thmanyah Sans', var(--font-fallback);
+  --font-display: 'Thmanyah Display', 'Thmanyah Sans', var(--font-fallback);
+  --font-text: 'Thmanyah Text', 'Thmanyah Sans', var(--font-fallback);
   --fs-display: clamp(40px, 7.6vw, 92px);
   --fs-scene: clamp(28px, 4.4vw, 52px);
   --fs-title: clamp(22px, 2.6vw, 32px);

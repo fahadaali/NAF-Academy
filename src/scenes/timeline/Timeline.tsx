@@ -42,7 +42,7 @@ export function Timeline({ children, count }: { children: ReactNode; count: numb
       <div className={styles.stage}>
         <div className={`wrap ${styles.head}`}>
           <span className="eyebrow">الدورات القادمة</span>
-          <Words as="h2" id="courses-title" text="مقاعد محدودة، ومواعيد قريبة." className="scene-title" />
+          <Words as="h2" id="courses-title" text="مقاعد مح~3دودة، ومواعيد قريبة." className="scene-title" />
           <a href="/courses" className={styles.all}>كل الدورات <span className="num">({count})</span></a>
         </div>
         <div className={styles.rail}>

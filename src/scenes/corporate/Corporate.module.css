@@ -37,7 +37,7 @@
 
 .done { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: 10px; text-align: center; background: var(--surface); opacity: 0; pointer-events: none; transition: opacity var(--t-reveal) var(--ease-glide); }
 .form[data-sent='1'] .done { opacity: 1; pointer-events: auto; }
-.done strong { font-size: 26px; }
+.done strong { font-family: var(--font-display); font-size: 30px; }
 .done span { color: var(--muted); }
 .done svg { fill: none; stroke: var(--gold-3); stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
 .done circle { stroke-dasharray: 151; stroke-dashoffset: 151; animation: d1 calc(var(--t-gentle) * 2.5) var(--ease-travel) forwards; }

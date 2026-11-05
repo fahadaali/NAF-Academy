@@ -50,13 +50,13 @@
 .top { display: flex; justify-content: space-between; font-size: 13px; opacity: 0.8; }
 .kicker { font-weight: 700; color: var(--tone-glyph); }
 .glyph {
-  align-self: center; justify-self: center; font-size: clamp(120px, 12vw, 170px); font-weight: 900; line-height: 1;
+  align-self: center; justify-self: center; font-family: var(--font-display); font-size: clamp(120px, 12vw, 170px); font-weight: 900; line-height: 1;
   color: transparent; -webkit-text-stroke: 1.4px var(--tone-glyph);
   transform: translateZ(30px) translateX(calc(var(--d) * 14px)); transition: color var(--t-gentle), transform var(--t-gentle) var(--ease-glide);
   text-shadow: 0 0 40px color-mix(in srgb, var(--tone-glyph) 25%, transparent);
 }
 .bottom { display: grid; gap: 6px; }
-.name { font-size: 26px; font-weight: 800; }
+.name { font-family: var(--font-display); font-size: 27px; font-weight: 700; }
 .sum { font-size: 15px; opacity: 0.78; }
 .go {
   display: inline-flex; align-items: center; gap: 6px; margin-block-start: 8px; font-size: 14px; font-weight: 700; color: var(--tone-glyph);

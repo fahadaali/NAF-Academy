@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { LadderStep } from '@/content/types'
 import { Words } from '@/components/Words'
+import { Kashida } from '@/components/Kashida'
 import { pinProgress, subscribe } from '@/motion/scroll-bus'
 import { prefersCalm } from '@/motion/tokens'
 import styles from './Ladder.module.css'
@@ -54,7 +55,7 @@ export function Ladder({ title, steps }: { title: string; steps: LadderStep[] })
               <li key={s.level} className={styles.panel} data-state={i === step ? 'on' : i < step ? 'past' : 'next'}>
                 <span className={`${styles.num} num`}>{String(i + 1).padStart(2, '0')}</span>
                 <span className={styles.kicker}>{s.name}</span>
-                <h3 className={styles.name}>{s.title}</h3>
+                <h3 className={styles.name}><Kashida text={s.title} active={i === step} /></h3>
                 <p className={styles.body}>{s.body}</p>
                 <ul role="list" className={styles.gains}>
                   {s.gains.map((g, k) => <li key={k} style={{ ['--k' as string]: k }}>{g}</li>)}

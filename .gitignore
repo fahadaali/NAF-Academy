@@ -8,3 +8,7 @@ next-env.d.ts
 .env*
 !.env.example
 .DS_Store
+
+# خط ثمانية — الترخيص يمنع إتاحة الملفات للتنزيل، والمستودع عام: لا تُرفع أبداً
+src/fonts/thmanyah/
+src/design/fonts.generated.css
