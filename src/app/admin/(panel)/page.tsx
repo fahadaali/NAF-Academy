@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { adminLists, auditEntries } from '@/admin/data'
+import { adminLists, auditEntries, needsAttention } from '@/admin/data'
 import { currentStaff, staffCan } from '@/server/auth'
 import { PageHead, Badge } from '@/admin/ui/kit'
 import { STATUS_LABEL } from '@/admin/courses/labels'
@@ -10,18 +10,20 @@ import p from '@/admin/ui/panel.module.css'
 export default async function Dashboard({ searchParams }: { searchParams: Promise<{ denied?: string }> }) {
   const { denied } = await searchParams
   const [canAudit, canWrite] = await Promise.all([staffCan('audit.read'), staffCan('content.write')])
-  const [{ courses, tracks, instructors, media }, log] = await Promise.all([adminLists(), canAudit ? auditEntries(8) : Promise.resolve([])])
+  const [{ courses, tracks, instructors, media }, log, attention] = await Promise.all([adminLists(), canAudit ? auditEntries(8) : Promise.resolve([]), needsAttention()])
   const me = await currentStaff()
   const now = new Date()
   const live = courses.filter((c) => ['open', 'soon', 'full'].includes(resolveStatus(c.status, c.publishAt, now)))
   const drafts = courses.filter((c) => c.status === 'draft')
-  const sales = courses.filter((c) => c.compareAt && (!c.saleEndsAt || new Date(c.saleEndsAt) > now))
+  /* عرض ساري الآن: في نافذته من البداية إلى النهاية (العروض العامة في صفحتها) */
+  const sales = courses.filter((c) => c.compareAt && c.compareAt > c.price && (!c.saleStartsAt || new Date(c.saleStartsAt) <= now) && (!c.saleEndsAt || new Date(c.saleEndsAt) > now))
   const upcoming = courses.filter((c) => c.startsAt && new Date(c.startsAt) > now).sort((a, b) => a.startsAt!.localeCompare(b.startsAt!)).slice(0, 5)
   return (
     <>
       <PageHead title="نظرة عامة" sub="حال المحتوى المنشور الآن" actions={canWrite ? <Link className="btn" href="/admin/courses/new">+ دورة جديدة</Link> : null} />
-      {denied && <p role="alert" style={{ padding: '12px 16px', borderRadius: 12, background: 'color-mix(in srgb, var(--danger) 12%, transparent)', color: 'var(--danger)', fontWeight: 600, marginBlockEnd: 16 }}>لا تملك صلاحية هذه الصفحة أو العملية. اطلبها من مالك الحساب.</p>}
-      {me?.role === 'instructor' && !me.instructorId && <p role="status" style={{ padding: '12px 16px', borderRadius: 12, background: 'var(--surface-2)', fontWeight: 600, marginBlockEnd: 16 }}>حسابك غير مربوط بملف مدرب بعد — لن تظهر لك دورات حتى يربطه مالك الحساب من «الفريق والصلاحيات».</p>}
+      {denied && <p role="alert" className={p.alert}>لا تملك صلاحية هذه الصفحة أو العملية. اطلبها من مالك الحساب.</p>}
+      {me?.role === 'instructor' && !me.instructorId && <p role="status" className={p.notice}>حسابك غير مربوط بملف مدرب بعد — لن تظهر لك دورات حتى يربطه مالك الحساب من «الفريق والصلاحيات».</p>}
+      {attention > 0 && <p role="status" className={p.alert}><span className="num">{attention}</span> عملية تحتاج تدخّلاً في آخر أسبوعين (تسجيل لم يُنسخ، مشترٍ مسجّل من قبل…) — <a href="/admin/audit?action=needs_attention">راجعها ←</a></p>}
       <div className={p.stats}>
         <Link href="/admin/courses" className={p.stat}><strong data-count>{live.length}</strong><span>دورة ظاهرة للتسجيل</span></Link>
         <Link href="/admin/courses" className={p.stat}><strong data-count>{drafts.length}</strong><span>مسودة</span></Link>

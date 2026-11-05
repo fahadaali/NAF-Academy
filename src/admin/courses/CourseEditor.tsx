@@ -61,14 +61,16 @@ type Props = {
   media: Media[]
   templates: { id: string; name: string }[]
   cohorts?: { row: CohortRow; used: number; sessions: CohortSessionRow[] }[]
+  /** يُفتح على تبويب بعينه (روابط «أضف التسجيل» من الجلسات) */
+  initialTab?: string
 }
 
-export function CourseEditor({ id, initial, previewToken, tracks, instructors, media, templates, cohorts = [] }: Props) {
+export function CourseEditor({ id, initial, previewToken, tracks, instructors, media, templates, cohorts = [], initialTab }: Props) {
   const write = useCan()('content.write')
   const router = useRouter()
   const [v, setV] = useState<CourseInput>(initial)
   const [saved, setSaved] = useState(JSON.stringify(initial))
-  const [tab, setTab] = useState<Tab>('basics')
+  const [tab, setTab] = useState<Tab>(() => (TABS.some(([k]) => k === initialTab) ? (initialTab as Tab) : 'basics'))
   const [errors, setErrors] = useState<Errors>({})
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
@@ -268,7 +270,7 @@ export function CourseEditor({ id, initial, previewToken, tracks, instructors, m
                   </Field>
                 </Grid>
               </Section>
-              <CurriculumEditor value={v.curriculum} onChange={(x) => set('curriculum', x)} errors={errors} />
+              <CurriculumEditor value={v.curriculum} onChange={(x) => set('curriculum', x)} errors={errors} cohorts={cohorts.length} />
             </>
           )}
 
@@ -370,7 +372,7 @@ function tabOf(key: string): Tab {
   return 'basics'
 }
 
-function CurriculumEditor({ value, onChange, errors }: { value: Curriculum; onChange: (v: Curriculum) => void; errors: Errors }) {
+function CurriculumEditor({ value, onChange, errors, cohorts }: { value: Curriculum; onChange: (v: Curriculum) => void; errors: Errors; cohorts: number }) {
   const mods = useSortable(value, onChange)
   const setMod = (i: number, m: Curriculum[number]) => onChange(value.map((x, k) => (k === i ? m : x)))
   const total = value.reduce((a, m) => a + m.lessons.reduce((b, l) => b + l.minutes, 0), 0)
@@ -384,7 +386,7 @@ function CurriculumEditor({ value, onChange, errors }: { value: Curriculum; onCh
               <Input value={m.title} placeholder="عنوان الوحدة" onChange={(e) => setMod(i, { ...m, title: e.target.value })} data-err={errors[`curriculum.${i}.title`] ? '1' : '0'} />
               <RowTools i={i} n={value.length} move={mods.move} onRemove={() => confirm('حذف الوحدة ودروسها؟') && onChange(value.filter((_, k) => k !== i))} />
             </div>
-            <LessonList value={m.lessons} onChange={(ls) => setMod(i, { ...m, lessons: ls })} errors={errors} prefix={`curriculum.${i}.lessons`} />
+            <LessonList cohorts={cohorts} value={m.lessons} onChange={(ls) => setMod(i, { ...m, lessons: ls })} errors={errors} prefix={`curriculum.${i}.lessons`} />
           </div>
         ))}
       </div>
@@ -393,7 +395,7 @@ function CurriculumEditor({ value, onChange, errors }: { value: Curriculum; onCh
   )
 }
 
-function LessonList({ value, onChange, errors, prefix }: { value: Curriculum[number]['lessons']; onChange: (v: Curriculum[number]['lessons']) => void; errors: Errors; prefix: string }) {
+function LessonList({ value, onChange, errors, prefix, cohorts }: { value: Curriculum[number]['lessons']; onChange: (v: Curriculum[number]['lessons']) => void; errors: Errors; prefix: string; cohorts: number }) {
   const { props, move } = useSortable(value, onChange)
   const [open, setOpen] = useState<string | null>(null)
   const bad = (i: number) => Object.keys(errors).some((k) => k.startsWith(`${prefix}.${i}.`) && !k.endsWith('.title'))
@@ -414,7 +416,7 @@ function LessonList({ value, onChange, errors, prefix }: { value: Curriculum[num
           </button>
           <RowTools i={i} n={value.length} move={move} onRemove={() => (!l.id || confirm(`حذف الدرس «${l.title || 'بلا عنوان'}»؟ يُحذف عند الحفظ.`)) && onChange(value.filter((_, k) => k !== i))} />
         </div>
-        {open === (l.id ?? String(i)) && <LessonDetail value={l} onChange={(p) => set(i, p)} err={(k) => errors[`${prefix}.${i}.${k}`]} />}
+        {open === (l.id ?? String(i)) && <LessonDetail value={l} onChange={(p) => set(i, p)} err={(k) => errors[`${prefix}.${i}.${k}`]} cohorts={cohorts} />}
         </div>
       ))}
       <button type="button" className={styles.addLesson} onClick={() => onChange([...value, { id: `new-${Date.now()}`, title: '', type: 'video', minutes: 0, preview: false }])}>+ درس</button>

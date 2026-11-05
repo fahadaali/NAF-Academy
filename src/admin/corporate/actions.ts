@@ -42,7 +42,7 @@ export async function saveOrganization(id: string | null, raw: unknown): Promise
   const oid = id ?? randomUUID()
   if (id) await db.update(s.organizations).set({ ...p.data, updatedAt: new Date().toISOString() }).where(eq(s.organizations.id, id))
   else await db.insert(s.organizations).values({ id: oid, ...p.data })
-  await audit(st.name, id ? 'update' : 'create', 'organization', oid, p.data.name)
+  await audit(st.name, id ? 'update' : 'create', 'organization', oid, p.data.name, p.data)
   refresh()
   return { ok: true, id: oid }
 }

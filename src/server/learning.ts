@@ -35,7 +35,8 @@ export async function learnerCourse(slug: string, learner: LearnerRow | null) {
   const prog = learner ? await db.select().from(s.lessonProgress).where(and(eq(s.lessonProgress.learnerId, learner.id), eq(s.lessonProgress.courseId, course.id))) : []
   const att = learner ? await db.select().from(s.attendance).where(and(eq(s.attendance.learnerId, learner.id), eq(s.attendance.courseId, course.id))) : []
   const done = new Set([...prog.filter((p) => p.completedAt).map((p) => p.lessonId), ...att.map((a) => a.lessonId)])
-  const [cohort] = row?.cohortId ? await db.select().from(s.cohorts).where(eq(s.cohorts.id, row.cohortId)) : []
+  /* دفعة في المحذوفات: المتدرب يبقى بمواعيد دروسه (لا تُعرض دفعة محذوفة) */
+  const [cohort] = row?.cohortId ? await db.select().from(s.cohorts).where(and(eq(s.cohorts.id, row.cohortId), isNull(s.cohorts.deletedAt))) : []
   const acc = availability(ordered.map((l) => ({ id: l.id, type: l.type, drip: l.drip, preview: l.preview, startsAt: l.startsAt })), {
     enrolledAt: enrollment ? dripBase(enrollment.createdAt, cohort?.startsAt) : null, sequential: course.sequential, completed: done,
   })

@@ -3,7 +3,7 @@
    كل إجراء: صلاحية ← تحقق ← كتابة ← سجل ← إعادة توليد. */
 import { randomUUID } from 'node:crypto'
 import { revalidatePath } from 'next/cache'
-import { and, eq } from 'drizzle-orm'
+import { and, eq, like, or } from 'drizzle-orm'
 import { z } from 'zod'
 import { db, schema as s } from '@/server/db'
 import { courseScope, inScope, requirePermission } from '@/server/auth'
@@ -165,8 +165,21 @@ export async function uploadCaption(form: FormData): Promise<{ ok: true; caption
 }
 
 /** ترجمات فيديو Stream — قائمة، ورفع ملف، وتوليد آلي */
+/** فيديو Stream من دروس دورات العضو؟ (المدرب محصور في دوراته) — والمدخلات بصيغتها */
+const UID = /^[a-f0-9]{32}$/
+const LANG = /^[a-z]{2}(-[A-Z]{2})?$/
+async function uidAllowed(st: Awaited<ReturnType<typeof requirePermission>>, uid: string) {
+  if (!UID.test(uid)) return false
+  const scope = await courseScope(st)
+  if (scope === null) return true
+  const rows = await db.select({ c: s.modules.courseId }).from(s.lessons).innerJoin(s.modules, eq(s.modules.id, s.lessons.moduleId))
+    .where(or(like(s.lessons.video, `%${uid}%`), like(s.lessons.recording, `%${uid}%`)))
+  return rows.some((r) => scope.includes(r.c))
+}
+
 export async function streamCaptionsOf(uid: string) {
-  await requirePermission('content.read')
+  const st = await requirePermission('content.read')
+  if (!(await uidAllowed(st, uid))) return []
   return (await streamCaptions(uid)) ?? []
 }
 export async function streamCaptionAdd(form: FormData): Promise<{ ok: boolean; error?: string }> {
@@ -175,6 +188,7 @@ export async function streamCaptionAdd(form: FormData): Promise<{ ok: boolean; e
   const lang = String(form.get('lang') ?? '')
   const file = form.get('file')
   if (!streamState().configured) return { ok: false, error: streamState().problem }
+  if (!LANG.test(lang) || !(await uidAllowed(st, uid))) return { ok: false, error: 'طلب غير صالح' }
   if (!(file instanceof File) || file.size > 2 * 1024 * 1024) return { ok: false, error: 'ملف ترجمة حتى 2 ميغابايت' }
   const vtt = toVtt(await file.text())
   if (!vtt) return { ok: false, error: 'الملف ليس ترجمة WebVTT أو SRT صالحة' }
@@ -185,6 +199,7 @@ export async function streamCaptionAdd(form: FormData): Promise<{ ok: boolean; e
 export async function streamCaptionAuto(uid: string, lang: string): Promise<{ ok: boolean; error?: string }> {
   const st = await requirePermission('content.write')
   if (!streamState().configured) return { ok: false, error: streamState().problem }
+  if (!LANG.test(lang) || !(await uidAllowed(st, uid))) return { ok: false, error: 'طلب غير صالح' }
   if (!(await streamCaptionGenerate(uid, lang))) return { ok: false, error: 'تعذّر بدء التوليد — تأكد أن الفيديو اكتملت معالجته' }
   await audit(st.name, 'caption', 'stream', uid, `توليد ${lang}`)
   return { ok: true }
@@ -195,6 +210,8 @@ export async function setZoom(enabled: boolean): Promise<{ ok: boolean; error?: 
   const st = await requirePermission('channels.manage')
   if (typeof enabled !== 'boolean') return { ok: false, error: 'بيانات غير صالحة' }
   if (enabled && !zoomState().configured) return { ok: false, error: zoomState().problem }
+  /* التسجيل يُنسخ من Zoom إلى Stream — بلا Stream لن يُلحق أي تسجيل */
+  if (enabled && !streamState().configured) return { ok: false, error: `اربط Cloudflare Stream أولاً — التسجيلات تُنسخ إليه (${streamState().problem})` }
   await setZoomEnabled(enabled)
   await audit(st.name, 'update', 'settings', 'zoom', enabled ? 'تسجيلات Zoom تلقائية' : 'تسجيلات Zoom موقوفة')
   revalidatePath('/admin/learning/sessions')

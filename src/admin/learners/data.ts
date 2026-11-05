@@ -29,7 +29,8 @@ export async function learnersList(opts: { q?: string; course?: string; page?: n
     db.select({ n: count() }).from(s.learners).where(where),
     db.select({ id: s.courses.id, title: s.courses.title }).from(s.courses).where(sql`${s.courses.deletedAt} is null`).orderBy(s.courses.sortOrder),
   ])
-  return { rows, total: total.n, page, courses: courses.map((c) => ({ id: c.id, title: c.title.replace(/~\d?/g, '') })) }
+  /* مرشّح الدورات: دورات المدرب وحدها */
+  return { rows, total: total.n, page, courses: courses.filter((c) => scope === null || scope.includes(c.id)).map((c) => ({ id: c.id, title: c.title.replace(/~\d?/g, '') })) }
 }
 
 export async function learnerProfile(id: string) {
@@ -52,11 +53,15 @@ export async function learnerProfile(id: string) {
     db.select({ r: s.reviews, title: s.courses.title }).from(s.reviews).innerJoin(s.courses, eq(s.courses.id, s.reviews.courseId)).where(eq(s.reviews.learnerId, id)),
     db.select().from(s.messageLog).where(or(eq(s.messageLog.to, l.email), l.phone ? eq(s.messageLog.to, l.phone) : undefined)).orderBy(desc(s.messageLog.createdAt)).limit(60),
   ])
-  const prog = await progressOf(enrolls.filter((x) => x.e.status === 'active').map((x) => ({ learnerId: id, courseId: x.e.courseId })))
+  /* المدرب: ما يخصّ دوراته وحدها من تسجيلات وشهادات واهتمام وتقييمات */
+  const mine = (c: string) => scope === null || scope.includes(c)
+  const enrollsIn = enrolls.filter((x) => mine(x.e.courseId))
+  const prog = await progressOf(enrollsIn.filter((x) => x.e.status === 'active').map((x) => ({ learnerId: id, courseId: x.e.courseId })))
   return {
     learner: l,
-    enrolls: enrolls.map((x) => ({ ...x, title: x.title.replace(/~\d?/g, ''), pct: prog.get(`${id}:${x.e.courseId}`)?.pct ?? null })),
-    orders, certs, orgs, interest: interest.map((x) => ({ ...x, title: x.title.replace(/~\d?/g, '') })),
-    reviews: reviews.map((x) => ({ ...x, title: x.title.replace(/~\d?/g, '') })), messages,
+    enrolls: enrollsIn.map((x) => ({ ...x, title: x.title.replace(/~\d?/g, ''), pct: prog.get(`${id}:${x.e.courseId}`)?.pct ?? null })),
+    orders: scope === null ? orders : [], certs: certs.filter((c) => mine(c.courseId)), orgs: scope === null ? orgs : [],
+    interest: interest.filter((x) => mine(x.i.courseId)).map((x) => ({ ...x, title: x.title.replace(/~\d?/g, '') })),
+    reviews: reviews.filter((x) => mine(x.r.courseId)).map((x) => ({ ...x, title: x.title.replace(/~\d?/g, '') })), messages: scope === null ? messages : [],
   }
 }

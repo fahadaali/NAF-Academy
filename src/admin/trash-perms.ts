@@ -4,7 +4,6 @@ import type { Perm } from '@/lib/permissions'
 
 export const TRASH_OWNER = {
   course: 'content.write', track: 'content.write', instructor: 'content.write', media: 'content.write',
-  coupon: 'sales.coupons', organization: 'corporate.manage', template: 'certificates.manage',
-  cohort: 'content.write', promotion: 'sales.coupons',
+  coupon: 'sales.coupons', organization: 'corporate.manage', template: 'certificates.templates',
+  cohort: 'content.write', promotion: 'sales.coupons', contract: 'corporate.manage',
 } as const satisfies Record<string, Perm>
-export type TrashEntity = keyof typeof TRASH_OWNER

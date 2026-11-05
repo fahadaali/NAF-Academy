@@ -88,7 +88,8 @@ export function CohortsPanel({ courseId, items, lessons, canWrite }: { courseId:
                 <button type="button" className={p.iconBtn} onClick={async () => {
                   if (it.used > 0) return alert('في الدفعة متدربون — انقلهم إلى دفعة أخرى من صفحة المسجّلين أولاً')
                   if (!confirm(`نقل «${it.row.title}» إلى المحذوفات؟`)) return
-                  await trash('cohort', it.row.id)
+                  const r = await trash('cohort', it.row.id)
+                  if (!r.ok) alert(r.error)
                   router.refresh()
                 }}>حذف</button>
               </div>

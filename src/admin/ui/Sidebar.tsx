@@ -18,7 +18,7 @@ const groups: { title: string; items: { href: string; label: string; icon: strin
     { href: '/admin/learning/sessions', label: 'الجلسات والحضور', icon: '⌖', perm: 'attendance.mark' },
     { href: '/admin/reviews', label: 'التقييمات', icon: '★', perm: 'content.write' },
     { href: '/admin/certificates', label: 'الشهادات', icon: '✪', perm: 'certificates.manage' },
-    { href: '/admin/certificates/templates', label: 'قوالب الشهادات', icon: '▭', perm: 'certificates.manage' },
+    { href: '/admin/certificates/templates', label: 'قوالب الشهادات', icon: '▭', perm: 'certificates.templates' },
   ] },
   { title: 'المبيعات', items: [
     { href: '/admin/analytics', label: 'التحليلات', icon: '◮', perm: 'analytics.read' },

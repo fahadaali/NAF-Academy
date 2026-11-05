@@ -153,7 +153,7 @@ export function TemplateEditor({ id, initial, media, brand }: { id: string | nul
 
           {id && (
             <div className={t.danger}>
-              <button type="button" className="btn ghost" onClick={async () => { const r = await duplicateTemplate(id); router.push(`/admin/certificates/templates/${r.id}`) }}>نسخ القالب</button>
+              <button type="button" className="btn ghost" onClick={async () => { const r = await duplicateTemplate(id); if (r.ok && r.id) router.push(`/admin/certificates/templates/${r.id}`); else setMsg({ ok: false, text: r.error ?? 'تعذّر النسخ' }) }}>نسخ القالب</button>
               <button type="button" className={t.remove} onClick={async () => { if (!confirm('حذف القالب؟ الشهادات الصادرة لا تتأثر.')) return; const r = await deleteTemplate(id); if (r.ok) router.push('/admin/certificates/templates'); else setMsg({ ok: false, text: r.error ?? '' }) }}>حذف القالب</button>
             </div>
           )}

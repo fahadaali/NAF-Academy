@@ -11,6 +11,10 @@ function parse(perms: string | null) {
   try { const v = JSON.parse(perms ?? 'null'); return { add: (v?.['+'] ?? []) as string[], del: (v?.['-'] ?? []) as string[] } } catch { return { add: [], del: [] } }
 }
 
+/** صلاحيات لا يحصرها نطاق المدرب — تسري على المنصة كلها إن مُنحت له */
+const GLOBAL = ['site.write', 'sales.read', 'sales.orders', 'sales.refund', 'sales.coupons', 'payments.manage', 'channels.manage', 'messages.read', 'trash.purge', 'team.manage', 'notify.manage', 'certificates.templates', 'corporate.manage', 'analytics.read']
+const LABELS = Object.fromEntries(PERM_GROUPS.flatMap((g) => g.perms)) as Record<string, string>
+
 export function PermsDialog({ userId, role, perms, name, onDone }: { userId: string; role: string; perms: string | null; name: string; onDone: () => void }) {
   const dlg = useRef<HTMLDialogElement>(null)
   const base = roleDefaults(role)
@@ -57,6 +61,10 @@ export function PermsDialog({ userId, role, perms, name, onDone }: { userId: str
             })}
           </fieldset>
         ))}
+        {role === 'instructor' && GLOBAL.some((k) => st[k] === 'grant') && (
+          <p className={t.err} role="status">تنبيه: المدرب محصور في دوراته في التعلّم والمتدربين والشهادات والدورات — لكن ما يُمنح هنا من صلاحيات عامة
+            ({GLOBAL.filter((k) => st[k] === 'grant').map((k) => LABELS[k]).join('، ')}) يسري على المنصة كلها.</p>
+        )}
         {err && <p className={t.err} role="alert">{err}</p>}
         <div className={t.dActions}>
           <button type="button" className="btn" onClick={save}>حفظ الصلاحيات</button>

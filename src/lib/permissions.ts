@@ -23,13 +23,13 @@ export const PERMS = [
   'sales.read', 'sales.orders', 'sales.refund', 'sales.coupons', 'payments.manage',
   'channels.manage', 'messages.read', 'learners.read',
   'trash.purge', 'team.manage', 'audit.read',
-  'learning.review', 'attendance.mark', 'notify.manage', 'certificates.manage', 'corporate.manage', 'analytics.read',
+  'learning.review', 'attendance.mark', 'notify.manage', 'certificates.manage', 'certificates.templates', 'corporate.manage', 'analytics.read',
 ] as const
 export type Perm = (typeof PERMS)[number]
 
 const MATRIX: Record<Role, Perm[]> = {
   owner: [...PERMS],
-  content: ['content.read', 'content.write', 'site.write', 'learners.read', 'audit.read', 'learning.review', 'attendance.mark', 'notify.manage', 'certificates.manage', 'analytics.read'],
+  content: ['content.read', 'content.write', 'site.write', 'learners.read', 'audit.read', 'learning.review', 'attendance.mark', 'notify.manage', 'certificates.manage', 'certificates.templates', 'analytics.read'],
   finance: ['content.read', 'sales.read', 'sales.orders', 'sales.refund', 'sales.coupons', 'learners.read', 'messages.read', 'audit.read', 'corporate.manage', 'analytics.read'],
   instructor: ['content.read', 'learners.read', 'learning.review', 'attendance.mark', 'certificates.manage'],
   support: ['content.read', 'sales.read', 'sales.orders', 'learners.read', 'messages.read', 'attendance.mark', 'corporate.manage'],
@@ -52,7 +52,7 @@ export const roleDefaults = (role: string): Perm[] => (isRole(role) ? [...MATRIX
 export const PERM_GROUPS: { title: string; perms: [Perm, string][] }[] = [
   { title: 'المحتوى والموقع', perms: [['content.read', 'الاطلاع على المحتوى'], ['content.write', 'تعديل الدورات والمسارات والمدربين والصور'], ['site.write', 'الرئيسية والصفحات العامة والهوية']] },
   { title: 'المبيعات', perms: [['sales.read', 'الاطلاع على الطلبات والتقارير'], ['sales.orders', 'الطلبات اليدوية والمقاعد والتسجيلات'], ['sales.refund', 'الاسترداد'], ['sales.coupons', 'الكوبونات والعروض العامة'], ['payments.manage', 'إعدادات الدفع']] },
-  { title: 'المتدربون والتعلّم', perms: [['learners.read', 'دليل المتدربين وملفاتهم'], ['learning.review', 'الواجبات والأسئلة'], ['attendance.mark', 'الحضور والجلسات'], ['certificates.manage', 'الشهادات وقوالبها']] },
+  { title: 'المتدربون والتعلّم', perms: [['learners.read', 'دليل المتدربين وملفاتهم'], ['learning.review', 'الواجبات والأسئلة'], ['attendance.mark', 'الحضور والجلسات'], ['certificates.manage', 'الشهادات (الاعتماد والإلغاء)'], ['certificates.templates', 'قوالب الشهادات (للمنصة كلها)']] },
   { title: 'الرسائل والمؤسسات', perms: [['notify.manage', 'قوالب الرسائل الآلية'], ['messages.read', 'سجل الرسائل'], ['channels.manage', 'قنوات البريد والجوال والمتصفح'], ['corporate.manage', 'المؤسسات وعقودها']] },
   { title: 'الإدارة', perms: [['team.manage', 'الفريق والصلاحيات'], ['audit.read', 'سجل التعديلات'], ['analytics.read', 'التحليلات'], ['trash.purge', 'الحذف النهائي من السلة']] },
 ]

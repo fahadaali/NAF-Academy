@@ -127,7 +127,7 @@ async function checkImages(d: CertDesign) {
 }
 
 export async function saveTemplate(id: string | null, raw: TemplateInput): Promise<{ ok: true; id: string } | { ok: false; errors: Record<string, string> }> {
-  const st = await requirePermission('certificates.manage')
+  const st = await requirePermission('certificates.templates')
   const p = templateInput.safeParse(raw)
   if (!p.success) return { ok: false, errors: Object.fromEntries(p.error.issues.map((i) => [i.path.join('.'), i.message])) }
   const bad = await checkImages(p.data.design)
@@ -142,8 +142,10 @@ export async function saveTemplate(id: string | null, raw: TemplateInput): Promi
 }
 
 export async function deleteTemplate(id: string): Promise<{ ok: boolean; error?: string }> {
-  const st = await requirePermission('certificates.manage')
+  const st = await requirePermission('certificates.templates')
+  if (!z.string().uuid().safeParse(id).success) return { ok: false, error: 'طلب غير صالح' }
   const live = await db.select({ id: s.certificateTemplates.id }).from(s.certificateTemplates).where(isNull(s.certificateTemplates.deletedAt))
+  if (!live.some((t) => t.id === id)) return { ok: false, error: 'القالب غير موجود' }
   if (live.length <= 1) return { ok: false, error: 'لا بد من قالب واحد على الأقل' }
   await db.update(s.certificateTemplates).set({ deletedAt: new Date().toISOString(), isDefault: false }).where(eq(s.certificateTemplates.id, id))
   await audit(st.name, 'trash', 'certificate_template', id, '')
@@ -153,7 +155,7 @@ export async function deleteTemplate(id: string): Promise<{ ok: boolean; error?:
 
 /** معاينة PDF حقيقية بالقالب الحالي (قبل الحفظ) ببيانات تجريبية */
 export async function previewTemplatePdf(design: CertDesign): Promise<string> {
-  await requirePermission('certificates.manage')
+  await requirePermission('certificates.templates')
   const d = designInput.parse(design)
   const bytes = await certificatePdf(d, {
     name: 'سارة عبدالله المتدربة', course: 'نظام الإثبات: من النص إلى المرافعة', hours: 12,
@@ -164,11 +166,13 @@ export async function previewTemplatePdf(design: CertDesign): Promise<string> {
 }
 
 export async function duplicateTemplate(id: string) {
-  const st = await requirePermission('certificates.manage')
-  const [t] = await db.select().from(s.certificateTemplates).where(eq(s.certificateTemplates.id, id))
+  const st = await requirePermission('certificates.templates')
+  if (!z.string().uuid().safeParse(id).success) return { ok: false, error: 'طلب غير صالح' }
+  const [t] = await db.select().from(s.certificateTemplates).where(and(eq(s.certificateTemplates.id, id), isNull(s.certificateTemplates.deletedAt)))
+  if (!t) return { ok: false, error: 'القالب غير موجود' }
   const nid = randomUUID()
-  await db.insert(s.certificateTemplates).values({ id: nid, name: `${t?.name ?? 'قالب'} (نسخة)`, design: t?.design ?? DEFAULT_DESIGN, isDefault: false })
-  await audit(st.name, 'duplicate', 'certificate_template', nid, '')
+  await db.insert(s.certificateTemplates).values({ id: nid, name: `${t.name} (نسخة)`, design: t.design, isDefault: false })
+  await audit(st.name, 'duplicate', 'certificate_template', nid, `نسخة من ${t.name}`, { from: id, name: `${t.name} (نسخة)`, design: t.design })
   refresh()
   return { ok: true, id: nid }
 }

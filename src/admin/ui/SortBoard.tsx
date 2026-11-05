@@ -39,7 +39,7 @@ export function SortBoard({ items, entity }: { items: BoardItem[]; entity: Extra
                 {write && <RowTools i={i} n={list.length} move={move} onRemove={() => {
                   if (!confirm(`نقل «${it.title}» إلى المحذوفات؟`)) return
                   setList((l) => l.filter((x) => x.id !== it.id))
-                  start(() => trash(entity, it.id))
+                  start(async () => { const r = await trash(entity, it.id); if (!r.ok) alert(r.error) })
                 }} />}
               </div>
             </td>

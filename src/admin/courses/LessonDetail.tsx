@@ -24,7 +24,7 @@ const parseMmss = (v: string) => {
 }
 const uid = () => Math.random().toString(36).slice(2, 8)
 
-export function LessonDetail({ value: l, onChange, err }: { value: Lesson; onChange: (patch: Partial<Lesson>) => void; err: (k: string) => string | undefined }) {
+export function LessonDetail({ value: l, onChange, err, cohorts = 0 }: { value: Lesson; onChange: (patch: Partial<Lesson>) => void; err: (k: string) => string | undefined; cohorts?: number }) {
   const session = l.type === 'live' || l.type === 'onsite'
   return (
     <div className={d.panel}>
@@ -33,6 +33,7 @@ export function LessonDetail({ value: l, onChange, err }: { value: Lesson; onCha
       {l.type === 'video' && l.video?.provider === 'url' && <Captions value={l.captions ?? []} onChange={(captions) => onChange({ captions })} />}
       {l.type === 'video' && l.video?.provider === 'stream' && /^[a-f0-9]{32}$/.test(l.video.uid) && <StreamCaptions uid={l.video.uid} />}
 
+      {session && cohorts > 0 && <p className={d.note} role="note">للدورة <span className="num">{cohorts}</span> دفعة — مواعيد كل دفعة وروابطها وتسجيلاتها في تبويب «الدفعات» تحلّ محل ما هنا لمتدربيها. ما هنا لمن ليس في دفعة، ولدفعة لم يُضبط لها موعد هذه الجلسة.</p>}
       {session && (
         <Grid>
           <Field label="يبدأ" hint="بتوقيت الرياض" error={err('startsAt')}><DateTime value={l.startsAt ?? null} onChange={(startsAt) => onChange({ startsAt })} /></Field>
@@ -167,8 +168,16 @@ function StreamCaptions({ uid }: { uid: string }) {
   const [msg, setMsg] = useState('')
   const [lang, setLang] = useState<string>(CAPTION_LANGS[0].lang)
   const file = useRef<HTMLInputElement>(null)
-  useEffect(() => { let live = true; streamCaptionsOf(uid).then((x) => live && setList(x)).catch(() => {}); return () => { live = false } }, [uid])
+  const [stream, setStream] = useState<{ configured: boolean; problem?: string } | null>(null)
+  useEffect(() => {
+    let live = true
+    streamStatus().then((x) => live && setStream(x)).catch((e) => console.error('stream status', e))
+    streamCaptionsOf(uid).then((x) => live && setList(x)).catch((e) => console.error('stream captions', e))
+    return () => { live = false }
+  }, [uid])
   const refresh = async () => setList(await streamCaptionsOf(uid))
+  /* بلا مفاتيح Stream: القسم مقفل بسبب واضح — لا أزرار تفشل */
+  if (stream?.configured === false) return <Field label="الترجمة النصية (Stream)"><span className={d.note}>مقفل — {stream.problem}</span></Field>
   return (
     <Field label="الترجمة النصية (Stream)" hint="يعرضها مشغّل Stream بزر الترجمة">
       <div className={d.list}>

@@ -6,8 +6,9 @@ import { isNull } from 'drizzle-orm'
 import { db, schema as s } from '@/server/db'
 import { cohortsForEdit } from '@/admin/cohorts/actions'
 
-export default async function EditCourse({ params }: { params: Promise<{ id: string }> }) {
+export default async function EditCourse({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ tab?: string }> }) {
   const { id } = await params
+  const { tab } = await searchParams
   const { tracks, instructors, media } = await adminLists()
   const templates = await db.select({ id: s.certificateTemplates.id, name: s.certificateTemplates.name }).from(s.certificateTemplates).where(isNull(s.certificateTemplates.deletedAt))
   if (id === 'new') return <CourseEditor id={null} initial={blankCourse()} tracks={tracks} instructors={instructors} media={media} templates={templates} />
@@ -25,6 +26,7 @@ export default async function EditCourse({ params }: { params: Promise<{ id: str
       media={media}
       templates={templates}
       cohorts={cohorts}
+      initialTab={tab}
     />
   )
 }

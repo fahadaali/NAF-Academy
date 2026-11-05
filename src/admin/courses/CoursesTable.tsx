@@ -104,7 +104,7 @@ export function CoursesTable({ courses, tracks, media }: { courses: CourseRow[];
                       {write && <button className={`${p.iconBtn} ${p.danger}`} onClick={() => {
                         if (!confirm(`نقل «${c.title}» إلى المحذوفات؟ يمكن استرجاعها لاحقاً.`)) return
                         setList((l) => l.filter((x) => x.id !== c.id))
-                        start(() => trash('course', c.id))
+                        start(async () => { const r = await trash('course', c.id); if (!r.ok) { alert(r.error); router.refresh() } })
                       }}>حذف</button>}
                     </div>
                   </td>

@@ -2,11 +2,11 @@
 /* إجراءات اللوحة — كل إجراء: جلسة ← تحقق ← كتابة ← سجل ← إعادة توليد الصفحات العامة. */
 import { randomUUID } from 'node:crypto'
 import { revalidatePath } from 'next/cache'
-import { and, count, eq, isNotNull, isNull } from 'drizzle-orm'
+import { and, count, eq, gt, isNotNull, isNull } from 'drizzle-orm'
 import { imageSize } from 'image-size'
 import { z } from 'zod'
 import { db, schema as s } from '@/server/db'
-import { requirePermission } from '@/server/auth'
+import { courseScope, requirePermission } from '@/server/auth'
 import type { Perm } from '@/lib/permissions'
 import { TRASH_OWNER } from './trash-perms'
 import { audit } from '@/server/audit'
@@ -41,6 +41,13 @@ export async function saveCourse(id: string | null, raw: CourseInput, opts: { co
   const admin = await requirePermission('content.write')
   const p = courseInput.safeParse(raw)
   if (!p.success) return { ok: false, errors: errorsOf(p.error), message: 'راجع الحقول المعلّمة' }
+  /* المدرب: يحرّر دوراته وحدها، والدورة الجديدة تُربط به فتبقى في دوراته */
+  const scope = await courseScope(admin)
+  if (scope !== null) {
+    if (id && !scope.includes(id)) return { ok: false, errors: {}, message: 'الدورة خارج دوراتك' }
+    if (!admin.instructorId) return { ok: false, errors: {}, message: 'حسابك غير مربوط بملف مدرب — اطلب ربطه من «الفريق»' }
+    if (!p.data.instructorIds.includes(admin.instructorId)) p.data.instructorIds.push(admin.instructorId)
+  }
   const { instructorIds, curriculum, tiers, groupRules, ...rest } = p.data
   /* الوصف النصي يُشتق من الكتل — للبحث والرسائل والنسخ النصية */
   const v = rest.content ? { ...rest, description: blocksText(rest.content) } : rest
@@ -52,8 +59,11 @@ export async function saveCourse(id: string | null, raw: CourseInput, opts: { co
     if (warn) return { ok: false, errors: {}, message: warn, confirm: warn }
   }
   try {
-    if (id) await db.update(s.courses).set({ ...v, updatedAt: now() }).where(eq(s.courses.id, id))
-    else await db.insert(s.courses).values({ ...v, id: cid, previewToken: token() })
+    if (id) {
+      /* دورة في المحذوفات لا تُحرَّر من محرّر مفتوح قديم — تُسترجع أولاً */
+      const done = await db.update(s.courses).set({ ...v, updatedAt: now() }).where(and(eq(s.courses.id, id), isNull(s.courses.deletedAt))).returning({ id: s.courses.id })
+      if (!done.length) return { ok: false, errors: {}, message: 'الدورة في المحذوفات — استرجعها أولاً' }
+    } else await db.insert(s.courses).values({ ...v, id: cid, previewToken: token() })
   } catch (e) {
     return uniqueError(e) ?? { ok: false, errors: {}, message: 'تعذّر الحفظ' }
   }
@@ -114,16 +124,19 @@ export async function setCourseStatus(id: string, status: CourseStatus) {
   const admin = await requirePermission('content.write')
   /* SQLite لا يفرض القيم المعدودة — يُتحقق هنا قبل الكتابة */
   if (!z.enum(COURSE_STATUS).safeParse(status).success || !idInput.safeParse(id).success) return
+  if (!(await inMyCourses(admin, 'course', id))) return
+  const [before] = await db.select({ status: s.courses.status }).from(s.courses).where(eq(s.courses.id, id))
   await db.update(s.courses).set({ status, updatedAt: now() }).where(eq(s.courses.id, id))
-  await audit(admin.name, 'status', 'course', id, status)
+  await audit(admin.name, 'status', 'course', id, status, { before: before?.status, status })
   refresh()
 }
 
-/** نسخة لدفعة جديدة: مسودة، بلا مقاعد محجوزة ولا مواعيد، بالمنهج والمدربين */
+/** نسخة لدفعة جديدة: مسودة، بلا مقاعد محجوزة ولا مواعيد ولا روابط اجتماعات ولا تسجيلات، بالمنهج والمدربين */
 export async function duplicateCourse(id: string): Promise<Result> {
   const admin = await requirePermission('content.write')
   if (!idInput.safeParse(id).success) return { ok: false, errors: {}, message: 'غير موجودة' }
-  const [c] = await db.select().from(s.courses).where(eq(s.courses.id, id))
+  if (!(await inMyCourses(admin, 'course', id))) return { ok: false, errors: {}, message: 'الدورة خارج دوراتك' }
+  const [c] = await db.select().from(s.courses).where(and(eq(s.courses.id, id), isNull(s.courses.deletedAt)))
   if (!c) return { ok: false, errors: {}, message: 'غير موجودة' }
   const nid = randomUUID()
   const suffix = Date.now().toString(36).slice(-4)
@@ -138,7 +151,10 @@ export async function duplicateCourse(id: string): Promise<Result> {
     const mid = randomUUID()
     await db.insert(s.modules).values({ ...m, id: mid, courseId: nid })
     const ls = await db.select().from(s.lessons).where(eq(s.lessons.moduleId, m.id))
-    for (const part of chunksOf(s.lessons, ls.map((l) => ({ ...l, id: randomUUID(), moduleId: mid })))) await db.insert(s.lessons).values(part)
+    /* الجلسة في النسخة اجتماع جديد: لا موعد ولا رابط ولا رقم Zoom (وإلا تنافست النسختان على التسجيل) ولا تسجيل الدفعة السابقة */
+    const fresh = ls.map((l) => ({ ...l, id: randomUUID(), moduleId: mid, ...(l.type === 'live' || l.type === 'onsite'
+      ? { startsAt: null, endsAt: null, joinUrl: '', zoomMeetingId: null, recording: { provider: 'none' as const } } : {}) }))
+    for (const part of chunksOf(s.lessons, fresh)) await db.insert(s.lessons).values(part)
   }
   const tiers = await db.select().from(s.priceTiers).where(eq(s.priceTiers.courseId, id))
   for (const part of chunksOf(s.priceTiers, tiers.map((t) => ({ ...t, id: randomUUID(), courseId: nid })))) await db.insert(s.priceTiers).values(part)
@@ -147,7 +163,7 @@ export async function duplicateCourse(id: string): Promise<Result> {
   /* «أبلغني بالدفعة القادمة»: النسخة هي الدفعة القادمة — يُنقل إليها من لم يُبلَّغ بعد، فيصله «فُتح التسجيل» عند فتحها */
   const moved = await db.update(s.interest).set({ courseId: nid, updatedAt: now() })
     .where(and(eq(s.interest.courseId, id), eq(s.interest.kind, 'next_cohort'), isNull(s.interest.notifiedAt))).returning({ id: s.interest.id })
-  await audit(admin.name, 'duplicate', 'course', nid, `نسخة من ${c.title}${moved.length ? ` · نُقل ${moved.length} من قائمة «الدفعة القادمة»` : ''}`)
+  await audit(admin.name, 'duplicate', 'course', nid, `نسخة من ${c.title}${moved.length ? ` · نُقل ${moved.length} من قائمة «الدفعة القادمة»` : ''}`, { from: id, moved: moved.length })
   refresh()
   return { ok: true, id: nid }
 }
@@ -155,6 +171,8 @@ export async function duplicateCourse(id: string): Promise<Result> {
 export async function reorder(entity: 'course' | 'track' | 'instructor', ids: string[]) {
   const admin = await requirePermission('content.write')
   if (!z.enum(['course', 'track', 'instructor']).safeParse(entity).success || !z.array(idInput).max(500).safeParse(ids).success) return
+  /* الترتيب العام للموقع كله — ليس للمدرب المحصور في دوراته */
+  if ((await courseScope(admin)) !== null) return
   const table = entity === 'course' ? s.courses : entity === 'track' ? s.tracks : s.instructors
   for (const [i, id] of ids.entries()) await db.update(table).set({ sortOrder: i }).where(eq(table.id, id))
   await audit(admin.name, 'reorder', entity, '-', `${ids.length} عناصر`)
@@ -199,35 +217,63 @@ export async function saveInstructor(id: string | null, raw: InstructorInput): P
 
 const tables = {
   course: s.courses, track: s.tracks, instructor: s.instructors, media: s.media, coupon: s.coupons,
-  organization: s.organizations, template: s.certificateTemplates, cohort: s.cohorts, promotion: s.promotions,
+  organization: s.organizations, template: s.certificateTemplates, cohort: s.cohorts, promotion: s.promotions, contract: s.orgContracts,
 } as const
 export type Entity = keyof typeof tables
 const OWNER: Record<Entity, Perm> = TRASH_OWNER
 const isEntity = (e: unknown): e is Entity => typeof e === 'string' && Object.hasOwn(tables, e)
 
-export async function trash(entity: Entity, id: string) {
-  if (!isEntity(entity)) return
-  const admin = await requirePermission(OWNER[entity])
-  if (!idInput.safeParse(id).success) return
-  const t = tables[entity]
-  /* دفعة فيها متدربون لا تُحذف — يُنقلون أولاً */
+/** المدرب محصور في دوراته: الدورة نفسها أو دفعة من دفعاتها */
+async function inMyCourses(admin: Awaited<ReturnType<typeof requirePermission>>, entity: Entity, id: string) {
+  const scope = await courseScope(admin)
+  if (scope === null) return true
+  if (entity === 'course') return scope.includes(id)
   if (entity === 'cohort') {
-    const [n] = await db.select({ n: count() }).from(s.enrollments).where(and(eq(s.enrollments.cohortId, id), eq(s.enrollments.status, 'active')))
-    if (n.n) return
+    const [k] = await db.select({ c: s.cohorts.courseId }).from(s.cohorts).where(eq(s.cohorts.id, id))
+    return !!k && scope.includes(k.c)
   }
-  await db.update(t).set({ deletedAt: now() }).where(eq(t.id, id))
-  await audit(admin.name, 'trash', entity, id, 'نُقل إلى المحذوفات')
-  refresh()
+  return true
 }
 
-export async function restore(entity: Entity, id: string) {
-  if (!isEntity(entity)) return
+export async function trash(entity: Entity, id: string): Promise<{ ok: boolean; error?: string }> {
+  if (!isEntity(entity)) return { ok: false, error: 'عنصر غير صالح' }
   const admin = await requirePermission(OWNER[entity])
-  if (!idInput.safeParse(id).success) return
+  if (!idInput.safeParse(id).success) return { ok: false, error: 'عنصر غير صالح' }
+  if (!(await inMyCourses(admin, entity, id))) return { ok: false, error: 'خارج دوراتك' }
+  const t = tables[entity]
+  /* دفعة فيها متدربون أو مقاعد مؤسسات غير مخصّصة أو طلبات معلّقة لا تُحذف — يُنقلون أو تُحسم أولاً */
+  if (entity === 'cohort') {
+    const [n] = await db.select({ n: count() }).from(s.enrollments).where(and(eq(s.enrollments.cohortId, id), eq(s.enrollments.status, 'active')))
+    if (n.n) return { ok: false, error: `في الدفعة ${n.n} متدرب — انقلهم إلى دفعة أخرى من صفحة المسجّلين أولاً` }
+    const [g] = await db.select({ n: count() }).from(s.seatGrants).where(and(eq(s.seatGrants.cohortId, id), isNull(s.seatGrants.enrollmentId)))
+    if (g.n) return { ok: false, error: `للدفعة ${g.n} مقعد مؤسسة لم يُخصَّص بعد — خصّصها أو انقلها أولاً` }
+    const [o] = await db.select({ n: count() }).from(s.orderItems).innerJoin(s.orders, eq(s.orders.id, s.orderItems.orderId))
+      .where(and(eq(s.orderItems.cohortId, id), eq(s.orders.status, 'pending'), gt(s.orders.expiresAt, now())))
+    if (o.n) return { ok: false, error: 'على الدفعة طلب معلّق لم يُدفع بعد — انتظر انتهاء مهلته أو ألغه' }
+  }
+  /* عقد عليه مقاعد سارية: تُحرَّر أولاً (وإلا بقي وصول أصحابها بلا عقد ظاهر) */
+  if (entity === 'contract') {
+    const [n] = await db.select({ n: count() }).from(s.enrollments).where(and(eq(s.enrollments.contractId, id), eq(s.enrollments.status, 'active')))
+    if (n.n) return { ok: false, error: `على العقد ${n.n} مقعد مخصّص — حرّرها أولاً أو ألغِ العقد` }
+  }
+  const [before] = await db.select().from(t).where(eq(t.id, id))
+  if (!before) return { ok: false, error: 'العنصر غير موجود' }
+  await db.update(t).set({ deletedAt: now() }).where(eq(t.id, id))
+  await audit(admin.name, 'trash', entity, id, 'نُقل إلى المحذوفات', before)
+  refresh()
+  return { ok: true }
+}
+
+export async function restore(entity: Entity, id: string): Promise<{ ok: boolean; error?: string }> {
+  if (!isEntity(entity)) return { ok: false, error: 'عنصر غير صالح' }
+  const admin = await requirePermission(OWNER[entity])
+  if (!idInput.safeParse(id).success) return { ok: false, error: 'عنصر غير صالح' }
+  if (!(await inMyCourses(admin, entity, id))) return { ok: false, error: 'خارج دوراتك' }
   const t = tables[entity]
   await db.update(t).set({ deletedAt: null }).where(eq(t.id, id))
   await audit(admin.name, 'restore', entity, id, 'استُرجع من المحذوفات')
   refresh()
+  return { ok: true }
 }
 
 /** حذف نهائي — من صفحة المحذوفات فقط وبعد تأكيد صريح. يفكّ الارتباطات أولاً،
@@ -279,7 +325,10 @@ export async function purge(entity: Entity, id: string, confirm: string): Promis
     await db.update(s.tracks).set({ coverId: null }).where(eq(s.tracks.coverId, id))
     await db.update(s.instructors).set({ photoId: null }).where(eq(s.instructors.photoId, id))
     await db.update(s.instructors).set({ sceneId: null }).where(eq(s.instructors.sceneId, id))
-    await deleteObject((row as typeof s.media.$inferSelect).key)
+    const m = row as typeof s.media.$inferSelect
+    await deleteObject(m.key)
+    /* وتوأمه JPEG لصور المشاركة إن وُجد */
+    if (m.ogKey) await deleteObject(m.ogKey)
   }
   await db.delete(t).where(eq(t.id, id))
   await audit(admin.name, 'purge', entity, id, 'حذف نهائي', row)
@@ -337,7 +386,7 @@ export async function updateMedia(id: string, v: { alt: string; focalX: number; 
   if (!idInput.safeParse(id).success || !z.object({ alt: z.string().max(400), focalX: z.number(), focalY: z.number() }).safeParse(v).success) return
   const clamp = (n: number) => Math.max(0, Math.min(100, Number.isFinite(n) ? n : 50))
   await db.update(s.media).set({ alt: v.alt.slice(0, 200), focalX: clamp(v.focalX), focalY: clamp(v.focalY), updatedAt: now() }).where(eq(s.media.id, id))
-  await audit(admin.name, 'update', 'media', id, v.alt)
+  await audit(admin.name, 'update', 'media', id, v.alt, { alt: v.alt.slice(0, 200), focalX: clamp(v.focalX), focalY: clamp(v.focalY) })
   refresh()
 }
 

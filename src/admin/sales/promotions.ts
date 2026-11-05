@@ -2,7 +2,7 @@
 /* العروض العامة — خصم تلقائي على المنصة أو مسار أو دورات في نافذة زمنية. الحذف ناعم عبر السلة. */
 import { randomUUID } from 'node:crypto'
 import { revalidatePath } from 'next/cache'
-import { desc, eq, isNull } from 'drizzle-orm'
+import { and, desc, eq, isNull } from 'drizzle-orm'
 import { z } from 'zod'
 import { db, schema as s } from '@/server/db'
 import { requirePermission } from '@/server/auth'
@@ -19,8 +19,10 @@ export async function savePromotion(id: string | null, raw: PromotionInput): Pro
   /* القوائم غير المستعملة للنطاق تُفرَّغ فلا تبقى بقايا مختار سابق */
   const v = { ...p.data, trackIds: p.data.scope === 'tracks' ? p.data.trackIds : [], courseIds: p.data.scope === 'courses' ? p.data.courseIds : [] }
   const pid = id ?? randomUUID()
-  if (id) await db.update(s.promotions).set({ ...v, updatedAt: new Date().toISOString() }).where(eq(s.promotions.id, id))
-  else await db.insert(s.promotions).values({ ...v, id: pid })
+  if (id) {
+    const done = await db.update(s.promotions).set({ ...v, updatedAt: new Date().toISOString() }).where(and(eq(s.promotions.id, id), isNull(s.promotions.deletedAt))).returning({ id: s.promotions.id })
+    if (!done.length) return { ok: false, errors: {}, message: 'العرض غير موجود أو في المحذوفات' }
+  } else await db.insert(s.promotions).values({ ...v, id: pid })
   await audit(st.name, id ? 'update' : 'create', 'promotion', pid, v.label, v)
   revalidatePath('/', 'layout')
   return { ok: true, id: pid }

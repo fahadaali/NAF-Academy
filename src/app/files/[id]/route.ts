@@ -1,6 +1,6 @@
 /* تنزيل الملفات الخاصة للمتدرب: مرفق الدرس للمسجّل في دورته (أو لأي زائر إن كان الدرس معاينة)، والتسليم لصاحبه.
    الفريق ينزّل من /admin/files/[id] حيث تصل هويته عبر الوسيط. */
-import { and, eq, like } from 'drizzle-orm'
+import { and, eq, isNull, like } from 'drizzle-orm'
 import { db, schema as s } from '@/server/db'
 import { currentLearner } from '@/server/learner-auth'
 import { assetRow, serveAsset } from '@/server/assets'
@@ -18,7 +18,9 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
   if (a.scope === 'caption') {
     /* ترجمة فيديو: لمن يحق له الدرس (المسجّل الساري وصوله، أو أي زائر لدرس معاينة) */
     const rows = await db.select({ courseId: s.modules.courseId, preview: s.lessons.preview, captions: s.lessons.captions }).from(s.lessons)
-      .innerJoin(s.modules, eq(s.modules.id, s.lessons.moduleId)).where(like(s.lessons.captions, `%${id}%`))
+      .innerJoin(s.modules, eq(s.modules.id, s.lessons.moduleId)).innerJoin(s.courses, eq(s.courses.id, s.modules.courseId))
+      /* دورة في المحذوفات لا تُنزَّل ملفاتها */
+      .where(and(like(s.lessons.captions, `%${id}%`), isNull(s.courses.deletedAt)))
     for (const r of rows) {
       if (ok || !r.captions.some((x) => x.assetId === id)) continue
       if (r.preview) { ok = true; continue }
@@ -33,7 +35,9 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
   }
   if (a.scope === 'lesson') {
     const rows = await db.select({ courseId: s.modules.courseId, preview: s.lessons.preview, attachments: s.lessons.attachments }).from(s.lessons)
-      .innerJoin(s.modules, eq(s.modules.id, s.lessons.moduleId)).where(like(s.lessons.attachments, `%${id}%`))
+      .innerJoin(s.modules, eq(s.modules.id, s.lessons.moduleId)).innerJoin(s.courses, eq(s.courses.id, s.modules.courseId))
+      /* دورة في المحذوفات لا تُنزَّل ملفاتها */
+      .where(and(like(s.lessons.attachments, `%${id}%`), isNull(s.courses.deletedAt)))
     for (const r of rows) {
       if (ok || !r.attachments.some((x) => x.assetId === id)) continue
       if (r.preview) { ok = true; continue }

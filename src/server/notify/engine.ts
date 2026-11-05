@@ -105,8 +105,11 @@ export async function onRecordingReady(lessonId: string, cohortId: string | null
   try {
     const [row] = await db.select({ courseId: s.modules.courseId }).from(s.lessons).innerJoin(s.modules, eq(s.modules.id, s.lessons.moduleId)).where(eq(s.lessons.id, lessonId))
     if (!row) return
-    const enr = await db.select({ e: s.enrollments, l: s.learners }).from(s.enrollments).innerJoin(s.learners, eq(s.learners.id, s.enrollments.learnerId))
-      .where(and(eq(s.enrollments.courseId, row.courseId), eq(s.enrollments.status, 'active'), cohortId ? eq(s.enrollments.cohortId, cohortId) : isNull(s.enrollments.cohortId)))
+    /* تسجيل جلسة دفعة: لمتدربيها. تسجيل الدرس نفسه: لمن يتبع موعد الدرس — من ليس في دفعة، ومن لا صفّ لدفعته لهذا الدرس */
+    const covered = cohortId ? [] : (await db.select({ c: s.cohortSessions.cohortId }).from(s.cohortSessions).where(eq(s.cohortSessions.lessonId, lessonId))).map((x) => x.c)
+    const all = await db.select({ e: s.enrollments, l: s.learners }).from(s.enrollments).innerJoin(s.learners, eq(s.learners.id, s.enrollments.learnerId))
+      .where(and(eq(s.enrollments.courseId, row.courseId), eq(s.enrollments.status, 'active'), cohortId ? eq(s.enrollments.cohortId, cohortId) : undefined))
+    const enr = cohortId ? all : all.filter((x) => !x.e.cohortId || !covered.includes(x.e.cohortId))
     const rows: Omit<Row, 'id'>[] = enr.filter((x) => hasAccess(x.e)).map(({ l }) => ({
       key: `rec:${lessonId}:${cohortId ?? '-'}:${l.id}`, event: 'recording_ready', channel: 'email', to: l.email, learnerId: l.id, courseId: row.courseId, ref: { lessonId }, sendAt: iso(new Date()),
     }))

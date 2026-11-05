@@ -84,3 +84,6 @@
 .pre { white-space: pre-line; }
 /* البريد والجوال والروابط: من اليسار، وتنكسر إن طالت */
 .ltr { direction: ltr; text-align: end; overflow-wrap: anywhere; }
+.alert { padding: 12px 16px; border-radius: var(--radius-m); background: color-mix(in srgb, var(--danger) 12%, transparent); color: var(--danger); font-weight: 600; margin-block-end: 16px; }
+.alert a { color: inherit; text-decoration: underline; }
+.notice { padding: 12px 16px; border-radius: var(--radius-m); background: var(--surface-2); font-weight: 600; margin-block-end: 16px; }

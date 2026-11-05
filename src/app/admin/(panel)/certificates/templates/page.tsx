@@ -11,7 +11,7 @@ import p from '@/admin/ui/panel.module.css'
 const SAMPLE = { name: 'اسم المتدرب', course: 'اسم الدورة', hours: 12, date: '5 نوفمبر 2026', hijri: '14 جمادى الأولى 1448', code: 'NAF-DEMO-2026' }
 
 export default async function Templates() {
-  await requirePermission('certificates.manage')
+  await requirePermission('certificates.templates')
   const [rows, used, brand] = await Promise.all([
     db.select().from(s.certificateTemplates).where(isNull(s.certificateTemplates.deletedAt)).orderBy(desc(s.certificateTemplates.isDefault), asc(s.certificateTemplates.createdAt)),
     db.select({ id: s.certificates.templateId, n: count() }).from(s.certificates).where(eq(s.certificates.status, 'issued')).groupBy(s.certificates.templateId),

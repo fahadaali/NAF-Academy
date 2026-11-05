@@ -1,6 +1,6 @@
 import { and, count, desc, eq, isNull } from 'drizzle-orm'
 import { db, schema as s } from '@/server/db'
-import { courseScope, requirePermission } from '@/server/auth'
+import { courseScope, requirePermission, staffCan } from '@/server/auth'
 import { inList } from '@/server/db/limits'
 import { Board, Recheck, type BoardRow } from '@/admin/certificates/Board'
 import { PageHead } from '@/admin/ui/kit'
@@ -27,7 +27,7 @@ export default async function Certificates({ searchParams }: { searchParams: Pro
   }))
   return (
     <>
-      <PageHead title="الشهادات" sub="تُفحص الشروط تلقائياً بعد كل تقدّم — اعتمد ما بانتظار المراجعة" actions={<a className="btn ghost" href="/admin/certificates/templates">القوالب</a>} />
+      <PageHead title="الشهادات" sub="تُفحص الشروط تلقائياً بعد كل تقدّم — اعتمد ما بانتظار المراجعة" actions={(await staffCan('certificates.templates')) ? <a className="btn ghost" href="/admin/certificates/templates">القوالب</a> : undefined} />
       <div className={p.toolbar}>
         <div className={p.chips}>{F.map(([k, l]) => <a key={k} href={`?s=${k}${q.c ? `&c=${q.c}` : ''}`} className={p.chip} aria-current={(status === k) ? 'page' : undefined}>{l} <span className="num">{n.get(k) ?? 0}</span></a>)}</div>
         <span style={{ flex: 1 }} />

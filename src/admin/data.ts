@@ -1,8 +1,8 @@
 import 'server-only'
 /* قراءات اللوحة — تشمل المسودات، ولا تُستدعى إلا بعد requireAdmin. */
-import { and, asc, desc, eq, isNotNull, isNull, sql } from 'drizzle-orm'
+import { and, asc, count, desc, eq, gte, isNotNull, isNull, sql } from 'drizzle-orm'
 import { db, schema as s } from '@/server/db'
-import { courseScope, inScope, requirePermission } from '@/server/auth'
+import { courseScope, inScope, requirePermission, staffCan } from '@/server/auth'
 import { inList } from '@/server/db/limits'
 
 export async function adminLists() {
@@ -38,8 +38,8 @@ export async function courseForEdit(id: string) {
 }
 
 export async function trashed() {
-  await requirePermission('content.read')
-  const [courses, tracks, instructors, media, coupons, orgs, templates, cohorts, promos] = await Promise.all([
+  const scope = await courseScope(await requirePermission('content.read'))
+  const [courses, tracks, instructors, media, coupons, orgs, templates, cohorts, promos, contracts] = await Promise.all([
     db.select({ id: s.courses.id, name: s.courses.title, at: s.courses.deletedAt }).from(s.courses).where(isNotNull(s.courses.deletedAt)),
     db.select({ id: s.tracks.id, name: s.tracks.title, at: s.tracks.deletedAt }).from(s.tracks).where(isNotNull(s.tracks.deletedAt)),
     db.select({ id: s.instructors.id, name: s.instructors.name, at: s.instructors.deletedAt }).from(s.instructors).where(isNotNull(s.instructors.deletedAt)),
@@ -47,24 +47,36 @@ export async function trashed() {
     db.select({ id: s.coupons.id, name: s.coupons.code, at: s.coupons.deletedAt }).from(s.coupons).where(isNotNull(s.coupons.deletedAt)),
     db.select({ id: s.organizations.id, name: s.organizations.name, at: s.organizations.deletedAt }).from(s.organizations).where(isNotNull(s.organizations.deletedAt)),
     db.select({ id: s.certificateTemplates.id, name: s.certificateTemplates.name, at: s.certificateTemplates.deletedAt }).from(s.certificateTemplates).where(isNotNull(s.certificateTemplates.deletedAt)),
-    db.select({ id: s.cohorts.id, name: s.cohorts.title, at: s.cohorts.deletedAt }).from(s.cohorts).where(isNotNull(s.cohorts.deletedAt)),
+    db.select({ id: s.cohorts.id, name: s.cohorts.title, at: s.cohorts.deletedAt, courseId: s.cohorts.courseId }).from(s.cohorts).where(isNotNull(s.cohorts.deletedAt)),
     db.select({ id: s.promotions.id, name: s.promotions.label, at: s.promotions.deletedAt }).from(s.promotions).where(isNotNull(s.promotions.deletedAt)),
+    db.select({ id: s.orgContracts.id, name: s.orgContracts.title, at: s.orgContracts.deletedAt }).from(s.orgContracts).where(isNotNull(s.orgContracts.deletedAt)),
   ])
+  /* المدرب: دوراته ودفعاتها وحدها */
+  const mine = (id: string) => scope === null || scope.includes(id)
   return [
-    ...courses.map((x) => ({ ...x, entity: 'course' as const, label: 'دورة' })),
+    ...courses.filter((x) => mine(x.id)).map((x) => ({ ...x, entity: 'course' as const, label: 'دورة' })),
     ...tracks.map((x) => ({ ...x, entity: 'track' as const, label: 'مسار' })),
     ...instructors.map((x) => ({ ...x, entity: 'instructor' as const, label: 'مدرب' })),
     ...media.map((x) => ({ ...x, entity: 'media' as const, label: 'صورة' })),
     ...coupons.map((x) => ({ ...x, entity: 'coupon' as const, label: 'كوبون' })),
     ...orgs.map((x) => ({ ...x, entity: 'organization' as const, label: 'مؤسسة' })),
     ...templates.map((x) => ({ ...x, entity: 'template' as const, label: 'قالب شهادة' })),
-    ...cohorts.map((x) => ({ ...x, entity: 'cohort' as const, label: 'دفعة' })),
+    ...cohorts.filter((x) => mine(x.courseId)).map(({ courseId: _, ...x }) => ({ ...x, entity: 'cohort' as const, label: 'دفعة' })),
     ...promos.map((x) => ({ ...x, entity: 'promotion' as const, label: 'عرض عام' })),
+    ...contracts.map((x) => ({ ...x, entity: 'contract' as const, label: 'عقد مؤسسة' })),
   ].sort((a, b) => String(b.at).localeCompare(String(a.at)))
 }
 
-export async function auditEntries(limit = 200) {
+export async function auditEntries(limit = 200, action?: string) {
   await requirePermission('audit.read')
   return db.select({ id: s.auditLog.id, actor: s.auditLog.actor, action: s.auditLog.action, entity: s.auditLog.entity, entityId: s.auditLog.entityId, summary: s.auditLog.summary, at: s.auditLog.at, versioned: sql<number>`${s.auditLog.snapshot} is not null` })
-    .from(s.auditLog).orderBy(desc(s.auditLog.id)).limit(limit)
+    .from(s.auditLog).where(action ? eq(s.auditLog.action, action) : undefined).orderBy(desc(s.auditLog.id)).limit(limit)
+}
+
+/** ما يحتاج تدخّلاً بشرياً (تسجيل Zoom لم يُنسخ، مشترٍ مسجّل من قبل…) — آخر أسبوعين */
+export async function needsAttention() {
+  if (!(await staffCan('audit.read'))) return 0
+  const since = new Date(Date.now() - 14 * 864e5).toISOString()
+  const [r] = await db.select({ n: count() }).from(s.auditLog).where(and(eq(s.auditLog.action, 'needs_attention'), gte(s.auditLog.at, since)))
+  return r.n
 }

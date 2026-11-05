@@ -3,14 +3,14 @@
 import { lt } from 'drizzle-orm'
 import { z } from 'zod'
 import { db, schema as s } from '@/server/db'
-import { requirePermission } from '@/server/auth'
+import { courseScope, inScope, requirePermission } from '@/server/auth'
 import { courseDraftInput } from '@/admin/schemas'
 
 const TTL = 60 * 60e3
 
 export async function stageCourseDraft(courseId: string, raw: unknown): Promise<{ ok: boolean }> {
-  await requirePermission('content.write')
-  if (!z.string().uuid().safeParse(courseId).success) return { ok: false }
+  const st = await requirePermission('content.write')
+  if (!z.string().uuid().safeParse(courseId).success || !inScope(await courseScope(st), courseId)) return { ok: false }
   const p = courseDraftInput.safeParse(raw)
   if (!p.success) return { ok: false }
   const now = new Date()

@@ -1,6 +1,7 @@
-import { count, desc, eq } from 'drizzle-orm'
+import { and, count, desc, eq } from 'drizzle-orm'
+import { inList } from '@/server/db/limits'
 import { db, schema as s } from '@/server/db'
-import { requirePermission } from '@/server/auth'
+import { courseScope, requirePermission } from '@/server/auth'
 import { Moderate } from '@/admin/reviews/Moderate'
 import { PageHead } from '@/admin/ui/kit'
 import { when } from '@/admin/sales/labels'
@@ -9,14 +10,16 @@ import p from '@/admin/ui/panel.module.css'
 const F = [['pending', 'بانتظار المراجعة'], ['approved', 'منشورة'], ['hidden', 'مخفية']] as const
 
 export default async function Reviews({ searchParams }: { searchParams: Promise<{ s?: string }> }) {
-  await requirePermission('content.write')
+  /* المدرب: تقييمات دوراته وحدها */
+  const scope = await courseScope(await requirePermission('content.write'))
+  const mine = scope === null ? undefined : inList(s.reviews.courseId, scope)
   const q = (await searchParams).s
   const status = (F.find(([k]) => k === q)?.[0] ?? 'pending') as (typeof F)[number][0]
   const [rows, counts] = await Promise.all([
     db.select({ r: s.reviews, course: s.courses.title, email: s.learners.email, name: s.learners.name }).from(s.reviews)
       .innerJoin(s.courses, eq(s.courses.id, s.reviews.courseId)).innerJoin(s.learners, eq(s.learners.id, s.reviews.learnerId))
-      .where(eq(s.reviews.status, status)).orderBy(desc(s.reviews.updatedAt)).limit(300),
-    db.select({ st: s.reviews.status, n: count() }).from(s.reviews).groupBy(s.reviews.status),
+      .where(and(eq(s.reviews.status, status), mine)).orderBy(desc(s.reviews.updatedAt)).limit(300),
+    db.select({ st: s.reviews.status, n: count() }).from(s.reviews).where(mine).groupBy(s.reviews.status),
   ])
   const n = new Map(counts.map((x) => [x.st, x.n]))
   return (

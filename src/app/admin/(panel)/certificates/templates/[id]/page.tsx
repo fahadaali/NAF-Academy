@@ -8,7 +8,7 @@ import { DEFAULT_DESIGN, mergeDesign } from '@/lib/certificate'
 import { PageHead } from '@/admin/ui/kit'
 
 export default async function EditTemplate({ params }: { params: Promise<{ id: string }> }) {
-  await requirePermission('certificates.manage')
+  await requirePermission('certificates.templates')
   const { id } = await params
   const brand = await brandView()
   const media = await db.select().from(s.media).where(isNull(s.media.deletedAt)).orderBy(desc(s.media.createdAt))
