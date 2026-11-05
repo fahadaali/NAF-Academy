@@ -4,7 +4,7 @@
 .status > span { inline-size: 40px; block-size: 40px; flex: none; display: grid; place-items: center; border-radius: 50%; background: var(--success); color: var(--on-fg); font-weight: 900; font-size: 20px; }
 .status[data-valid='0'] > span { background: var(--danger); }
 .status div { display: grid; }
-.status strong { font-size: 17px; }
+.status strong, .statusTitle { font-size: 17px; font-weight: 700; }
 .status small { color: var(--muted); font-size: 13.5px; }
 .sheet { position: relative; }
 .sheet[data-revoked='1'] { filter: grayscale(1); opacity: 0.55; }

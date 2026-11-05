@@ -4,12 +4,13 @@
 import { useEffect, useRef, useState } from 'react'
 import { subscribe } from '@/motion/scroll-bus'
 import { currentTheme, switchTheme, type Theme } from '@/motion/theme'
-import { Wordmark } from './Emblem'
+import { Wordmark } from './Logo'
+import type { BrandView } from '@/lib/brand'
 import styles from './Header.module.css'
 
 type Item = { href: string; label: string }
 
-export function Header({ nav }: { nav: Item[] }) {
+export function Header({ nav, brand }: { nav: Item[]; brand: BrandView }) {
   const bar = useRef<HTMLDivElement>(null)
   const head = useRef<HTMLElement>(null)
   const [active, setActive] = useState<string>('')
@@ -69,8 +70,8 @@ export function Header({ nav }: { nav: Item[] }) {
   return (
     <header ref={head} className={styles.header} data-open={open ? '1' : '0'}>
       <div className={`wrap ${styles.inner}`}>
-        <a href="/" className={styles.brand} aria-label="أكاديمية ناف — الرئيسية">
-          <Wordmark />
+        <a href="/" className={styles.brand} aria-label={`${brand.name} — الرئيسية`}>
+          <Wordmark brand={brand} />
         </a>
         <nav className={styles.nav} aria-label="الأقسام">
           <ol role="list">

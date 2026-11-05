@@ -37,7 +37,7 @@ export function vapidKeys() {
 }
 
 /** إشعار لكل أجهزة المتدرب المشتركة — الاشتراك المنتهي يُحذف */
-export async function sendPushTo(learnerId: string, data: { title: string; body: string; url: string; tag?: string }, kind: string): Promise<{ ok: boolean; error?: string; id: string }> {
+export async function sendPushTo(learnerId: string, data: { title: string; body: string; url: string; tag?: string; icon?: string }, kind: string): Promise<{ ok: boolean; error?: string; id: string }> {
   const st = channelState('push')
   const subs = await db.select().from(s.pushSubscriptions).where(eq(s.pushSubscriptions.learnerId, learnerId))
   const row = { id: randomUUID(), channel: 'push' as const, to: `${subs.length} جهاز`, subject: data.title, body: `${data.body}\n${data.url}`, kind, provider: st.provider ?? 'none' }

@@ -3,20 +3,23 @@
 import { BLOCKS, PAGE, TONES, type BlockKey, type CertDesign } from '@/lib/certificate'
 import { parse, render } from '@/motion/kashida'
 import { Emblem } from './Emblem'
+import { LogoMark } from './Logo'
+import { hasLogo, type BrandView } from '@/lib/brand'
 import c from './certificate.module.css'
 
 export type CertViewData = { name: string; course: string; hours: number; date: string; hijri: string; code: string; qrSvg?: string }
 
 const cq = (pt: number) => `${(pt / PAGE.w) * 100}cqw`
 
-export function CertificateView({ design, data, onPick, active, dragRef }: {
-  design: CertDesign; data: CertViewData
+export function CertificateView({ design, data, brand, onPick, active, dragRef }: {
+  design: CertDesign; data: CertViewData; brand: BrandView
   /** للمحرّر: بدء سحب عنصر */
   onPick?: (k: BlockKey, e: React.PointerEvent) => void
   active?: BlockKey | null
   dragRef?: React.Ref<HTMLDivElement>
 }) {
   const T = TONES[design.tone]
+  const tone = design.tone === 'night' ? 'dark' : 'light'
   const B = design.blocks
   const vars = { '--c-bg': T.bg, '--c-ink': T.ink, '--c-soft': T.soft, '--c-gold': T.gold, '--c-line': T.line, '--c-plate': TONES.ivory.bg, '--c-plate-ink': TONES.ivory.ink } as React.CSSProperties
   const at = (k: BlockKey, children: React.ReactNode) => B[k].show && (
@@ -24,7 +27,18 @@ export function CertificateView({ design, data, onPick, active, dragRef }: {
       onPointerDown={onPick ? (e) => onPick(k, e) : undefined}>{children}</div>
   )
   const nodes: Record<BlockKey, React.ReactNode> = {
-    brand: at('brand', <div className={c.brand} style={{ fontSize: cq(B.brand.size) }}><Emblem size={0} className={c.emblem} /><strong>أكاديمية ناف</strong><small>للتدريب القانوني</small></div>),
+    /* الشعاران متجاوران بالارتفاع نفسه: الأكاديمية ثم شركة ناف — من اللوحة */
+    brand: at('brand', hasLogo(brand.academy) || hasLogo(brand.naf) ? (
+      <div className={c.logos} style={{ fontSize: cq(B.brand.size) }}>
+        <div className={c.pair}>
+          <LogoMark pair={brand.academy} alt={brand.name} height={0} tone={tone} className={c.logo} />
+          {hasLogo(brand.naf) && <><i aria-hidden="true" /><LogoMark pair={brand.naf} alt={brand.companyName} height={0} tone={tone} fallback={false} className={c.logo} /></>}
+        </div>
+        {brand.showName && <span className={c.brandName}>{brand.name}{brand.tagline && <small>{brand.tagline}</small>}</span>}
+      </div>
+    ) : (
+      <div className={c.brand} style={{ fontSize: cq(B.brand.size) }}><Emblem size={0} className={c.emblem} /><strong>{brand.name}</strong><small>{brand.tagline}</small></div>
+    )),
     title: at('title', <div className={c.title} style={{ fontSize: cq(B.title.size) }}>{render(parse(design.title), 1)}{design.english && <small>CERTIFICATE OF COMPLETION</small>}</div>),
     lead: at('lead', <div className={c.soft} style={{ fontSize: cq(B.lead.size) }}>{design.lead}</div>),
     name: at('name', <div className={c.name} style={{ fontSize: cq(B.name.size) }}>{data.name}</div>),

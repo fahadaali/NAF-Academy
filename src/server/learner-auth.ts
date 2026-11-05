@@ -1,4 +1,6 @@
 import 'server-only'
+import { emailBrand } from './brand'
+import { siteUrl } from './site'
 /* دخول المتدربين برمز لمرة واحدة عبر البريد أو الجوال.
    الرمز 6 أرقام، يُخزَّن تجزيئه HMAC، صالح 10 دقائق، 5 محاولات، و3 إرسالات لكل وجهة في 10 دقائق.
    الجلسة: رمز عشوائي في كوكي httpOnly، والقاعدة تحفظ تجزيئه فقط. */
@@ -60,11 +62,13 @@ export async function requestCode(channel: Channel, raw: string): Promise<{ ok: 
   const code = String(randomInt(0, 1_000_000)).padStart(6, '0')
   await db.update(s.otpCodes).set({ consumedAt: now() }).where(and(eq(s.otpCodes.target, target), isNull(s.otpCodes.consumedAt)))
   await db.insert(s.otpCodes).values({ id: randomUUID(), channel, target, codeHash: hashCode(target, code), expiresAt: new Date(Date.now() + CODE_TTL).toISOString(), ip })
-  const text = `رمز الدخول إلى أكاديمية ناف: ${code}\nصالح عشر دقائق. لا تشاركه مع أحد.`
+  const site = siteUrl() ?? ''
+  const brand = await emailBrand(site)
+  const text = `رمز الدخول إلى ${brand.name}: ${code}\nصالح عشر دقائق. لا تشاركه مع أحد.`
   const r = await send({
     channel, to: target, kind: 'otp', secret: code, text,
     subject: channel === 'email' ? `رمز الدخول: ${code}` : undefined,
-    html: channel === 'email' ? brandEmail({ title: 'رمز الدخول', lead: 'استخدم هذا الرمز لإكمال الدخول إلى أكاديمية ناف.', code, note: 'صالح عشر دقائق. إن لم تطلبه فتجاهل هذه الرسالة.' }) : undefined,
+    html: channel === 'email' ? brandEmail({ site, brand, title: 'رمز الدخول', lead: `استخدم هذا الرمز لإكمال الدخول إلى ${brand.name}.`, code, note: 'صالح عشر دقائق. إن لم تطلبه فتجاهل هذه الرسالة.' }) : undefined,
   })
   return r.ok ? { ok: true, target } : { ok: false, error: r.error }
 }

@@ -10,8 +10,12 @@ const C = {
 
 export const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!)
 
+/** الهوية في البريد — روابط مطلقة للشعارات (PNG) من اللوحة */
+export type EmailBrand = { name: string; tagline: string; companyName: string; showName: boolean; logo: string | null; naf: string | null }
+
 export type EmailParts = {
   site: string
+  brand: EmailBrand
   preheader?: string
   heading: string
   /** نص بفقرات (سطر فارغ يفصلها) وقوائم تبدأ بـ «- » */
@@ -62,14 +66,14 @@ ${p.forceDark ? dark : ''}
 ${p.preheader ? `<div style="display:none;max-height:0;overflow:hidden;opacity:0">${esc(p.preheader)}</div>` : ''}
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="bg" style="background:${C.bg};padding:32px 12px"><tr><td align="center">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="card" style="max-width:560px;background:${C.card};border-radius:20px;overflow:hidden;border:1px solid ${C.line}">
-<tr><td style="background:${C.night};padding:22px 32px;text-align:right"><span style="font-family:${font};color:${C.ivory};font-size:19px;font-weight:700">أكاديمية ناف</span> <span style="color:${C.gold};font-size:13px">للتدريب القانوني</span></td></tr>
+<tr><td style="background:${C.night};padding:20px 32px;text-align:right">${p.brand.logo ? `<img src="${esc(p.brand.logo)}" alt="${esc(p.brand.name)}" height="36" style="height:36px;width:auto;border:0;vertical-align:middle;display:inline-block">` : ''}${p.brand.showName || !p.brand.logo ? ` <span style="font-family:${font};color:${C.ivory};font-size:19px;font-weight:700;vertical-align:middle">${esc(p.brand.name)}</span>${p.brand.tagline ? ` <span style="color:${C.gold};font-size:13px;vertical-align:middle">${esc(p.brand.tagline)}</span>` : ''}` : ''}</td></tr>
 <tr><td style="height:3px;background:${C.gold};line-height:3px;font-size:0">&nbsp;</td></tr>
 <tr><td class="pad" style="padding:34px 32px 26px;text-align:right">
 <h1 class="ink" style="margin:0 0 14px;font-family:${font};font-size:26px;line-height:1.4;font-weight:700;color:${C.ink}">${esc(p.heading)}</h1>
 ${blocks(p.body)}${code}${factsHtml}${cta}
 ${p.note ? `<p class="muted" style="margin:18px 0 0;font-size:13px;line-height:1.7;color:${C.muted}">${esc(p.note)}</p>` : ''}
 </td></tr>
-<tr><td class="line muted" style="padding:16px 32px;border-top:1px solid ${C.line};font-size:12px;line-height:1.8;color:${C.muted};text-align:right">أكاديمية ناف — إحدى مبادرات شركة ناف القانونية · <a href="${esc(p.site)}" style="color:${C.goldText}">الموقع</a>${unsub}</td></tr>
+<tr><td class="line muted" style="padding:16px 32px;border-top:1px solid ${C.line};font-size:12px;line-height:1.8;color:${C.muted};text-align:right">${p.brand.naf ? `<img src="${esc(p.brand.naf)}" alt="${esc(p.brand.companyName)}" height="22" style="height:22px;width:auto;border:0;vertical-align:middle;display:inline-block;margin-inline-start:6px"> ` : ''}${esc(p.brand.name)} — إحدى مبادرات ${esc(p.brand.companyName)} · <a href="${esc(p.site)}" style="color:${C.goldText}">الموقع</a>${unsub}</td></tr>
 </table></td></tr></table></body></html>`
 
   const text = [
@@ -79,13 +83,13 @@ ${p.note ? `<p class="muted" style="margin:18px 0 0;font-size:13px;line-height:1
     facts.length ? '\n' + facts.map(([k, v]) => `${k}: ${v}`).join('\n') : '',
     p.cta ? `\n${p.cta.label}: ${p.cta.href}` : '',
     p.note ? `\n${p.note}` : '',
-    '\n—\nأكاديمية ناف · ' + p.site,
+    `\n—\n${p.brand.name} · ${p.site}`,
     p.unsubscribe ? `إيقاف هذه الرسائل: ${p.unsubscribe}` : '',
   ].filter((x) => x !== '').join('\n')
   return { html, text }
 }
 
 /** للتوافق مع رسائل رمز الدخول */
-export function brandEmail(o: { title: string; lead: string; code?: string; note?: string; site?: string }) {
-  return renderEmail({ site: o.site ?? '', heading: o.title, body: o.lead, code: o.code, note: o.note }).html
+export function brandEmail(o: { title: string; lead: string; code?: string; note?: string; site?: string; brand: EmailBrand }) {
+  return renderEmail({ site: o.site ?? '', brand: o.brand, heading: o.title, body: o.lead, code: o.code, note: o.note }).html
 }

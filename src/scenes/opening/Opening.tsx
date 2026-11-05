@@ -15,9 +15,12 @@ type Props = {
   lines: string[]
   phases: { at: number; text: string }[]
   cta: { label: string; href: string }
+  /** شعار الأكاديمية المرفوع (نسخة الخلفيات الداكنة) — تتشكّل منه الجسيمات */
+  logo?: { url: string; w: number; h: number } | null
+  logoAlt?: string
 }
 
-export function Opening({ eyebrow, lines, phases, cta }: Props) {
+export function Opening({ eyebrow, lines, phases, cta, logo, logoAlt = '' }: Props) {
   const section = useRef<HTMLElement>(null)
   const canvas = useRef<HTMLCanvasElement>(null)
   const stage = useRef<HTMLDivElement>(null)
@@ -61,7 +64,25 @@ export function Opening({ eyebrow, lines, phases, cta }: Props) {
       cv.width = Math.round(w * dpr)
       cv.height = Math.round(h * dpr)
       renderer.resize(cv.width, cv.height)
-      layoutField(field, { w, h })
+      layoutField(field, { w, h }, mask)
+    }
+    /* شعار مرفوع: نقاطه من بكسلاته المعتمة، ثم يُعاد التخطيط */
+    let mask: Float32Array | null = null
+    if (logo) {
+      const im = new Image()
+      im.onload = () => {
+        const N = 160, c = document.createElement('canvas'); c.width = N; c.height = N
+        const x = c.getContext('2d', { willReadFrequently: true })
+        if (!x) return
+        const k = Math.min(N / im.naturalWidth, N / im.naturalHeight)
+        const dw = im.naturalWidth * k, dh = im.naturalHeight * k
+        x.drawImage(im, (N - dw) / 2, (N - dh) / 2, dw, dh)
+        const d = x.getImageData(0, 0, N, N).data
+        const pts: number[] = []
+        for (let yy = 0; yy < N; yy++) for (let xx = 0; xx < N; xx++) if (d[(yy * N + xx) * 4 + 3] > 140) pts.push(xx / N, yy / N)
+        if (pts.length > 40) { mask = new Float32Array(pts); size() }
+      }
+      im.src = logo.url
     }
     const ro = new ResizeObserver(size)
 
@@ -168,7 +189,7 @@ export function Opening({ eyebrow, lines, phases, cta }: Props) {
           <a href={cta.href} className="btn">{cta.label}</a>
         </div>
 
-        <div className={styles.calmMark} aria-hidden="true"><Emblem size={220} /></div>
+        <div className={styles.calmMark} aria-hidden="true">{logo ? <img src={logo.url} alt={logoAlt} style={{ blockSize: 220, inlineSize: 'auto', maxInlineSize: '80vw', objectFit: 'contain' }} /> : <Emblem size={220} />}</div>
         <div className={styles.meter} aria-hidden="true"><span /></div>
       </div>
     </section>

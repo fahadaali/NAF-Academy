@@ -1,4 +1,5 @@
 import { Curtain } from '@/components/Curtain'
+import { brandView } from '@/server/brand'
 import { ldJson, organization, website } from '@/lib/seo'
 import { siteUrl } from '@/server/site'
 import { CourseCard } from '@/components/CourseCard'
@@ -16,7 +17,7 @@ import { catalog, homeContent } from '@/server/queries'
 export const revalidate = 300
 
 export default async function Home() {
-  const [home, { tracks, courses, instructors }] = await Promise.all([homeContent(), catalog()])
+  const [home, { tracks, courses, instructors }, brand] = await Promise.all([homeContent(), catalog(), brandView()])
   const trackOf = (slug: string) => tracks.find((t) => t.slug === slug)
   const instructorOf = (slug: string) => instructors.find((i) => i.slug === slug)
   const upcoming = courses.slice(0, 10)
@@ -38,9 +39,9 @@ export default async function Home() {
 
   return (
     <>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: ldJson([organization(siteUrl() ?? ''), website(siteUrl() ?? '')]) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: ldJson([organization(siteUrl() ?? '', { name: brand.name, companyName: brand.companyName, logo: (brand.academy.light ?? brand.academy.dark)?.url }), website(siteUrl() ?? '', brand.name)]) }} />
       <Curtain />
-      <Opening {...home.hero} />
+      <Opening {...home.hero} logo={brand.academy.dark ?? brand.academy.light} logoAlt={brand.name} />
       {home.sections.filter((x) => x.visible).map((x) => (
         <div key={x.key} style={{ display: 'contents' }}>{scenes[x.key]}</div>
       ))}

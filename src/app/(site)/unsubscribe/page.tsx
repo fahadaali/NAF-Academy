@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { brandView } from '@/server/brand'
 import { isOptedOut, readOptout } from '@/server/notify/optout'
 import { UnsubscribeForm } from '@/site/Unsubscribe'
 
@@ -10,10 +11,11 @@ const mask = (e: string) => e.replace(/^(.{2}).*(@.*)$/, '$1•••$2')
 export default async function Unsubscribe({ searchParams }: { searchParams: Promise<{ t?: string }> }) {
   const t = (await searchParams).t ?? ''
   const email = readOptout(t)
+  const brand = await brandView()
   return (
     <div className="wrap" style={{ paddingBlock: 'calc(var(--header-h) + 64px) 120px', maxInlineSize: 640, display: 'grid', gap: 18 }}>
       <span className="eyebrow">تفضيلات الرسائل</span>
-      <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(30px, 4vw, 44px)', fontWeight: 900 }}>رسائل أكاديمية ناف</h1>
+      <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(30px, 4vw, 44px)', fontWeight: 900 }}>رسائل {brand.name}</h1>
       {email ? (
         <>
           <p className="num" dir="ltr" style={{ justifySelf: 'end', color: 'var(--muted)' }}>{mask(email)}</p>

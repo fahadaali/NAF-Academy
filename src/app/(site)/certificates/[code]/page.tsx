@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { brandView } from '@/server/brand'
 import { notFound } from 'next/navigation'
 import { certificateByCode, verifyUrl, viewData } from '@/server/certificates'
 import { CertificateView } from '@/components/CertificateView'
@@ -13,14 +14,14 @@ type P = { params: Promise<{ code: string }> }
 export async function generateMetadata({ params }: P): Promise<Metadata> {
   const r = await certificateByCode((await params).code)
   if (!r || (r.c.status !== 'issued' && r.c.status !== 'revoked')) return { title: 'شهادة غير موجودة', robots: { index: false } }
-  return { title: `شهادة ${r.c.courseTitle} — ${r.c.name}`, description: `شهادة إتمام صادرة عن أكاديمية ناف برقم ${r.c.code}`, robots: { index: false } }
+  return { title: `شهادة ${r.c.courseTitle} — ${r.c.name}`, description: `شهادة إتمام صادرة عن ${(await brandView()).name} برقم ${r.c.code}`, robots: { index: false } }
 }
 
 export default async function Certificate({ params }: P) {
   const r = await certificateByCode((await params).code)
   if (!r || !r.c.code || (r.c.status !== 'issued' && r.c.status !== 'revoked')) notFound()
   const { c } = r
-  const data = await viewData(c)
+  const [data, brand] = await Promise.all([viewData(c), brandView()])
   const valid = c.status === 'issued'
   const url = verifyUrl(c.code!)
   return (
@@ -28,12 +29,12 @@ export default async function Certificate({ params }: P) {
       <div className={st.status} data-valid={valid ? '1' : '0'} role="status">
         <span aria-hidden="true">{valid ? '✓' : '✕'}</span>
         <div>
-          <strong>{valid ? 'شهادة صحيحة صادرة عن أكاديمية ناف' : 'هذه الشهادة ملغاة'}</strong>
-          <small>{valid ? `تحقّقنا من الرقم ${c.code}` : c.reason || 'ألغتها الأكاديمية'}</small>
+          <h1 className={st.statusTitle}>{valid ? `شهادة صحيحة صادرة عن ${brand.name}` : 'هذه الشهادة ملغاة'}</h1>
+          <small>{valid ? `تحقّقنا من الرقم ${c.code}` : c.reason || `ألغتها ${brand.name}`}</small>
         </div>
       </div>
       <div className={st.sheet} data-revoked={valid ? '0' : '1'}>
-        <CertificateView design={c.design ?? DEFAULT_DESIGN} data={data} />
+        <CertificateView design={c.design ?? DEFAULT_DESIGN} data={data} brand={brand} />
       </div>
       <dl className={`${st.facts} num`}>
         <div><dt>الاسم</dt><dd>{c.name}</dd></div>

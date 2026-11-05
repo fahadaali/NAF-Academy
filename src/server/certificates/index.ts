@@ -9,7 +9,9 @@ import { siteUrl } from '../site'
 import { audit } from '../audit'
 import { certCode, DEFAULT_DESIGN, evaluateRules, mergeDesign, mergeRules, type CertDesign } from '@/lib/certificate'
 import { formatHijri } from '@/lib/dates'
-import { certificatePdf } from './pdf'
+import { certificatePdf, type CertBrand } from './pdf'
+import { brandView, logoBytes } from '../brand'
+import { pick } from '@/lib/brand'
 
 const nowIso = () => new Date().toISOString()
 
@@ -100,11 +102,20 @@ const hijriAr = (iso: string) => `${formatHijri(iso)} ${new Intl.DateTimeFormat(
 
 export const verifyUrl = (code: string) => `${siteUrl() ?? ''}/certificates/${code}`
 
+/** الهوية للشهادة — النسخة الفاتحة للقالب العاجي والداكنة للكحلي */
+export async function certBrand(tone: CertDesign['tone']): Promise<CertBrand> {
+  const b = await brandView()
+  const t = tone === 'night' ? 'dark' : 'light'
+  const [academy, naf] = await Promise.all([logoBytes(pick(b.academy, t)), logoBytes(pick(b.naf, t))])
+  return { name: b.name, tagline: b.tagline, companyName: b.companyName, showName: b.showName, academy, naf }
+}
+
 export async function renderPdf(c: typeof s.certificates.$inferSelect, design?: CertDesign) {
-  return certificatePdf(design ?? c.design ?? DEFAULT_DESIGN, {
+  const d = design ?? c.design ?? DEFAULT_DESIGN
+  return certificatePdf(d, {
     name: c.name, course: c.courseTitle, hours: c.hours, date: dateAr(c.issuedAt ?? nowIso()), hijri: hijriAr(c.issuedAt ?? nowIso()),
     code: c.code ?? 'NAF-XXXX-XXXX', verifyUrl: verifyUrl(c.code ?? ''),
-  })
+  }, await certBrand(d.tone))
 }
 
 async function storePdf(c: typeof s.certificates.$inferSelect) {

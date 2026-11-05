@@ -17,6 +17,10 @@ const nextConfig: NextConfig = {
     /* رفع الصور عبر إجراءات الخادم — الحد في التطبيق 8 ميغابايت */
     serverActions: { bodySizeLimit: '10mb' },
   },
+  /* المتصفحات تطلب /favicon.ico مباشرة — يُحوَّل لأيقونة اللوحة إن وُجدت عبر المسار، وإلا الافتراضية */
+  async rewrites() {
+    return [{ source: '/favicon.ico', destination: '/api/favicon' }]
+  },
   async headers() {
     return [
       { source: '/:path*', headers: security },

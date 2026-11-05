@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { brandView } from '@/server/brand'
 import { notFound } from 'next/navigation'
 import { CourseView } from '@/site/CourseView'
 import { catalog, courseDetail } from '@/server/queries'
@@ -32,7 +33,7 @@ export default async function CoursePage({ params }: { params: Promise<{ slug: s
       mode: r.mode, hours: r.hours, startsAt: r.startsAt, endsAt: r.endsAt, city: r.city, venue: r.venue,
       price: d.tiers.length ? Math.min(...d.tiers.map((t) => t.price)) : d.course.pricing.amount, free: r.free, saleEndsAt: r.saleEndsAt,
       available: d.course.status === 'open', instructors: d.instructors.map((p) => ({ name: p.name, slug: p.slug })),
-      rating: d.reviews.count ? { avg: d.reviews.avg, count: d.reviews.count } : undefined,
+      rating: d.reviews.count ? { avg: d.reviews.avg, count: d.reviews.count } : undefined, org: (await brandView()).name,
     }),
     breadcrumbs(site, [['الرئيسية', '/'], ['الدورات', '/courses'], ...(d.track ? [[d.track.title, `/tracks/${d.track.slug}`] as [string, string]] : []), [plain(d.course.title), `/courses/${r.slug}`]]),
   ]

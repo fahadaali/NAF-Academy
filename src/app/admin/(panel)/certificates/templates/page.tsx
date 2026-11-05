@@ -1,4 +1,5 @@
 import { asc, count, desc, eq, isNull } from 'drizzle-orm'
+import { brandView } from '@/server/brand'
 import { db, schema as s } from '@/server/db'
 import { requirePermission } from '@/server/auth'
 import { CertificateView } from '@/components/CertificateView'
@@ -10,9 +11,10 @@ const SAMPLE = { name: 'اسم المتدرب', course: 'اسم الدورة', h
 
 export default async function Templates() {
   await requirePermission('certificates.manage')
-  const [rows, used] = await Promise.all([
+  const [rows, used, brand] = await Promise.all([
     db.select().from(s.certificateTemplates).where(isNull(s.certificateTemplates.deletedAt)).orderBy(desc(s.certificateTemplates.isDefault), asc(s.certificateTemplates.createdAt)),
     db.select({ id: s.certificates.templateId, n: count() }).from(s.certificates).where(eq(s.certificates.status, 'issued')).groupBy(s.certificates.templateId),
+    brandView(),
   ])
   const u = new Map(used.map((x) => [x.id, x.n]))
   return (
@@ -21,7 +23,7 @@ export default async function Templates() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 18 }}>
         {rows.map((t) => (
           <a key={t.id} href={`/admin/certificates/templates/${t.id}`} style={{ display: 'grid', gap: 10 }}>
-            <CertificateView design={mergeDesign(t.design)} data={SAMPLE} />
+            <CertificateView design={mergeDesign(t.design)} data={SAMPLE} brand={brand} />
             <span style={{ display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'space-between' }}>
               <strong>{t.name}</strong>
               <span style={{ display: 'flex', gap: 8, alignItems: 'center' }}>{t.isDefault && <Badge tone="open">الافتراضي</Badge>}<span className={`${p.muted} num`}>{u.get(t.id) ?? 0} صادرة</span></span>

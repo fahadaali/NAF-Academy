@@ -3,7 +3,8 @@ import { notFound } from 'next/navigation'
 import QRCode from 'qrcode'
 import { orderForBuyer } from '@/server/sales'
 import { formatAmount } from '@/lib/pricing'
-import { Emblem } from '@/components/Emblem'
+import { LogoMark } from '@/components/Logo'
+import { brandView } from '@/server/brand'
 import { PrintButton } from '@/site/PrintButton'
 import s from '@/site/invoice.module.css'
 
@@ -21,12 +22,17 @@ export default async function Invoice({ params, searchParams }: { params: Promis
   const qr = await QRCode.toString(invoice.qr, { type: 'svg', margin: 0, errorCorrectionLevel: 'M', color: { dark: '#0b1520', light: '#00000000' } })
   const credit = invoice.kind === 'credit_note'
   const exVat = invoice.total - invoice.vat
+  const brand = await brandView()
   return (
     <div className={s.page}>
       <div className={s.toolbar}><PrintButton /><a href={`/orders/${number}?t=${t}`}>العودة للطلب</a></div>
       <article className={s.sheet}>
         <header className={s.head}>
-          <div className={s.brand}><Emblem size={48} /><div><strong>أكاديمية ناف</strong><span>{invoice.seller.name}</span></div></div>
+          <div className={s.brand}>
+            <LogoMark pair={brand.academy} alt={brand.name} height={48} tone="light" />
+            {(brand.naf.light || brand.naf.dark) && <LogoMark pair={brand.naf} alt={brand.companyName} height={48} tone="light" fallback={false} />}
+            <div><strong>{brand.name}</strong><span>{invoice.seller.name}</span></div>
+          </div>
           <div className={s.kind}>
             <h1>{credit ? 'إشعار دائن' : 'فاتورة ضريبية مبسّطة'}</h1>
             <span>{credit ? 'Credit Note' : 'Simplified Tax Invoice'}</span>
@@ -47,7 +53,7 @@ export default async function Invoice({ params, searchParams }: { params: Promis
           <tbody>{invoice.lines.map((l, i) => <tr key={i}><td>{l.title.replace(/~\d?/g, '')}</td><td>{l.quantity}</td><td><bdi dir="ltr">{formatAmount(l.unit)}</bdi></td><td><bdi dir="ltr">{formatAmount(l.total)}</bdi></td></tr>)}</tbody>
         </table>
         <div className={s.foot}>
-          <div className={s.qr} dangerouslySetInnerHTML={{ __html: qr }} aria-label="رمز الفاتورة الضريبية" />
+          <div className={s.qr} dangerouslySetInnerHTML={{ __html: qr }} role="img" aria-label="رمز الفاتورة الضريبية" />
           <dl className={`num ${s.totals}`}>
             <div><dt>الإجمالي غير شامل الضريبة</dt><dd>{formatAmount(exVat)} ر.س</dd></div>
             <div><dt>ضريبة القيمة المضافة {o.order.vatRate}%</dt><dd>{formatAmount(invoice.vat)} ر.س</dd></div>

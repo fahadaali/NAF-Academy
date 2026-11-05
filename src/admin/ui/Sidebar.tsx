@@ -1,7 +1,8 @@
 'use client'
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
-import { Emblem } from '@/components/Emblem'
+import { LogoMark } from '@/components/Logo'
+import type { BrandView } from '@/lib/brand'
 import { logout } from '@/app/admin/login/actions'
 import type { Perm } from '@/lib/permissions'
 import styles from './panel.module.css'
@@ -29,6 +30,7 @@ const groups: { title: string; items: { href: string; label: string; icon: strin
     { href: '/admin/settings/payments', label: 'إعدادات الدفع', icon: '⚙', perm: 'payments.manage' },
   ] },
   { title: 'الموقع', items: [
+    { href: '/admin/brand', label: 'الهوية والشعارات', icon: '◐', perm: 'site.write' },
     { href: '/admin/home', label: 'الصفحة الرئيسية', icon: '⌂', perm: 'site.write' },
     { href: '/admin/settings/channels', label: 'قنوات الرسائل', icon: '✉', perm: 'channels.manage' },
     { href: '/admin/notifications', label: 'الرسائل الآلية', icon: '◷', perm: 'notify.manage' },
@@ -42,7 +44,7 @@ const groups: { title: string; items: { href: string; label: string; icon: strin
   ] },
 ]
 
-export function Sidebar({ name, role, mode, perms }: { name: string; role: string; mode: 'naf-auth' | 'password'; perms: Perm[] }) {
+export function Sidebar({ name, role, mode, perms, brand }: { name: string; role: string; mode: 'naf-auth' | 'password'; perms: Perm[]; brand: BrandView }) {
   const path = usePathname()
   const hit = (href: string) => (href === '/admin' ? path === '/admin' : path === href || path.startsWith(`${href}/`))
   /* أطول رابط مطابق هو النشط — فلا تُضاء «الواجبات» داخل «الجلسات» */
@@ -51,8 +53,8 @@ export function Sidebar({ name, role, mode, perms }: { name: string; role: strin
   return (
     <aside className={styles.side}>
       <Link href="/admin" className={styles.brand}>
-        <Emblem size={34} />
-        <span><strong>أكاديمية ناف</strong><small>لوحة الإدارة</small></span>
+        <LogoMark pair={brand.academy} alt={brand.showName ? '' : brand.name} height={34} tone="dark" />
+        <span>{(brand.showName || !(brand.academy.light || brand.academy.dark)) && <strong>{brand.name}</strong>}<small>لوحة الإدارة</small></span>
       </Link>
       <nav className={styles.nav} aria-label="اللوحة">
         {groups.map((g) => ({ ...g, items: g.items.filter((i) => perms.includes(i.perm)) })).filter((g) => g.items.length).map((g) => (

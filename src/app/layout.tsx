@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next'
+import { brandView } from '@/server/brand'
 import Script from 'next/script'
 import './globals.css'
 import { SwRegister } from '@/components/SwRegister'
@@ -6,7 +7,18 @@ import { siteUrl } from '@/server/site'
 
 /* الرابط المطلق للبيانات الوصفية (الصور والروابط الأساسية) — من SITE_URL */
 export async function generateMetadata(): Promise<Metadata> {
-  return { ...base, metadataBase: new URL(siteUrl() ?? 'http://localhost:3000') }
+  const b = await brandView()
+  /* أيقونة اللوحة وحدها إن رُفعت، وإلا الافتراضية (public/icons والملفان في app/) */
+  const icon = b.icon
+    ? { icon: [{ url: b.icon.url, type: 'image/png', sizes: `${b.icon.w}x${b.icon.h}` }], apple: [{ url: b.icon.url }] }
+    : { icon: [{ url: '/icons/favicon.ico', sizes: '48x48' }, { url: '/icon.svg', type: 'image/svg+xml' }], apple: [{ url: '/apple-icon.png' }] }
+  return {
+    ...base, metadataBase: new URL(siteUrl() ?? 'http://localhost:3000'),
+    title: { default: `${b.name} — ${b.tagline || 'للتدريب القانوني'}`, template: `%s · ${b.name}` },
+    openGraph: { ...base.openGraph, siteName: b.name },
+    appleWebApp: { capable: true, title: b.name, statusBarStyle: 'black-translucent' },
+    icons: icon,
+  }
 }
 
 const base: Metadata = {

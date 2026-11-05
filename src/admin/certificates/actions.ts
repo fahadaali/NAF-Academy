@@ -8,7 +8,7 @@ import { z } from 'zod'
 import { db, schema as s } from '@/server/db'
 import { requirePermission } from '@/server/auth'
 import { audit } from '@/server/audit'
-import { issueCertificate, recheckCourse, regeneratePdf } from '@/server/certificates'
+import { certBrand, issueCertificate, recheckCourse, regeneratePdf } from '@/server/certificates'
 import { certificatePdf } from '@/server/certificates/pdf'
 import { BLOCKS, DEFAULT_DESIGN, type CertDesign } from '@/lib/certificate'
 
@@ -135,7 +135,7 @@ export async function previewTemplatePdf(design: CertDesign): Promise<string> {
     name: 'سارة عبدالله المتدربة', course: 'نظام الإثبات: من النص إلى المرافعة', hours: 12,
     date: new Intl.DateTimeFormat('ar-SA-u-nu-latn-ca-gregory', { timeZone: 'Asia/Riyadh', day: 'numeric', month: 'long', year: 'numeric' }).format(new Date()),
     hijri: '—', code: 'NAF-DEMO-2026', verifyUrl: 'https://academy.example/certificates/NAF-DEMO-2026',
-  })
+  }, await certBrand(d.tone))
   return `data:application/pdf;base64,${Buffer.from(bytes).toString('base64')}`
 }
 

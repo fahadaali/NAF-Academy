@@ -1,6 +1,7 @@
 'use server'
 /* طلب «للمؤسسات» من الرئيسية — يُحفظ ويُبلَّغ الفريق بالبريد. حقل مخفي يصدّ البرامج الآلية. */
 import { randomUUID } from 'node:crypto'
+import { emailBrand } from '@/server/brand'
 import { z } from 'zod'
 import { db, schema as s } from '@/server/db'
 import { limited } from '@/server/ratelimit'
@@ -31,7 +32,7 @@ export async function corporateRequest(raw: unknown): Promise<{ ok: boolean; err
   if (site) {
     for (const to of notify) {
       const { html, text } = renderEmail({
-        site, heading: `طلب مؤسسة: ${v.org}`, body: v.message || 'طلب جديد من نموذج «للمؤسسات» في الرئيسية.',
+        site, brand: await emailBrand(site), heading: `طلب مؤسسة: ${v.org}`, body: v.message || 'طلب جديد من نموذج «للمؤسسات» في الرئيسية.',
         facts: [['الاسم', v.name], ['الجهة', v.org], ['التواصل', v.contact], ['حجم الفريق', v.size], ['الاهتمامات', v.interests.join('، ')]],
         cta: { label: 'فتح الطلب', href: `${site}/admin/corporate?id=${id}` },
       })

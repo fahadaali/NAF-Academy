@@ -1,5 +1,6 @@
 /* الغلاف العام للموقع: الشريط، وطبقة الحركة، والتذييل — المحتوى من القاعدة. */
 import { Header } from '@/components/Header'
+import { brandView } from '@/server/brand'
 import { Footer } from '@/components/Footer'
 import { MotionRoot } from '@/components/MotionRoot'
 import { Beacon } from '@/components/Beacon'
@@ -7,14 +8,14 @@ import { nav } from '@/content/seed'
 import { homeContent } from '@/server/queries'
 
 export default async function SiteLayout({ children }: { children: React.ReactNode }) {
-  const home = await homeContent()
+  const [home, brand] = await Promise.all([homeContent(), brandView()])
   return (
     <>
       <MotionRoot />
       <Beacon />
-      <Header nav={nav} />
+      <Header nav={nav} brand={brand} />
       <main id="main">{children}</main>
-      <Footer title={home.footer.title} cta={home.footer.cta} />
+      <Footer title={home.footer.title} cta={home.footer.cta} brand={brand} />
     </>
   )
 }

@@ -28,3 +28,11 @@
 .qrBox svg { display: block; inline-size: 100%; block-size: 100%; }
 .qrBox[data-ph='1'] { background: repeating-conic-gradient(var(--c-plate-ink) 0 25%, var(--c-plate) 0 50%) 0 0 / 22% 22%; }
 .qr small { font-family: var(--font); font-size: 1cqw; letter-spacing: 0.04em; }
+
+/* رأس الشهادة بشعارين متجاورين بالارتفاع نفسه (2.4 من مقاس العنصر) */
+.logos { display: grid; justify-items: center; gap: 0.35em; padding-block-start: 1.9cqw; }
+.pair { display: flex; align-items: center; gap: 1.1em; }
+.pair i { inline-size: 0; block-size: 2em; border-inline-start: 0.07cqw solid var(--c-gold); opacity: 0.8; }
+.logo { block-size: 2.4em !important; inline-size: auto !important; max-inline-size: 12em; }
+.brandName { display: grid; justify-items: center; font-family: var(--font-display); font-weight: 700; font-size: 0.9em; line-height: 1.2; }
+.brandName small { font-family: var(--font); font-weight: 400; font-size: 0.66em; color: var(--c-gold); }

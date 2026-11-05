@@ -70,10 +70,16 @@ async function image(doc: PDFDocument, id: string | null) {
 
 export type CertData = { name: string; course: string; hours: number; date: string; hijri: string; code: string; verifyUrl: string }
 
-export async function certificatePdf(design: CertDesign, d: CertData): Promise<Uint8Array> {
+/** الهوية في الشهادة: الأسماء وبايتات الشعارين بالنسخة المناسبة لخلفية القالب */
+export type CertBrand = {
+  name: string; tagline: string; companyName: string; showName: boolean
+  academy: Uint8Array | null; naf: Uint8Array | null
+}
+
+export async function certificatePdf(design: CertDesign, d: CertData, brand: CertBrand): Promise<Uint8Array> {
   const doc = await PDFDocument.create()
   doc.setTitle(`شهادة — ${d.name} — ${d.course}`)
-  doc.setAuthor('أكاديمية ناف')
+  doc.setAuthor(brand.name)
   doc.setSubject(d.code)
   const f: Fonts = { display: await loadFont(FONTS.display), sans: await loadFont(FONTS.sans) }
   const page = doc.addPage([PAGE.w, PAGE.h])
@@ -90,9 +96,31 @@ export async function certificatePdf(design: CertDesign, d: CertData): Promise<U
 
   if (B.brand.show) {
     const s = B.brand.size
-    emblem(page, px(B.brand.x), py(B.brand.y) - s * 2.4, s * 2.2, T.ink, T.gold)
-    line(page, 'أكاديمية ناف', { x: px(B.brand.x), y: py(B.brand.y) + s * 0.4, size: s, font: f.display, color: T.ink })
-    line(page, 'للتدريب القانوني', { x: px(B.brand.x), y: py(B.brand.y) + s * 1.3, size: s * 0.62, font: f.sans, color: T.gold })
+    const [ac, nf] = [brand.academy ? await doc.embedPng(brand.academy).catch(() => null) : null, brand.naf ? await doc.embedPng(brand.naf).catch(() => null) : null]
+    if (ac || nf) {
+      /* الشعاران متجاوران بالارتفاع نفسه — الأكاديمية يميناً ثم شركة ناف، بينهما فاصل ذهبي */
+      const H = s * 2.4
+      const wOf = (im: typeof ac) => (im ? Math.min((im.width / im.height) * H, s * 12) : 0)
+      const wa = wOf(ac), wn = wOf(nf), gap = ac && nf ? s * 1.1 : 0
+      const total = wa + wn + gap * 2
+      const top = py(B.brand.y) - H * (brand.showName ? 1.05 : 0.78)
+      let right = px(B.brand.x) + total / 2
+      if (ac) { right -= wa; page.drawImage(ac, { x: right, y: PAGE.h - top - H, width: wa, height: H }) }
+      if (ac && nf) {
+        right -= gap
+        page.drawLine({ start: { x: right, y: PAGE.h - top - H * 0.1 }, end: { x: right, y: PAGE.h - top - H * 0.9 }, thickness: 0.6, color: hex(T.gold) })
+        right -= gap
+      }
+      if (nf) { right -= wn; page.drawImage(nf, { x: right, y: PAGE.h - top - H, width: wn, height: H }) }
+      if (brand.showName) {
+        line(page, brand.name, { x: px(B.brand.x), y: top + H + s * 1.05, size: s * 0.9, font: f.display, color: T.ink })
+        if (brand.tagline) line(page, brand.tagline, { x: px(B.brand.x), y: top + H + s * 1.85, size: s * 0.6, font: f.sans, color: T.gold })
+      }
+    } else {
+      emblem(page, px(B.brand.x), py(B.brand.y) - s * 2.4, s * 2.2, T.ink, T.gold)
+      line(page, brand.name, { x: px(B.brand.x), y: py(B.brand.y) + s * 0.4, size: s, font: f.display, color: T.ink })
+      if (brand.tagline) line(page, brand.tagline, { x: px(B.brand.x), y: py(B.brand.y) + s * 1.3, size: s * 0.62, font: f.sans, color: T.gold })
+    }
   }
   if (B.title.show) {
     const t = render(parse(design.title), 1)

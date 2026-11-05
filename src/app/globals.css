@@ -126,3 +126,16 @@
 .skeleton { background: var(--surface-2); animation: skeleton-pulse calc(var(--t-gentle) * 5) ease-in-out infinite alternate; }
 @keyframes skeleton-pulse { to { opacity: 0.55; } }
 @media (prefers-reduced-motion: reduce) { .skeleton { animation: none; } }
+
+/* الشعار المرفوع: نسخة الخلفيات الفاتحة افتراضياً، والداكنة فوق المشاهد الداكنة وفي الوضع الداكن.
+   الشريط المفتوح على الجوال خلفيته خلفية الصفحة، فيعود لنسخة الصفحة. */
+.logo-img { display: inline-block; max-inline-size: 100%; object-fit: contain; flex: none; }
+.logo-on-dark { display: none; }
+[data-surface='night'] .logo-on-light, header[data-night='1']:not([data-open='1']) .logo-on-light { display: none; }
+[data-surface='night'] .logo-on-dark, header[data-night='1']:not([data-open='1']) .logo-on-dark { display: inline-block; }
+:root[data-theme='dark'] .logo-on-light { display: none; }
+:root[data-theme='dark'] .logo-on-dark { display: inline-block; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .logo-on-light { display: none; }
+  :root:not([data-theme='light']) .logo-on-dark { display: inline-block; }
+}

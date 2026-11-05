@@ -1,6 +1,7 @@
 'use server'
 /* الرسائل الآلية في اللوحة — حفظ القوالب والتوقيتات، والمعاينة، والإرسال التجريبي، وإدارة الطابور. */
 import { revalidatePath } from 'next/cache'
+import { emailBrand } from '@/server/brand'
 import { and, eq, inArray } from 'drizzle-orm'
 import { z } from 'zod'
 import { db, schema as s } from '@/server/db'
@@ -53,11 +54,12 @@ function sample(site: string): Record<string, string> {
   }
 }
 
-function compose(event: EventKey, t: Template, site: string, forceDark = false) {
+async function compose(event: EventKey, t: Template, site: string, forceDark = false) {
   const v = sample(site)
+  const brand = await emailBrand(site)
   const meta = EVENT_META[event]
   const { html, text } = renderEmail({
-    site, forceDark, heading: fill(t.heading, v), body: fill(t.body, v), preheader: fill(t.subject, v),
+    site, brand, forceDark, heading: fill(t.heading, v), body: fill(t.body, v), preheader: fill(t.subject, v),
     facts: meta.facts.map(([k, x]) => [k, v[x] ?? ''] as [string, string]),
     cta: t.cta ? { label: fill(t.cta, v), href: v.link } : undefined,
     unsubscribe: meta.category !== 'transactional' ? `${site}/unsubscribe` : undefined,
@@ -68,7 +70,7 @@ function compose(event: EventKey, t: Template, site: string, forceDark = false) 
 export async function previewNotify(event: EventKey, t: Template, dark: boolean) {
   await requirePermission('notify.manage')
   if (!EVENTS.includes(event)) throw new Error('حدث غير معروف')
-  return compose(event, tpl.parse({ ...t, subject: t.subject || '—', heading: t.heading || '—', body: t.body || '—' }), siteUrl() ?? '', dark)
+  return await compose(event, tpl.parse({ ...t, subject: t.subject || '—', heading: t.heading || '—', body: t.body || '—' }), siteUrl() ?? '', dark)
 }
 
 export async function sendTest(event: EventKey, t: Template, to: string, channel: 'email' | 'sms'): Promise<{ ok: boolean; error?: string }> {
@@ -77,7 +79,7 @@ export async function sendTest(event: EventKey, t: Template, to: string, channel
   if (!site) return { ok: false, error: 'SITE_URL غير مضبوط' }
   const dest = z.string().trim().min(5).max(200).safeParse(to)
   if (!dest.success) return { ok: false, error: 'وجهة غير صالحة' }
-  const c = compose(event, tpl.parse(t), site)
+  const c = await compose(event, tpl.parse(t), site)
   const r = channel === 'email'
     ? await send({ channel, to: dest.data, subject: `[تجربة] ${c.subject}`, text: c.text, html: c.html, kind: 'test' })
     : await send({ channel, to: dest.data, text: c.sms, kind: 'test' })

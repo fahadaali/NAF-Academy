@@ -1,4 +1,5 @@
 import { desc, eq } from 'drizzle-orm'
+import { brandView } from '@/server/brand'
 import { db, schema as s } from '@/server/db'
 import { currentLearner } from '@/server/learner-auth'
 import { verifyUrl, viewData } from '@/server/certificates'
@@ -14,12 +15,13 @@ export default async function MyCertificates() {
   const rows = await db.select().from(s.certificates).where(eq(s.certificates.learnerId, me.id)).orderBy(desc(s.certificates.updatedAt))
   if (!rows.length)
     return <div className={st.empty}><strong>لا شهادات بعد.</strong><span>تصدر الشهادة بعد استيفاء متطلبات الدورة واعتمادها — تابع تقدّمك من صفحة كل دورة.</span><a className="btn" href="/learn">دوراتي</a></div>
+  const brand = await brandView()
   const views = await Promise.all(rows.map(async (c) => ({ c, v: c.status === 'issued' ? await viewData(c) : null })))
   return (
     <div className={st.grid}>
       {views.map(({ c, v }) => (
         <article key={c.id} className={st.course}>
-          {v && <a href={`/certificates/${c.code}`} aria-label={`صفحة شهادة ${c.courseTitle}`}><CertificateView design={c.design ?? DEFAULT_DESIGN} data={v} /></a>}
+          {v && <a href={`/certificates/${c.code}`} aria-label={`صفحة شهادة ${c.courseTitle}`}><CertificateView design={c.design ?? DEFAULT_DESIGN} data={v} brand={brand} /></a>}
           <h2>{c.courseTitle}</h2>
           {c.status === 'issued' ? (
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>

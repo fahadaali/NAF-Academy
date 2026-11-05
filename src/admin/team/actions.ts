@@ -1,6 +1,7 @@
 'use server'
 /* الفريق: دعوة بالبريد، وتغيير الدور، والإيقاف — مع تبليغ المركز عند الدخول الموحّد. */
 import { revalidatePath } from 'next/cache'
+import { brandView } from '@/server/brand'
 import { and, count, eq, ne } from 'drizzle-orm'
 import { z } from 'zod'
 import { db, schema as s } from '@/server/db'
@@ -31,7 +32,7 @@ export async function inviteMember(raw: { email: string; name: string; role: str
   const [dup] = await db.select().from(s.members).where(eq(s.members.email, p.data.email))
   if (dup) return { ok: false, error: 'هذا البريد في الفريق من قبل' }
   await db.insert(s.members).values({ userId: `invite:${p.data.email}`, email: p.data.email, displayName: p.data.name || null, role: p.data.role, isActive: 1, createdAt: Math.floor(Date.now() / 1000) })
-  await report(p.data.email, 'granted', 'دعوة إلى لوحة أكاديمية ناف', p.data.role)
+  await report(p.data.email, 'granted', `دعوة إلى لوحة ${(await brandView()).name}`, p.data.role)
   await audit(me.name, 'invite', 'member', p.data.email, p.data.role)
   revalidatePath('/admin/team')
   return { ok: true }

@@ -2,6 +2,7 @@
 /* محرّر قالب الشهادة — اسحب العناصر على المعاينة (أو حرّكها بالأسهم)، وعدّل النصوص والموقّعين والخلفية،
    ثم «معاينة PDF» تولّد الملف الحقيقي بالقالب الحالي قبل الحفظ. */
 import { useEffect, useRef, useState } from 'react'
+import type { BrandView } from '@/lib/brand'
 import { useRouter } from 'next/navigation'
 import type { Media } from '@/server/db/schema'
 import { BLOCKS, BLOCK_LABEL, type BlockKey, type CertDesign } from '@/lib/certificate'
@@ -13,7 +14,7 @@ import t from './template.module.css'
 
 const SAMPLE = { name: 'سارة عبدالله المتدربة', course: 'نظام الإثبات: من النص إلى المرافعة', hours: 12, date: '5 نوفمبر 2026', hijri: '14 جمادى الأولى 1448', code: 'NAF-DEMO-2026' }
 
-export function TemplateEditor({ id, initial, media }: { id: string | null; initial: { name: string; isDefault: boolean; design: CertDesign }; media: Media[] }) {
+export function TemplateEditor({ id, initial, media, brand }: { id: string | null; initial: { name: string; isDefault: boolean; design: CertDesign }; media: Media[]; brand: BrandView }) {
   const router = useRouter()
   const [v, setV] = useState(initial)
   const [saved, setSaved] = useState(JSON.stringify(initial))
@@ -79,7 +80,7 @@ export function TemplateEditor({ id, initial, media }: { id: string | null; init
       <div className={t.layout} onKeyDown={onKey}>
         <div className={t.stageCol}>
           <div className={t.stage} tabIndex={0} aria-label="معاينة القالب — اسحب العناصر أو حرّك المحدد بالأسهم">
-            <CertificateView design={d} data={SAMPLE} onPick={onPick} active={active} dragRef={stage} />
+            <CertificateView design={d} data={SAMPLE} brand={brand} onPick={onPick} active={active} dragRef={stage} />
           </div>
           <div className={t.tools}>
             <span className={t.hint}>اسحب أي عنصر لتحريكه، أو حدّده وحرّكه بالأسهم (Shift للخطوة الكبيرة).</span>

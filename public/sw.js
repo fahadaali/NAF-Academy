@@ -1,6 +1,6 @@
 /* عامل الخدمة — تصفّح الصفحات العامة دون اتصال، وإشعارات المتصفح.
    لا يُخزَّن أي محتوى خاص (حسابي، الدروس، اللوحة، الطلبات، الملفات) — يُطلب من الشبكة دائماً. */
-const VERSION = 'naf-v1'
+const VERSION = 'naf-v2'
 const STATIC = `${VERSION}-static`
 const PAGES = `${VERSION}-pages`
 const OFFLINE = '/offline'
@@ -55,7 +55,7 @@ self.addEventListener('push', (e) => {
   let d = {}
   try { d = e.data ? e.data.json() : {} } catch { d = { title: 'أكاديمية ناف', body: e.data ? e.data.text() : '' } }
   e.waitUntil(self.registration.showNotification(d.title || 'أكاديمية ناف', {
-    body: d.body || '', dir: 'rtl', lang: 'ar', icon: '/icons/icon-192.png', badge: '/icons/badge-96.png',
+    body: d.body || '', dir: 'rtl', lang: 'ar', icon: d.icon || '/icons/icon-192.png', badge: '/icons/badge-96.png',
     tag: d.tag || undefined, data: { url: d.url || '/learn' },
   }))
 })

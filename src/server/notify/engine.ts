@@ -1,4 +1,5 @@
 import 'server-only'
+import { brandView, emailBrand } from '../brand'
 /* محرّك الرسائل الآلية.
    ١) الجدولة بالمسح: كل دورة تشغيل (5 دقائق) تُقرأ الحالة الحالية — مواعيد الجلسات، والفتح المتدرّج، والطلبات،
       وقوائم الاهتمام — وتُدرج الرسائل المستحقة بمفتاح فريد. موعد الجلسة جزء من المفتاح، فتغييره يجدول تذكيرات
@@ -357,6 +358,8 @@ export async function dispatch(now: Date, opt: { limit?: number; keys?: string[]
   const site = siteUrl()
   if (!site) return { ...out, problem: 'SITE_URL غير مضبوط — الرسائل الآلية متوقفة' }
   const cfg = await notifySettings()
+  const mailBrand = await emailBrand(site)
+  const pushIcon = (await brandView()).icon?.url
   /* صفوف علقت في الإرسال (انقطاع) تعود للطابور */
   await db.update(s.notifications).set({ status: 'pending' }).where(and(eq(s.notifications.status, 'sending'), lt(s.notifications.updatedAt, iso(new Date(now.getTime() - 10 * MIN)))))
   const due = await db.select().from(s.notifications).where(and(
@@ -395,13 +398,13 @@ export async function dispatch(now: Date, opt: { limit?: number; keys?: string[]
     let r: Awaited<ReturnType<typeof send>>
     if (n.channel === 'email') {
       const { html, text } = renderEmail({
-        site, heading: fill(tpl.heading, v), body: fill(tpl.body, v), preheader: fill(tpl.subject, v),
+        site, brand: mailBrand, heading: fill(tpl.heading, v), body: fill(tpl.body, v), preheader: fill(tpl.subject, v),
         facts: meta.facts.map(([k, x]) => [k, v[x] ?? ''] as [string, string]),
         cta: tpl.cta && v.link ? { label: fill(tpl.cta, v), href: v.link } : undefined, unsubscribe: unsub,
       })
       r = await send({ channel: 'email', to: n.to, subject: fill(tpl.subject, v), text, html, kind: ev, headers: unsub ? { 'List-Unsubscribe': `<${unsub.replace('/unsubscribe?', '/api/unsubscribe?')}>`, 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' } : undefined })
     } else if (n.channel === 'push') {
-      r = await sendPushTo(n.learnerId!, { title: fill(tpl.subject, v), body: fill(tpl.sms.trim() ? tpl.sms : tpl.heading, v).replace(/\s*https?:\/\/\S+/g, '').slice(0, 200), url: v.link ?? `${site}/learn`, tag: n.key.split(':').slice(0, 2).join(':') }, ev)
+      r = await sendPushTo(n.learnerId!, { title: fill(tpl.subject, v), body: fill(tpl.sms.trim() ? tpl.sms : tpl.heading, v).replace(/\s*https?:\/\/\S+/g, '').slice(0, 200), url: v.link ?? `${site}/learn`, tag: n.key.split(':').slice(0, 2).join(':'), icon: pushIcon }, ev)
     } else {
       r = await send({ channel: 'sms', to: n.to, text: fill(tpl.sms, v).slice(0, 480), kind: ev })
     }

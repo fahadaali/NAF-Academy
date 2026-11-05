@@ -1,8 +1,9 @@
-import { Wordmark } from './Emblem'
+import { LogoMark, Wordmark } from './Logo'
+import type { BrandView } from '@/lib/brand'
 import { Words } from './Words'
 import styles from './Footer.module.css'
 
-export function Footer({ title = 'الدرجة الأولى أقرب مما تظ~4ن.', cta = 'ابدأ الآن' }: { title?: string; cta?: string }) {
+export function Footer({ title, cta, brand }: { title: string; cta: string; brand: BrandView }) {
   return (
     <footer data-surface="night" className={styles.footer}>
       <div className={`wrap ${styles.cta}`}>
@@ -10,7 +11,7 @@ export function Footer({ title = 'الدرجة الأولى أقرب مما تظ
         <a href="/courses" className="btn reveal" style={{ ['--d' as string]: 1 }}>{cta}</a>
       </div>
       <div className={`wrap ${styles.bottom}`}>
-        <Wordmark className={styles.mark} />
+        <Wordmark brand={brand} className={styles.mark} tone="dark" />
         <nav aria-label="روابط" className={styles.links}>
           <a href="/courses">الدورات</a>
           <a href="/tracks">المسارات</a>
@@ -18,7 +19,10 @@ export function Footer({ title = 'الدرجة الأولى أقرب مما تظ
           <a href="/certificates/verify">تحقق من شهادة</a>
           <a href="/policies">السياسات</a>
         </nav>
-        <p className={`${styles.copy} num`}>© 2026 أكاديمية ناف — إحدى مبادرات شركة ناف القانونية</p>
+        <p className={`${styles.copy} num`}>
+          <span>© {new Date().getFullYear()} {brand.name} — إحدى مبادرات</span>
+          {brand.naf.light || brand.naf.dark ? <LogoMark pair={brand.naf} alt={brand.companyName} height={22} tone="dark" fallback={false} className={styles.naf} /> : <span>{brand.companyName}</span>}
+        </p>
       </div>
     </footer>
   )

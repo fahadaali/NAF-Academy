@@ -1,11 +1,14 @@
 import type { Metadata } from 'next'
+import { brandView } from '@/server/brand'
 import { redirect } from 'next/navigation'
 import { certificateByCode } from '@/server/certificates'
 import { Words } from '@/components/Words'
 import st from '@/site/certificate.module.css'
 
 export const dynamic = 'force-dynamic'
-export const metadata: Metadata = { title: 'التحقق من شهادة', description: 'تحقّق من صحة شهادة صادرة عن أكاديمية ناف برقمها.' }
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: 'التحقق من شهادة', description: `تحقّق من صحة شهادة صادرة عن ${(await brandView()).name} برقمها.` }
+}
 
 export default async function Verify({ searchParams }: { searchParams: Promise<{ code?: string }> }) {
   const raw = ((await searchParams).code ?? '').trim().toUpperCase().replace(/\s+/g, '')

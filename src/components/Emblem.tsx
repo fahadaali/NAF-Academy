@@ -23,15 +23,3 @@ export function Emblem({ size = 40, className = '', draw = false }: { size?: num
     </svg>
   )
 }
-
-export function Wordmark({ className = '' }: { className?: string }) {
-  return (
-    <span className={`wordmark ${className}`}>
-      <Emblem size={34} />
-      <span className="wordmark-text">
-        <strong>أكاديمية ناف</strong>
-        <small>للتدريب القانوني</small>
-      </span>
-    </span>
-  )
-}

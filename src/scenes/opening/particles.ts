@@ -53,7 +53,8 @@ export function makeField(n: number): Field {
 }
 
 /** يعيد حساب الأهداف عند تغيّر المقاس */
-export function layoutField(f: Field, { w, h }: Layout) {
+/** mask: نقاط شعار مرفوع (أزواج 0–1 داخل مربع) — بدونها تُرسم العلامة الافتراضية بهندستها */
+export function layoutField(f: Field, { w, h }: Layout, mask?: Float32Array | null) {
   const { n } = f
   const cx = w / 2
   const cy = h / 2
@@ -127,6 +128,15 @@ export function layoutField(f: Field, { w, h }: Layout) {
   const oy = cy - S / 2
   const u = S / 100
   const { ring, bars, dot } = EMBLEM
+  if (mask && mask.length >= 2) {
+    const m = mask.length / 2
+    for (let i = 0; i < n; i++) {
+      const j = Math.floor(rand() * m)
+      f.emblem[i * 2] = ox + (mask[j * 2] + (rand() - 0.5) * 0.008) * S
+      f.emblem[i * 2 + 1] = oy + (mask[j * 2 + 1] + (rand() - 0.5) * 0.008) * S
+    }
+    return
+  }
   for (let i = 0; i < n; i++) {
     const r = rand()
     let x: number, y: number
