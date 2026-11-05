@@ -36,7 +36,7 @@
 .field em { font-weight: 500; }
 .field[data-err='1'] .input { border-color: var(--danger); }
 .input { inline-size: 100%; min-block-size: 50px; padding-inline: 16px; border-radius: var(--radius-m); border: 1px solid var(--line-strong); background: var(--bg); color: var(--text); font-size: 16px; transition: border-color var(--t-base), box-shadow var(--t-base); }
-.input:focus { outline: none; border-color: var(--gold-3); box-shadow: 0 0 0 4px rgb(201 162 90 / 0.16); }
+.input:focus { outline: none; border-color: var(--gold-3); box-shadow: 0 0 0 4px color-mix(in srgb, var(--gold-3) 16%, transparent); }
 .check { display: flex; gap: 10px; align-items: start; font-size: 14.5px; color: var(--text-soft); line-height: 1.6; cursor: pointer; }
 .check input { inline-size: 20px; block-size: 20px; accent-color: var(--gold-2); flex: none; margin-block-start: 2px; }
 .check[data-err='1'] { color: var(--danger); }

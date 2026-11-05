@@ -8,11 +8,11 @@
 .panel { position: sticky; inset-block-start: 10px; display: grid; gap: 14px; padding: 18px; border-radius: var(--radius-l); background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow-1); }
 .focal { position: relative; cursor: crosshair; border-radius: var(--radius-m); overflow: hidden; }
 .focal img { inline-size: 100%; display: block; }
-.dot { position: absolute; inline-size: 26px; block-size: 26px; margin: -13px 0 0 -13px; border-radius: 50%; border: 2.5px solid #fff; box-shadow: 0 0 0 2px var(--gold-3), 0 4px 12px rgb(0 0 0 / 0.4); pointer-events: none; transition: left var(--t-base) var(--ease-glide), top var(--t-base) var(--ease-glide); }
+.dot { position: absolute; inline-size: 26px; block-size: 26px; margin: -13px 0 0 -13px; border-radius: 50%; border: 2.5px solid var(--white); box-shadow: 0 0 0 2px var(--gold-3), 0 4px 12px color-mix(in srgb, var(--black) 40%, transparent); pointer-events: none; transition: left var(--t-base) var(--ease-glide), top var(--t-base) var(--ease-glide); }
 .crops { display: grid; grid-template-columns: 1.6fr 0.9fr 1fr; gap: 8px; align-items: end; }
 .crop { position: relative; border-radius: 10px; overflow: hidden; background: var(--surface-2); }
 .crop img { inline-size: 100%; block-size: 100%; object-fit: cover; display: block; transition: object-position var(--t-gentle) var(--ease-glide); }
-.crop span { position: absolute; inset-block-end: 4px; inset-inline-start: 6px; font-size: 10.5px; color: #fff; background: rgb(0 0 0 / 0.45); padding: 1px 6px; border-radius: 6px; direction: ltr; }
+.crop span { position: absolute; inset-block-end: 4px; inset-inline-start: 6px; font-size: 10.5px; color: var(--white); background: color-mix(in srgb, var(--black) 45%, transparent); padding: 1px 6px; border-radius: 6px; direction: ltr; }
 .meta { font-size: 12.5px; color: var(--muted); }
 .actions { display: flex; gap: 8px; }
 .error { color: var(--danger); font-weight: 600; margin-block-end: 12px; }

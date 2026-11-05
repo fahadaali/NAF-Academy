@@ -15,6 +15,5 @@
 .notify { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 .notify > input { flex: 1 1 220px; }
 .org { display: grid; gap: 14px; }
-.stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
 .bar { inline-size: 120px; block-size: 6px; border-radius: 999px; background: var(--line-strong); overflow: hidden; display: inline-block; vertical-align: middle; margin-inline-end: 8px; }
 .bar i { display: block; block-size: 100%; background: var(--gold-3); transform-origin: right; }

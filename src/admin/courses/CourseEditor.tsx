@@ -2,7 +2,7 @@
 /* محرّر الدورة — تبويبات، ومعاينة حيّة للبطاقة كما ستظهر في الموقع، وحفظ بشريط ثابت. */
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import type { CourseRow, InstructorRow, Media, TrackRow } from '@/server/db/schema'
+import type { InstructorRow, Media, TrackRow } from '@/server/db/schema'
 import type { Course, CourseStatus } from '@/content/types'
 import { DELIVERY, LESSON_TYPE, LEVEL } from '@/lib/enums'
 import { levelLabel, modeLabel } from '@/lib/course-meta'
@@ -306,7 +306,7 @@ export function CourseEditor({ id, initial, previewToken, tracks, instructors, m
         <aside className={styles.preview} aria-label="معاينة البطاقة">
           <span className={styles.previewLabel}>معاينة حيّة · كما ستظهر في الموقع</span>
           <div className={styles.previewStage}>
-            <CourseCard course={preview} track={pTrack ? { ...pTrack, courseCount: 0, cover: undefined } : undefined} instructor={pInst ? { ...pInst, photo: undefined } : undefined} />
+            <CourseCard still course={preview} track={pTrack ? { ...pTrack, courseCount: 0, cover: undefined } : undefined} instructor={pInst ? { ...pInst, photo: undefined } : undefined} />
           </div>
           {(v.status === 'draft' || v.status === 'scheduled' || v.status === 'archived') && (
             <p className={styles.previewNote}>الحالة «{STATUS_LABEL[v.status]}» — البطاقة لا تظهر للعموم الآن.</p>

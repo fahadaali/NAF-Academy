@@ -12,7 +12,7 @@
 .compose { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: end; }
 .compose textarea { inline-size: 100%; padding: 10px 12px; border-radius: var(--radius-s); border: 1px solid var(--line-strong); background: var(--bg); color: var(--text); font-size: 15px; resize: vertical; }
 .compose textarea:focus { outline: none; border-color: var(--gold-3); }
-.compose .btn, .compose :global(.btn) { min-block-size: 44px; }
+.compose :global(.btn) { min-block-size: 44px; }
 .notes { display: grid; gap: 6px; }
 .notes li { display: flex; gap: 10px; align-items: start; padding: 8px 10px; border-radius: 10px; background: var(--surface-2); font-size: 14.5px; line-height: 1.6; }
 .notes li > span { flex: 1; white-space: pre-line; }

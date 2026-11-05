@@ -1,0 +1,3 @@
+# ترويسات الملفات الثابتة على Cloudflare (Workers Assets) — ما لا يمرّ بخادم Next
+/email-fonts/*
+  Access-Control-Allow-Origin: *

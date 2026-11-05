@@ -5,5 +5,5 @@
 .sub { color: var(--muted); text-align: center; font-size: 15px; margin-block-end: 6px; }
 .field { display: grid; gap: 6px; font-size: 14px; color: var(--muted); }
 .field input { min-block-size: 50px; padding-inline: 14px; border-radius: var(--radius-m); border: 1px solid var(--line-strong); background: var(--bg); font-size: 16px; color: var(--text); }
-.field input:focus { outline: none; border-color: var(--gold-3); box-shadow: 0 0 0 4px rgb(201 162 90 / 0.18); }
+.field input:focus { outline: none; border-color: var(--gold-3); box-shadow: 0 0 0 4px color-mix(in srgb, var(--gold-3) 18%, transparent); }
 .error { color: var(--danger); font-size: 14px; font-weight: 600; }

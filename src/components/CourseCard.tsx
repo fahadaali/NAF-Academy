@@ -6,16 +6,18 @@ import { PriceTag } from './PriceTag'
 import { Picture } from './Picture'
 import styles from './CourseCard.module.css'
 
-type Props = { course: Course; track?: Track; instructor?: Instructor }
+/** `still`: معاينة في المحرّر — بلا روابط (الدورة قد لا تكون منشورة بعد) */
+type Props = { course: Course; track?: Track; instructor?: Instructor; still?: boolean }
 
-export function CourseCard({ course: c, track, instructor }: Props) {
+export function CourseCard({ course: c, track, instructor, still }: Props) {
   const st = statusView[c.status]
   if (!st) return null
   const left = c.seats ? c.seats.total - c.seats.taken : undefined
   const fill = c.seats ? c.seats.taken / c.seats.total : 0
+  const href = still ? undefined : `/courses/${c.slug}`
   return (
     <article className={styles.card} data-status={st.tone} data-dim={st.dim ? '1' : '0'}>
-      <a href={`/courses/${c.slug}`} className={styles.cover} data-vt-cover={`/courses/${c.slug}`} data-tone={track?.tone ?? 'gold'} aria-label={c.title}>
+      <a href={href} className={styles.cover} data-vt-cover={href} data-tone={track?.tone ?? 'gold'} aria-label={c.title}>
         {c.cover ? <span className={styles.photo} aria-hidden="true"><Picture media={c.cover} /></span> : <span className={styles.glyph} aria-hidden="true">{track?.glyph}</span>}
         <span className={styles.chips}>
           <span className={styles.chip}>{modeLabel[c.mode]}</span>
@@ -25,7 +27,7 @@ export function CourseCard({ course: c, track, instructor }: Props) {
       </a>
       <div className={styles.body}>
         {track && <span className={styles.track}>{track.title}</span>}
-        <h3 className={styles.title}><a href={`/courses/${c.slug}`}>{c.title}</a></h3>
+        <h3 className={styles.title}><a href={href}>{c.title}</a></h3>
         <dl className={`${styles.meta} num`}>
           {c.startsAt ? (
             <div>
@@ -48,7 +50,7 @@ export function CourseCard({ course: c, track, instructor }: Props) {
         {instructor && <p className={styles.by}>{instructor.title}</p>}
         <div className={styles.foot}>
           <PriceTag pricing={c.pricing} size="s" />
-          <a href={`/courses/${c.slug}`} className={`btn ${st.tone === 'open' ? '' : 'ghost'} ${styles.cta}`}>{st.cta}</a>
+          <a href={href} className={`btn ${st.tone === 'open' ? '' : 'ghost'} ${styles.cta}`}>{st.cta}</a>
         </div>
       </div>
     </article>

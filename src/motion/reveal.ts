@@ -137,22 +137,3 @@ function countUp(el: HTMLElement) {
   }
   requestAnimationFrame(tick)
 }
-
-/** ينفّذ `fn` مرة واحدة حين يقترب العنصر (للتحميل الكسول للمشاهد الثقيلة) */
-export function whenNear(el: Element, fn: () => void, margin = '320px'): () => void {
-  if (typeof IntersectionObserver !== 'function') {
-    fn()
-    return () => {}
-  }
-  const io = new IntersectionObserver(
-    (entries) => {
-      if (entries.some((e) => e.isIntersecting)) {
-        io.disconnect()
-        fn()
-      }
-    },
-    { rootMargin: margin },
-  )
-  io.observe(el)
-  return () => io.disconnect()
-}

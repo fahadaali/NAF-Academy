@@ -13,7 +13,7 @@
 .session > span:nth-child(2) { flex: 1; display: grid; }
 .session small { color: var(--muted); font-size: 13px; }
 .sType { font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 999px; background: var(--on-bg); color: var(--on-fg); }
-.live { font-size: 13px; font-weight: 800; color: var(--danger); animation: pulse 1.4s infinite; }
+.live { font-size: 13px; font-weight: 800; color: var(--danger); animation: pulse var(--t-pulse) infinite; }
 @keyframes pulse { 50% { opacity: 0.5; } }
 .criteria { display: grid; gap: 8px; }
 .criteria li { display: flex; gap: 10px; align-items: center; }

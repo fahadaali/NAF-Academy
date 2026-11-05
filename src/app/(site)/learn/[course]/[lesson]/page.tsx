@@ -11,11 +11,11 @@ import { Prose } from '@/components/Prose'
 import { formatDay, formatHijri, formatTime } from '@/lib/dates'
 import { plain } from '@/motion/kashida'
 import st from '@/site/learn/lesson.module.css'
+import { fileSize } from '@/lib/files'
 
 export const dynamic = 'force-dynamic'
 export const metadata: Metadata = { robots: { index: false } }
 
-const kb = (n: number) => (n > 1048576 ? `${(n / 1048576).toFixed(1)} م.ب` : `${Math.max(1, Math.round(n / 1024))} ك.ب`)
 
 export default async function LessonPage({ params }: { params: Promise<{ course: string; lesson: string }> }) {
   const { course: slug, lesson: id } = await params
@@ -112,7 +112,7 @@ export default async function LessonPage({ params }: { params: Promise<{ course:
               <section className={st.box}>
                 <h2>المرفقات</h2>
                 <ul className={st.files} role="list">
-                  {l.attachments.map((a) => <li key={a.assetId}><a href={`/files/${a.assetId}`} download>⇩ {a.name}</a><small className="num">{kb(a.size)}</small></li>)}
+                  {l.attachments.map((a) => <li key={a.assetId}><a href={`/files/${a.assetId}`} download>⇩ {a.name}</a><small className="num">{fileSize(a.size)}</small></li>)}
                 </ul>
               </section>
             )}

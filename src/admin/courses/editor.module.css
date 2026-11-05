@@ -21,7 +21,7 @@
 .statusCard span { font-size: 12.5px; color: var(--muted); line-height: 1.5; }
 .statusCard:hover { box-shadow: inset 0 0 0 1px var(--gold-3); }
 .statusCard[aria-pressed='true'] { box-shadow: inset 0 0 0 2px var(--gold-3); background: color-mix(in srgb, var(--gold-3) 8%, transparent); }
-.statusCard[data-tone='closed'][aria-pressed='true'] { background: color-mix(in srgb, #4a4f57 14%, transparent); }
+.statusCard[data-tone='closed'][aria-pressed='true'] { background: color-mix(in srgb, var(--slate) 14%, transparent); }
 
 .modules { display: grid; gap: 12px; }
 .module { border-radius: var(--radius-m); border: 1px solid var(--line); background: var(--bg); padding: 12px; display: grid; gap: 10px; }

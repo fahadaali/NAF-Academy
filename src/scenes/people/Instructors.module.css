@@ -11,7 +11,7 @@
 }
 .card::after {
   content: ''; position: absolute; inset: 0; pointer-events: none;
-  background: radial-gradient(400px circle at var(--gx) var(--gy), rgb(201 162 90 / 0.14), transparent 50%);
+  background: radial-gradient(400px circle at var(--gx) var(--gy), color-mix(in srgb, var(--gold-3) 14%, transparent), transparent 50%);
   opacity: 0; transition: opacity var(--t-gentle);
 }
 .card:hover { box-shadow: var(--shadow-2); }
@@ -20,15 +20,15 @@
   position: relative; aspect-ratio: 4 / 4.2; display: grid; place-items: center; overflow: hidden;
   background: radial-gradient(70% 60% at 50% 40%, var(--night-3), var(--night-1));
 }
-.js .item .portrait { clip-path: inset(100% 0 0 0); }
-.js .item:global(.in) .portrait { clip-path: inset(0 0 0 0); transition: clip-path calc(var(--t-gentle) * 3.5) var(--ease-travel) calc(var(--d) * 90ms); }
-.bust { position: relative; z-index: 1; inline-size: 46%; fill: none; stroke: var(--gold-3); stroke-width: 1.4; stroke-linecap: round; transform: translateY(8%); filter: drop-shadow(0 0 12px rgb(201 162 90 / 0.3)); }
+:global(.js) .item .portrait { clip-path: inset(100% 0 0 0); }
+:global(.js) .item:global(.in) .portrait { clip-path: inset(0 0 0 0); transition: clip-path calc(var(--t-gentle) * 3.5) var(--ease-travel) calc(var(--d) * 90ms); }
+.bust { position: relative; z-index: 1; inline-size: 46%; fill: none; stroke: var(--gold-3); stroke-width: 1.4; stroke-linecap: round; transform: translateY(8%); filter: drop-shadow(0 0 12px color-mix(in srgb, var(--gold-3) 30%, transparent)); }
 .item[data-display='compact'] .bust { inline-size: 26%; }
 .rings {
   position: absolute; inset: 14%; border-radius: 50%;
-  box-shadow: 0 0 0 1px rgb(201 162 90 / 0.22), 0 0 0 22px rgb(201 162 90 / 0.015), 0 0 0 23px rgb(201 162 90 / 0.08);
-  border-top: 1px solid rgb(201 162 90 / 0.5);
-  animation: spin 30s linear infinite;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--gold-3) 22%, transparent), 0 0 0 22px color-mix(in srgb, var(--gold-3) 1.5%, transparent), 0 0 0 23px color-mix(in srgb, var(--gold-3) 8%, transparent);
+  border-top: 1px solid color-mix(in srgb, var(--gold-3) 50%, transparent);
+  animation: spin var(--t-orbit) linear infinite;
 }
 @keyframes spin { to { transform: rotate(1turn); } }
 .info { padding: 20px 22px 24px; display: grid; gap: 4px; align-content: start; }
@@ -39,3 +39,5 @@
 .hl li::before { content: '— '; color: var(--gold-3); }
 .photo { position: absolute; inset: 0; transition: transform calc(var(--t-gentle) * 3) var(--ease-glide); }
 .card:hover .photo { transform: scale(1.05); }
+
+@media (prefers-reduced-motion: reduce) { :global(.js) .item .portrait { clip-path: none; } }

@@ -1,7 +1,7 @@
 .catalog { padding-block: 40px 100px; }
 .filters { display: grid; gap: 14px; position: sticky; inset-block-start: 10px; z-index: 5; }
 .search { inline-size: min(100%, 440px); min-block-size: 52px; padding-inline: 20px; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--surface); color: var(--text); font-size: 16px; box-shadow: var(--shadow-1); }
-.search:focus { outline: none; border-color: var(--gold-3); box-shadow: 0 0 0 4px rgb(201 162 90 / 0.16); }
+.search:focus { outline: none; border-color: var(--gold-3); box-shadow: 0 0 0 4px color-mix(in srgb, var(--gold-3) 16%, transparent); }
 .row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .sep { inline-size: 1px; block-size: 24px; background: var(--line-strong); margin-inline: 6px; }
 .chip { flex: none; white-space: nowrap; min-block-size: 40px; padding-inline: 16px; border-radius: 999px; font-size: 14px; font-weight: 600; box-shadow: inset 0 0 0 1px var(--line-strong); background: var(--surface); transition: background var(--t-base), color var(--t-base), box-shadow var(--t-base); }

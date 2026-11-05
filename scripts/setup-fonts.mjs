@@ -1,7 +1,7 @@
-/* يولّد src/design/fonts.generated.css من ملفات خط ثمانية إن وُجدت في src/fonts/thmanyah/.
-   الملفات لا تُرفع للمستودع (الترخيص)، وتُدمج في البناء بأسماء مجزّأة كجزء من المنتج.
-   إن غابت: ملف فارغ، فيعمل البناء بالخط الاحتياطي. الملفات تُستخدم كما هي بلا أي تعديل. */
-import { copyFileSync, existsSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs'
+/* يولّد src/design/fonts.generated.css من ملفات خط ثمانية في src/fonts/thmanyah/ (ضمن المستودع بقرار المالك)،
+   فتُدمج في البناء بأسماء مجزّأة. إن غابت: ملف فارغ، فيعمل البناء بالخط الاحتياطي. الملفات تُستخدم كما هي بلا تعديل.
+   وينسخ منها نسخاً ثابتة الاسم للبريد والشهادات، ورمز الريال من حزمته (OFL). */
+import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 
 const dir = 'src/fonts/thmanyah'
 const out = 'src/design/fonts.generated.css'
@@ -41,4 +41,15 @@ const cert = { 'thmanyahserifdisplay-Bold.woff2': 'display-bold.woff2', 'thmanya
 if (files.length) {
   mkdirSync('public/cert-fonts', { recursive: true })
   for (const [from, to] of Object.entries(cert)) if (existsSync(`${dir}/${from}`)) copyFileSync(`${dir}/${from}`, `public/cert-fonts/${to}`)
+}
+
+/* رمز الريال (U+20C1) من حزمة saudi-riyal-font — ينسخ فقط إن تغيّر، فلا فرق في المستودع */
+const riyal = 'node_modules/@emran-alhaddad/saudi-riyal-font/fonts'
+const glyphs = { 'regular/saudi_riyal.woff2': 'riyal.woff2', 'bold/saudi_riyal.woff2': 'riyal-bold.woff2' }
+if (existsSync(riyal)) {
+  mkdirSync('public/fonts', { recursive: true })
+  for (const [from, to] of Object.entries(glyphs)) {
+    const src = `${riyal}/${from}`, dst = `public/fonts/${to}`
+    if (existsSync(src) && (!existsSync(dst) || !readFileSync(src).equals(readFileSync(dst)))) copyFileSync(src, dst)
+  }
 }

@@ -26,7 +26,7 @@
   border: 1px solid var(--line-strong); background: var(--bg); color: var(--text); font-size: 15px;
   transition: border-color var(--t-base), box-shadow var(--t-base);
 }
-.input:focus { outline: none; border-color: var(--gold-3); box-shadow: 0 0 0 4px rgb(201 162 90 / 0.16); }
+.input:focus { outline: none; border-color: var(--gold-3); box-shadow: 0 0 0 4px color-mix(in srgb, var(--gold-3) 16%, transparent); }
 .textarea { min-block-size: 96px; resize: vertical; line-height: 1.7; }
 select.input { appearance: none; background-image: linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%); background-position: 18px 50%, 13px 50%; background-size: 5px 5px; background-repeat: no-repeat; padding-inline-start: 34px; }
 
@@ -37,12 +37,12 @@ select.input { appearance: none; background-image: linear-gradient(45deg, transp
 }
 .segmented button:hover { box-shadow: inset 0 0 0 1px var(--gold-3); }
 .segmented button[aria-checked='true'] { background: var(--on-bg); color: var(--on-fg); box-shadow: none; }
-.segmented button[aria-checked='true'][data-tone='closed'] { background: #4a4f57; color: #fff; }
-.segmented button[aria-checked='true'][data-tone='open'] { background: var(--olive-1); color: #fff; }
+.segmented button[aria-checked='true'][data-tone='closed'] { background: var(--slate); color: var(--white); }
+.segmented button[aria-checked='true'][data-tone='open'] { background: var(--olive-1); color: var(--white); }
 
 .switch { display: inline-flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 600; min-block-size: 40px; }
 .knob { position: relative; inline-size: 42px; block-size: 24px; border-radius: 999px; background: var(--line-strong); transition: background var(--t-base); flex: none; }
-.knob::after { content: ''; position: absolute; inset-block-start: 3px; inset-inline-start: 3px; inline-size: 18px; block-size: 18px; border-radius: 50%; background: #fff; box-shadow: var(--shadow-1); transition: transform var(--t-gentle) var(--ease-glide); }
+.knob::after { content: ''; position: absolute; inset-block-start: 3px; inset-inline-start: 3px; inline-size: 18px; block-size: 18px; border-radius: 50%; background: var(--white); box-shadow: var(--shadow-1); transition: transform var(--t-gentle) var(--ease-glide); }
 .switch[aria-checked='true'] .knob { background: var(--gold-3); }
 .switch[aria-checked='true'] .knob::after { transform: translateX(-18px); }
 
@@ -70,7 +70,7 @@ select.input { appearance: none; background-image: linear-gradient(45deg, transp
 .badge[data-tone='full'] { background: color-mix(in srgb, var(--ember) 16%, transparent); color: var(--warn); }
 .badge[data-tone='closed'], .badge[data-tone='archived'] { color: var(--muted); }
 .badge[data-tone='draft'] { background: transparent; box-shadow: inset 0 0 0 1px var(--line-strong); color: var(--muted); }
-.badge[data-tone='scheduled'] { background: color-mix(in srgb, #5d8dbc 16%, transparent); color: var(--info); }
+.badge[data-tone='scheduled'] { background: color-mix(in srgb, var(--sky) 16%, transparent); color: var(--info); }
 
 .saveBar {
   position: sticky; inset-block-end: 14px; z-index: 20; margin-block-start: 22px;

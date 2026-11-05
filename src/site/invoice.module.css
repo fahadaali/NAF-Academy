@@ -1,35 +1,35 @@
 .page { padding-block: calc(var(--header-h) + 30px) 80px; background: var(--surface-2); min-block-size: 100svh; }
 .toolbar { display: flex; gap: 16px; align-items: center; justify-content: center; margin-block-end: 22px; }
 .toolbar a { color: var(--accent); font-weight: 600; }
-.sheet { inline-size: min(100% - 32px, 820px); margin-inline: auto; padding: clamp(24px, 5vw, 56px); background: #fff; color: #14202b; border-radius: 6px; box-shadow: var(--shadow-2); display: grid; gap: 28px; }
-.head { display: flex; justify-content: space-between; align-items: start; gap: 16px; padding-block-end: 22px; border-block-end: 2px solid #c9a25a; }
-.brand { display: flex; gap: 12px; align-items: center; color: #8a6a2c; }
-.brand div { display: grid; color: #14202b; }
+.sheet { inline-size: min(100% - 32px, 820px); margin-inline: auto; padding: clamp(24px, 5vw, 56px); background: var(--white); color: var(--ink-1); border-radius: 6px; box-shadow: var(--shadow-2); display: grid; gap: 28px; }
+.head { display: flex; justify-content: space-between; align-items: start; gap: 16px; padding-block-end: 22px; border-block-end: 2px solid var(--gold-3); }
+.brand { display: flex; gap: 12px; align-items: center; color: var(--gold-1); }
+.brand div { display: grid; color: var(--ink-1); }
 .brand strong { font-family: var(--font-display); font-size: 22px; }
-.brand span { font-size: 13px; color: #5b6470; }
+.brand span { font-size: 13px; color: var(--ink-3); }
 .kind { text-align: end; }
 .kind h1 { font-family: var(--font-display); font-size: 26px; }
-.kind span { font-size: 12px; color: #5b6470; letter-spacing: 0.06em; direction: ltr; display: block; }
+.kind span { font-size: 12px; color: var(--ink-3); letter-spacing: 0.06em; direction: ltr; display: block; }
 .meta { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
-.meta dt { font-size: 12px; color: #5b6470; }
+.meta dt { font-size: 12px; color: var(--ink-3); }
 .meta dd { font-weight: 700; font-size: 14px; }
 .parties { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-.parties section { padding: 16px; border-radius: 8px; background: #f6f2e8; display: grid; gap: 4px; font-size: 14px; }
-.parties h2 { font-size: 13px; color: #8a6a2c; margin-block-end: 4px; }
+.parties section { padding: 16px; border-radius: 8px; background: var(--ivory-1); display: grid; gap: 4px; font-size: 14px; }
+.parties h2 { font-size: 13px; color: var(--gold-1); margin-block-end: 4px; }
 .lines { inline-size: 100%; border-collapse: collapse; font-size: 14px; }
-.lines th { text-align: start; background: #0b1520; color: #efe9db; padding: 10px 12px; font-weight: 600; }
-.lines td { padding: 12px; border-block-end: 1px solid #ece6d6; }
+.lines th { text-align: start; background: var(--night-1); color: var(--parchment); padding: 10px 12px; font-weight: 600; }
+.lines td { padding: 12px; border-block-end: 1px solid var(--ivory-2); }
 .lines td:not(:first-child), .lines th:not(:first-child) { text-align: end; inline-size: 110px; }
 .foot { display: flex; justify-content: space-between; align-items: end; gap: 24px; }
 .qr { inline-size: 128px; block-size: 128px; }
 .qr svg { inline-size: 100%; block-size: 100%; }
 .totals { display: grid; gap: 8px; min-inline-size: 300px; }
 .totals > div { display: flex; justify-content: space-between; gap: 20px; font-size: 14px; }
-.grand { padding-block-start: 10px; border-block-start: 2px solid #14202b; font-size: 17px !important; font-weight: 800; }
-.note { font-size: 12px; color: #5b6470; text-align: center; }
+.grand { padding-block-start: 10px; border-block-start: 2px solid var(--ink-1); font-size: 17px !important; font-weight: 800; }
+.note { font-size: 12px; color: var(--ink-3); text-align: center; }
 @media (max-width: 640px) { .meta { grid-template-columns: 1fr 1fr; } .parties { grid-template-columns: 1fr; } .foot { flex-direction: column-reverse; align-items: stretch; } }
 @media print {
   :global(header), :global(footer), .toolbar { display: none !important; }
-  .page { padding: 0; background: #fff; }
+  .page { padding: 0; background: var(--white); }
   .sheet { box-shadow: none; inline-size: 100%; }
 }

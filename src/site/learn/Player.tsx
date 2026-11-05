@@ -147,7 +147,7 @@ export const Player = forwardRef<PlayerApi, Props>(function Player({ kind, src, 
         ) : (
           <iframe ref={frame} src={src} className={s.media} allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture; fullscreen" allowFullScreen title="فيديو الدرس" />
         )}
-        <span className={s.watermark} style={{ left: `${wm.x}%`, top: `${wm.y}%` }} aria-hidden="true">{watermark}</span>
+        <span className={s.wmLayer} aria-hidden="true"><span className={s.watermark} style={{ ['--x' as string]: wm.x, ['--y' as string]: wm.y }}>{watermark}</span></span>
         {hint && <span className={s.hint} aria-hidden="true">{hint}</span>}
         {kind === 'url' && paused && <button className={s.big} onClick={toggle} aria-label="تشغيل">▶</button>}
       </div>

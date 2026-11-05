@@ -1,5 +1,5 @@
 .impact { background: var(--scene-bg); color: var(--scene-text); padding-block: clamp(70px, 12vh, 130px); position: relative; overflow: hidden; }
-.impact::before { content: ''; position: absolute; inset: -40% 20%; background: radial-gradient(closest-side, rgb(201 162 90 / 0.12), transparent); pointer-events: none; }
+.impact::before { content: ''; position: absolute; inset: -40% 20%; background: radial-gradient(closest-side, color-mix(in srgb, var(--gold-3) 12%, transparent), transparent); pointer-events: none; }
 .grid { position: relative; display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
 .stat { display: grid; gap: 6px; padding-inline-start: 22px; border-inline-start: 1px solid var(--scene-line); }
 .value { font-size: clamp(44px, 6vw, 84px); font-weight: 900; line-height: 1; color: var(--gold-4); letter-spacing: -0.02em; }

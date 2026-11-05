@@ -5,8 +5,6 @@ import { and, desc, eq, inArray, isNull, or, sql } from 'drizzle-orm'
 import { db, schema as s } from './db'
 import { progressOf } from './notify/engine'
 
-export const domainOf = (email: string) => email.split('@')[1]?.toLowerCase() ?? ''
-
 /** المؤسسات التي يديرها هذا المتدرب */
 export async function managedOrgs(learnerId: string) {
   return db.select({ o: s.organizations }).from(s.orgMembers).innerJoin(s.organizations, eq(s.organizations.id, s.orgMembers.orgId))

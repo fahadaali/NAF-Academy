@@ -3,7 +3,7 @@ import 'server-only'
 import { and, asc, count, desc, eq, inArray, isNull } from 'drizzle-orm'
 import { db, schema as s } from './db'
 import type { Course, Instructor, MediaView, Track } from '@/content/types'
-import { DEFAULT_HOME, type HomeContent } from '@/content/home-defaults'
+import { DEFAULT_HOME, DEFAULT_MENU, type HomeContent } from '@/content/home-defaults'
 import { corporate as seedCorporate, hero as seedHero, ladder as seedLadder, stats as seedStats } from '@/content/seed'
 import { isPublic, publicOrder, resolveStatus } from '@/lib/course-meta'
 import type { CourseRow, InstructorRow, LessonRow, Media, ModuleRow, TrackRow } from './db/schema'
@@ -79,6 +79,7 @@ export async function homeContent(): Promise<HomeContent> {
   return {
     hero: seedHero, ladder: seedLadder, stats: seedStats, corporate: seedCorporate, ...DEFAULT_HOME, ...v,
     heads: { ...DEFAULT_HOME.heads, ...(v.heads ?? {}) },
+    sections: (v.sections ?? DEFAULT_HOME.sections).map((x) => ({ ...x, menu: x.menu ?? DEFAULT_MENU[x.key] })),
   } as HomeContent
 }
 

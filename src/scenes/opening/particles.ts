@@ -245,7 +245,16 @@ void main(){
   o = vec4(u_color * a, a);
 }`
 
+/** لون الجسيمات من رموز الهوية (--gold-4) — لا قيمة لون في الشيفرة */
+function particleColor(): [number, number, number] {
+  const hex = getComputedStyle(document.documentElement).getPropertyValue('--gold-4').trim().replace('#', '')
+  const full = hex.length === 3 ? hex.split('').map((c) => c + c).join('') : hex
+  const n = parseInt(full, 16)
+  return Number.isFinite(n) && full.length === 6 ? [(n >> 16) & 255, (n >> 8) & 255, n & 255] : [224, 188, 110]
+}
+
 export function makeRenderer(canvas: HTMLCanvasElement): Renderer | null {
+  const [cr, cg, cb] = particleColor()
   const gl = canvas.getContext('webgl2', { premultipliedAlpha: true, antialias: false, alpha: true })
   if (gl) {
     const sh = (type: number, src: string) => {
@@ -276,7 +285,7 @@ export function makeRenderer(canvas: HTMLCanvasElement): Renderer | null {
         attr('a_alpha', 1, 12)
         const uRes = gl.getUniformLocation(prog, 'u_res')
         const uColor = gl.getUniformLocation(prog, 'u_color')
-        gl.uniform3f(uColor, 0.87, 0.72, 0.43)
+        gl.uniform3f(uColor, cr / 255, cg / 255, cb / 255)
         gl.enable(gl.BLEND)
         gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA)
         return {
@@ -302,7 +311,7 @@ export function makeRenderer(canvas: HTMLCanvasElement): Renderer | null {
     resize: () => {},
     draw: (f, w, h) => {
       ctx.clearRect(0, 0, w, h)
-      ctx.fillStyle = 'rgb(222 184 110)'
+      ctx.fillStyle = `rgb(${cr} ${cg} ${cb})`
       for (let i = 0; i < f.n; i++) {
         const o = i * 4
         const s = f.out[o + 2]

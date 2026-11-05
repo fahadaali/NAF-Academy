@@ -8,14 +8,14 @@
   --a: var(--night-2); --b: var(--night-1); --g: var(--gold-3);
   position: relative; display: block; aspect-ratio: 16 / 9; overflow: hidden;
   background:
-    radial-gradient(80% 90% at 85% 10%, rgb(255 255 255 / 0.1), transparent 60%),
-    repeating-linear-gradient(135deg, rgb(255 255 255 / 0.03) 0 2px, transparent 2px 10px),
+    radial-gradient(80% 90% at 85% 10%, color-mix(in srgb, var(--white) 10%, transparent), transparent 60%),
+    repeating-linear-gradient(135deg, color-mix(in srgb, var(--white) 3%, transparent) 0 2px, transparent 2px 10px),
     linear-gradient(150deg, var(--b), var(--a));
 }
-.cover[data-tone='gold'] { --a: #2a2112; --b: #4a3818; --g: var(--gold-4); }
-.cover[data-tone='olive'] { --a: #1f2617; --b: #36432a; --g: var(--olive-3); }
-.cover[data-tone='ember'] { --a: #2a1712; --b: #4a2a1e; --g: #e39a7e; }
-.cover[data-tone='ivory'] { --a: #1b2a3a; --b: #2c4058; --g: var(--gold-5); }
+.cover[data-tone='gold'] { --a: var(--tone-gold-0); --b: var(--tone-gold-2); --g: var(--gold-4); }
+.cover[data-tone='olive'] { --a: var(--tone-olive-0); --b: var(--tone-olive-2); --g: var(--olive-3); }
+.cover[data-tone='ember'] { --a: var(--tone-ember-0); --b: var(--tone-ember-2); --g: var(--ember-soft); }
+.cover[data-tone='ivory'] { --a: var(--tone-navy-0); --b: var(--tone-navy-1); --g: var(--gold-5); }
 .glyph {
   position: absolute; inset-inline-start: 8%; inset-block-end: -18%; font-family: var(--font-display); font-size: 180px; font-weight: 900; line-height: 1;
   color: transparent; -webkit-text-stroke: 1.2px var(--g); opacity: 0.8;
@@ -24,16 +24,16 @@
 .card:hover .glyph { transform: translateY(-10px) scale(1.04); }
 .chips { position: absolute; inset-block-start: 14px; inset-inline-start: 14px; display: flex; gap: 6px; }
 .chip {
-  font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 999px; color: #fff;
-  background: rgb(7 14 22 / 0.4); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
-  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.14);
+  font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 999px; color: var(--white);
+  background: color-mix(in srgb, var(--night-0) 40%, transparent); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--white) 14%, transparent);
 }
 .status {
   position: absolute; inset-block-start: 14px; inset-inline-end: 14px; font-size: 12px; font-weight: 700;
   padding: 4px 10px; border-radius: 999px; background: var(--gold-3); color: var(--night-1);
 }
 .card[data-status='soon'] .status { background: var(--olive-3); }
-.card[data-status='full'] .status { background: var(--ember); color: #fff; }
+.card[data-status='full'] .status { background: var(--ember); color: var(--white); }
 
 .body { display: grid; gap: 10px; padding: 20px 22px 22px; align-content: start; }
 .track { font-size: 13px; font-weight: 600; color: var(--accent); }
@@ -55,16 +55,16 @@
 .card[data-dim='1'] { box-shadow: none; }
 .card[data-dim='1']::after {
   content: ''; position: absolute; inset: 0; pointer-events: none; border-radius: inherit;
-  background: linear-gradient(180deg, rgb(7 14 22 / 0.35), rgb(7 14 22 / 0.6));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--night-0) 35%, transparent), color-mix(in srgb, var(--night-0) 60%, transparent));
   backdrop-filter: grayscale(0.85) brightness(0.9); -webkit-backdrop-filter: grayscale(0.85) brightness(0.9);
 }
 .card[data-dim='1'] .status {
   z-index: 2; inset-block-start: 50%; inset-inline: 0; margin-inline: auto; inline-size: max-content; transform: translateY(-50%);
-  font-size: 15px; padding: 8px 18px; background: rgb(7 14 22 / 0.75); color: var(--scene-text);
-  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.18); backdrop-filter: blur(6px);
+  font-size: 15px; padding: 8px 18px; background: color-mix(in srgb, var(--night-0) 75%, transparent); color: var(--scene-text);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--white) 18%, transparent); backdrop-filter: blur(6px);
 }
 .card[data-dim='1'] .cta { position: relative; z-index: 2; color: var(--scene-text); }
 .card[data-dim='1']:hover { transform: none; }
 .photo { position: absolute; inset: 0; transition: transform calc(var(--t-gentle) * 3) var(--ease-glide); }
-.photo::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, rgb(7 14 22 / 0.35), transparent 45%); }
+.photo::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, color-mix(in srgb, var(--night-0) 35%, transparent), transparent 45%); }
 .card:hover .photo { transform: scale(1.05); }

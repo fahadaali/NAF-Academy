@@ -3,7 +3,7 @@
    المرجع الوحيد للألوان والمقاسات. منصة خارجية: لا علاقة لها بـ naf-ui.
    ============================================================ */
 
-/* خط ثمانية: يولّده scripts/setup-fonts.mjs (الملفات خارج المستودع بحكم الترخيص) */
+/* خط ثمانية: ملفاته في src/fonts/thmanyah/، ويولّد scripts/setup-fonts.mjs منها هذا الملف بأسماء مجزّأة */
 @import './fonts.generated.css';
 
 @font-face {
@@ -39,14 +39,39 @@
   --olive-2: #6f7f55;
   --olive-3: #a3b386;
   --ember: #b5543a;
+  --ember-soft: #e39a7e;
+  --white: #fff;
+  --black: #000;
+  /* حبر النص الفاتح — للأسطح الثابتة (الفاتورة المطبوعة، قوائم المشغّل) */
+  --ink-1: #14202b;
+  --ink-3: #5b6470;
+  --parchment: #efe9db;
+  /* ألوان مساعدة: حالة «مغلق»، شارة «مجدولة»، مؤشر «متصل» */
+  --slate: #4a4f57;
+  --sky: #5d8dbc;
+  --signal-ok: #3f9e5a;
+  /* درجات أغلفة المسارات (البطاقة والرفّ) — داكن ← أفتح */
+  --tone-gold-0: #2a2112;
+  --tone-gold-1: #3c2d14;
+  --tone-gold-2: #4a3818;
+  --tone-olive-0: #1f2617;
+  --tone-olive-1: #2f3a22;
+  --tone-olive-2: #36432a;
+  --tone-ember-0: #2a1712;
+  --tone-ember-1: #3f2118;
+  --tone-ember-2: #4a2a1e;
+  --tone-navy-0: #1b2a3a;
+  --tone-navy-1: #2c4058;
+  --tone-ivory-0: #efe8d6;
+  --tone-ivory-1: #fbf8ef;
 
   /* — الأدوار (الوضع الفاتح) — */
   --bg: var(--ivory-1);
   --surface: var(--ivory-0);
   --surface-2: var(--ivory-2);
-  --text: #14202b;
+  --text: var(--ink-1);
   --text-soft: #36424e;
-  --muted: #5b6470;
+  --muted: var(--ink-3);
   --line: rgb(20 32 43 / 0.12);
   --line-strong: rgb(20 32 43 / 0.22);
   /* أغمق قليلاً من gold-1 ليتجاوز 4.5:1 على كل الأسطح الفاتحة */
@@ -69,7 +94,7 @@
 
   /* سطح المشاهد السردية — ليلي دائماً في الوضعين */
   --scene-bg: var(--night-1);
-  --scene-text: #efe9db;
+  --scene-text: var(--parchment);
   --scene-muted: #a6adb4;
   --scene-line: rgb(239 233 219 / 0.12);
 
@@ -104,6 +129,12 @@
   --t-gentle: 320ms;
   --t-reveal: 780ms;
   --t-sweep: 860ms;
+  /* حلقات محيطة بطيئة — مرآة loop في tokens.ts */
+  --t-blink: 960ms;
+  --t-pulse: 1600ms;
+  --t-breathe: 2560ms;
+  --t-drift: 24000ms;
+  --t-orbit: 30080ms;
   --ease-in: cubic-bezier(.2,.85,.25,1);
   --ease-move: cubic-bezier(.4,0,.2,1);
   --ease-out: cubic-bezier(.4,0,1,1);
@@ -136,9 +167,8 @@
     --on-fg: var(--night-1);
     --success: var(--olive-3);
     --info: #86a0bd;
-    --warn: #e39a7e;
-  --danger: #e39a7e;
-    --danger: #e39a7e;
+    --warn: var(--ember-soft);
+    --danger: var(--ember-soft);
     --glass: rgb(11 21 32 / 0.82);
     --scene-bg: var(--night-0);
     --shadow-1: 0 1px 2px rgb(0 0 0 / 0.3), 0 4px 16px rgb(0 0 0 / 0.25);
@@ -162,7 +192,8 @@
   --on-fg: var(--night-1);
   --success: var(--olive-3);
   --info: #86a0bd;
-  --warn: #e39a7e;
+  --warn: var(--ember-soft);
+  --danger: var(--ember-soft);
   --glass: rgb(11 21 32 / 0.82);
   --scene-bg: var(--night-0);
   --shadow-1: 0 1px 2px rgb(0 0 0 / 0.3), 0 4px 16px rgb(0 0 0 / 0.25);

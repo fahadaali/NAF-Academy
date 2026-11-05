@@ -61,7 +61,7 @@
   }
   .btn::after {
     content: ''; position: absolute; inset: 0; z-index: -1;
-    background: radial-gradient(120px circle at var(--mx, 50%) var(--my, 50%), rgb(255 255 255 / 0.45), transparent 60%);
+    background: radial-gradient(120px circle at var(--mx, 50%) var(--my, 50%), color-mix(in srgb, var(--white) 45%, transparent), transparent 60%);
     opacity: 0; transition: opacity var(--t-base);
   }
   .btn:hover { transform: translateY(-1px); box-shadow: var(--shadow-glow); }

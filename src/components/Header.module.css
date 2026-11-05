@@ -9,7 +9,7 @@
   box-shadow: 0 1px 0 var(--line);
 }
 .header[data-night='1'] { color: var(--scene-text); }
-.header[data-night='1'][data-solid='1'] { background: rgb(7 14 22 / 0.55); box-shadow: 0 1px 0 var(--scene-line); }
+.header[data-night='1'][data-solid='1'] { background: color-mix(in srgb, var(--night-0) 55%, transparent); box-shadow: 0 1px 0 var(--scene-line); }
 .header[data-night='1'] .bite { fill: var(--scene-bg) !important; }
 .header[data-hidden='1'][data-open='0'] { transform: translateY(-100%); }
 :global(html.opening) .header { opacity: 0; }

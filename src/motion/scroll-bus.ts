@@ -57,11 +57,3 @@ export function pinProgress(rect: DOMRect, vh: number): number {
   const p = -rect.top / total
   return p < 0 ? 0 : p > 1 ? 1 : p
 }
-
-/** تقدّم عبور عنصر للشاشة: 0 حين يدخل من الأسفل، 1 حين يخرج من الأعلى */
-export function passProgress(rect: DOMRect, vh: number): number {
-  const p = (vh - rect.top) / (vh + rect.height)
-  return p < 0 ? 0 : p > 1 ? 1 : p
-}
-
-export const current = () => frame

@@ -31,8 +31,8 @@
   min-block-size: 52px; padding-inline: 16px; border-radius: var(--radius-m); border: 1px solid var(--line-strong);
   background: var(--bg); color: var(--text); font-size: 16px; transition: border-color var(--t-base), box-shadow var(--t-base);
 }
-.inputs input:focus { outline: none; border-color: var(--gold-3); box-shadow: 0 0 0 4px rgb(201 162 90 / 0.18); }
-.field .btn { justify-self: start; }
+.inputs input:focus { outline: none; border-color: var(--gold-3); box-shadow: 0 0 0 4px color-mix(in srgb, var(--gold-3) 18%, transparent); }
+.field :global(.btn) { justify-self: start; }
 
 .done { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: 10px; text-align: center; background: var(--surface); opacity: 0; pointer-events: none; transition: opacity var(--t-reveal) var(--ease-glide); }
 .form[data-sent='1'] .done { opacity: 1; pointer-events: auto; }

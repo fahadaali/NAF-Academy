@@ -8,8 +8,10 @@
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gold-3) 40%, transparent);
 }
 .countdown { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
-.pulse { inline-size: 7px; block-size: 7px; border-radius: 50%; background: var(--danger); animation: pulse 1.6s var(--ease-in) infinite; }
-@keyframes pulse { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--danger) 60%, transparent); } 100% { box-shadow: 0 0 0 9px transparent; } }
+.pulse { position: relative; inline-size: 7px; block-size: 7px; border-radius: 50%; background: var(--danger); }
+.pulse::after { content: ''; position: absolute; inset: 0; border-radius: 50%; background: var(--danger); opacity: 0.6; animation: pulse var(--t-pulse) var(--ease-in) infinite; }
+@keyframes pulse { to { transform: scale(3.6); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .pulse::after { animation: none; opacity: 0; } }
 .s .current { font-size: 20px; } .s .original { font-size: 14px; }
 .m .current { font-size: 26px; } .m .original { font-size: 16px; }
 .l .current { font-size: 38px; } .l .original { font-size: 19px; }

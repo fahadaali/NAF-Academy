@@ -38,4 +38,3 @@ export type Drip = { mode: 'none' | 'date' | 'days'; date: string | null; days: 
 
 export const EMPTY_QUIZ: Quiz = { passPct: 70, attempts: 3, timeLimitMin: null, shuffle: true, showAnswers: true, questions: [] }
 export const EMPTY_ASSIGNMENT: Assignment = { instructions: '', maxSizeMb: 10, accept: ['pdf', 'docx'], dueDays: null }
-export const NO_DRIP: Drip = { mode: 'none', date: null, days: null }

@@ -8,7 +8,7 @@
 .facts dd { font-weight: 800; font-size: 18px; }
 .qbar { position: sticky; inset-block-start: calc(var(--header-h) + 8px); z-index: 4; display: flex; justify-content: space-between; padding: 10px 14px; border-radius: 999px; background: var(--glass); backdrop-filter: blur(12px); border: 1px solid var(--line); font-weight: 600; font-size: 14px; }
 .clock { font-weight: 800; color: var(--accent-strong); }
-.clock[data-low='1'] { color: var(--danger); animation: blink 1s steps(2) infinite; }
+.clock[data-low='1'] { color: var(--danger); animation: blink var(--t-blink) steps(2) infinite; }
 @keyframes blink { 50% { opacity: 0.4; } }
 .q { border: 0; padding: 0; display: grid; gap: 10px; padding-block: 14px; border-block-end: 1px solid var(--line); }
 .q legend, .q > p:first-child { font-weight: 700; font-size: 17px; line-height: 1.7; margin-block-end: 6px; }
@@ -41,6 +41,7 @@
 .countdown { display: flex; gap: 10px; flex-wrap: wrap; }
 .countdown span { display: grid; justify-items: center; min-inline-size: 76px; padding: 12px; border-radius: var(--radius-m); background: var(--night-1); color: var(--scene-muted); font-size: 12.5px; }
 .countdown b { font-size: 30px; font-weight: 900; color: var(--gold-4); line-height: 1.1; }
-.joinNow { min-block-size: 60px !important; font-size: 19px !important; justify-self: start; padding-inline: 40px !important; animation: glow 1.8s var(--ease-move) infinite; }
-@keyframes glow { 50% { box-shadow: 0 0 0 10px rgb(201 162 90 / 0.15), var(--shadow-glow); } }
-@media (prefers-reduced-motion: reduce) { .joinNow, .clock[data-low='1'] { animation: none; } }
+.joinNow { min-block-size: 60px !important; font-size: 19px !important; justify-self: start; padding-inline: 40px !important; overflow: visible !important; }
+.joinNow::before { content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; box-shadow: 0 0 0 10px color-mix(in srgb, var(--gold-3) 15%, transparent), var(--shadow-glow); opacity: 0; animation: glow var(--t-pulse) var(--ease-move) infinite; }
+@keyframes glow { 50% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .joinNow::before, .clock[data-low='1'] { animation: none; } }

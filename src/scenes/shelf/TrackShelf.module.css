@@ -29,23 +29,23 @@
   transition: transform calc(var(--t-gentle) * 1.2) var(--ease-glide);
   user-select: none; -webkit-user-drag: none;
 }
-.card[data-tone='gold'] { --tone-a: #2a2112; --tone-b: #3c2d14; --tone-glyph: var(--gold-4); }
-.card[data-tone='olive'] { --tone-a: #1f2617; --tone-b: #2f3a22; --tone-glyph: var(--olive-3); }
-.card[data-tone='ember'] { --tone-a: #2a1712; --tone-b: #3f2118; --tone-glyph: #e39a7e; }
-.card[data-tone='ivory'] { --tone-a: #efe8d6; --tone-b: #fbf8ef; --tone-ink: var(--night-1); --tone-glyph: var(--gold-1); }
+.card[data-tone='gold'] { --tone-a: var(--tone-gold-0); --tone-b: var(--tone-gold-1); --tone-glyph: var(--gold-4); }
+.card[data-tone='olive'] { --tone-a: var(--tone-olive-0); --tone-b: var(--tone-olive-1); --tone-glyph: var(--olive-3); }
+.card[data-tone='ember'] { --tone-a: var(--tone-ember-0); --tone-b: var(--tone-ember-1); --tone-glyph: var(--ember-soft); }
+.card[data-tone='ivory'] { --tone-a: var(--tone-ivory-0); --tone-b: var(--tone-ivory-1); --tone-ink: var(--night-1); --tone-glyph: var(--gold-1); }
 .spine {
   position: absolute; inset-block: 0; inset-inline-start: 0; inline-size: 22px; border-radius: 20px 0 0 20px;
-  background: linear-gradient(90deg, rgb(0 0 0 / 0.35), rgb(255 255 255 / 0.06) 60%, transparent);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--black) 35%, transparent), color-mix(in srgb, var(--white) 6%, transparent) 60%, transparent);
   z-index: 2; pointer-events: none;
 }
 .face {
   position: absolute; inset: 0; border-radius: inherit; overflow: hidden; padding: 26px 26px 26px 40px;
   display: grid; grid-template-rows: auto 1fr auto;
   background:
-    radial-gradient(120% 70% at 80% 0%, rgb(255 255 255 / 0.08), transparent 60%),
-    repeating-linear-gradient(0deg, rgb(255 255 255 / 0.025) 0 1px, transparent 1px 4px),
+    radial-gradient(120% 70% at 80% 0%, color-mix(in srgb, var(--white) 8%, transparent), transparent 60%),
+    repeating-linear-gradient(0deg, color-mix(in srgb, var(--white) 2.5%, transparent) 0 1px, transparent 1px 4px),
     linear-gradient(160deg, var(--tone-b), var(--tone-a));
-  box-shadow: var(--shadow-2), inset 0 0 0 1px rgb(255 255 255 / 0.06);
+  box-shadow: var(--shadow-2), inset 0 0 0 1px color-mix(in srgb, var(--white) 6%, transparent);
 }
 .top { display: flex; justify-content: space-between; font-size: 13px; opacity: 0.8; }
 .kicker { font-weight: 700; color: var(--tone-glyph); }
@@ -65,7 +65,7 @@
 .go svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .shine {
   position: absolute; inset: 0; border-radius: inherit; pointer-events: none; mix-blend-mode: soft-light;
-  background: linear-gradient(105deg, transparent 30%, rgb(255 255 255 / 0.35) 45%, transparent 60%);
+  background: linear-gradient(105deg, transparent 30%, color-mix(in srgb, var(--white) 35%, transparent) 45%, transparent 60%);
   background-size: 250% 100%; background-position: calc(50% + var(--d) * 60%) 0;
 }
 .card:hover, .card:focus-visible { transform: rotateY(calc(var(--d) * -18deg)) translateY(-10px) translateZ(60px); }
@@ -82,5 +82,5 @@
 
 .photo { position: absolute; inset: 0; border-radius: inherit; overflow: hidden; }
 .photo img { transition: transform calc(var(--t-gentle) * 3) var(--ease-glide); transform: scale(1.06) translateX(calc(var(--d) * 12px)); }
-.face[data-photo='1'] { background: linear-gradient(180deg, rgb(7 14 22 / 0.15) 20%, rgb(7 14 22 / 0.88)); color: var(--scene-text); }
+.face[data-photo='1'] { background: linear-gradient(180deg, color-mix(in srgb, var(--night-0) 15%, transparent) 20%, color-mix(in srgb, var(--night-0) 88%, transparent)); color: var(--scene-text); }
 .card:hover .photo img { transform: scale(1.12); }

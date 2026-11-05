@@ -13,10 +13,6 @@ export const curve = {
   travel: [0.65, 0, 0.25, 1],
 } as const satisfies Record<string, Curve>
 
-export const css = Object.fromEntries(
-  Object.entries(curve).map(([k, c]) => [k, `cubic-bezier(${c.join(',')})`]),
-) as Record<keyof typeof curve, string>
-
 /* توقيتات مركّبة */
 export const timing = {
   hover: d.fast,
@@ -27,6 +23,16 @@ export const timing = {
   curtainMax: d.gentle * 15, // سقف احتياطي
   flip: d.gentle * 2, // تقليب المجلدات
   themeSweep: d.gentle * 2 + d.base, // 860 دائرة تبديل الوضع
+} as const
+
+/* حلقات محيطة بطيئة (نبض، تنفّس، انجراف، دوران) — زخرفة لا تحمل معنى، وتتوقف مع تقليل الحركة.
+   مرآتها في tokens.css: --t-blink و--t-pulse و--t-breathe و--t-drift و--t-orbit */
+export const loop = {
+  blink: d.gentle * 3, // 960
+  pulse: d.gentle * 5, // 1600
+  breathe: d.gentle * 8, // 2560
+  drift: d.gentle * 75, // 24000
+  orbit: d.gentle * 94, // 30080
 } as const
 
 /* ── bezier محسوب يدوياً للمشاهد المربوطة بالتمرير (نيوتن-رافسون) ── */
@@ -59,9 +65,6 @@ export const ease = {
 /* أدوات المشاهد */
 export const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v)
 export const smooth = (t: number) => t * t * (3 - 2 * t)
-/** تقدّم داخل نافذة [a,b] من تقدّم كلّي */
-export const span = (p: number, [a, b]: readonly [number, number]) => clamp01((p - a) / (b - a))
-export const lerp = (a: number, b: number, t: number) => a + (b - a) * t
 
 export const prefersCalm = () =>
   typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches

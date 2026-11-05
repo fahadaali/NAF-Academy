@@ -7,7 +7,7 @@ a.row:hover { background: var(--surface-2); }
 li[data-current='1'] .row { background: color-mix(in srgb, var(--gold-3) 14%, transparent); box-shadow: inset 3px 0 0 var(--gold-3); }
 li[data-locked='1'] .row { opacity: 0.55; }
 .icon { inline-size: 28px; block-size: 28px; flex: none; display: grid; place-items: center; border-radius: 50%; font-size: 12px; background: var(--surface-2); color: var(--text-soft); }
-.icon[data-done='1'] { background: var(--success); color: #fff; }
+.icon[data-done='1'] { background: var(--success); color: var(--white); }
 .text { display: grid; font-size: 14.5px; line-height: 1.5; }
 .text small { color: var(--muted); font-size: 12.5px; }
 .ring { flex: none; }

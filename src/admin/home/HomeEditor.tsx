@@ -24,10 +24,12 @@ export function HomeEditor({ initial }: { initial: HomeContent }) {
     <>
       <PageHead title="الصفحة الرئيسية" sub="كل ما يظهر في الرئيسية — يُنشر فور الحفظ" actions={<a className="btn ghost" href="/" target="_blank" rel="noreferrer">عرض ↗</a>} />
 
-      <Section title="ترتيب المشاهد" desc="اسحب لتغيير الترتيب، وأوقف ما لا تريد إظهاره. الافتتاح والتذييل ثابتان.">
+      <Section title="ترتيب المشاهد" desc="اسحب لتغيير الترتيب، وأوقف ما لا تريد إظهاره. الافتتاح والتذييل ثابتان. «في القائمة» اسمه في شريط الموقع — اتركه فارغاً ليغيب عنها، والمخفي لا يظهر فيها أبداً.">
         {v.sections.map((x, i) => (
           <div key={x.key} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '6px 10px', borderRadius: 10, background: 'var(--surface-2)', opacity: x.visible ? 1 : 0.55 }} {...sections.props(i)}>
             <strong style={{ flex: 1 }}>{i + 1}. {SCENE_LABEL[x.key]}</strong>
+            <Input aria-label={`اسم «${SCENE_LABEL[x.key]}» في القائمة`} placeholder="لا يظهر في القائمة" value={x.menu ?? ''} style={{ maxInlineSize: 180 }}
+              onChange={(e) => up((o) => ({ ...o, sections: o.sections.map((y) => (y.key === x.key ? { ...y, menu: e.target.value } : y)) }))} />
             <Switch checked={x.visible} onChange={(b) => up((o) => ({ ...o, sections: o.sections.map((y) => (y.key === x.key ? { ...y, visible: b } : y)) }))} label={x.visible ? 'ظاهر' : 'مخفي'} />
             <RowTools i={i} n={v.sections.length} move={sections.move} />
           </div>

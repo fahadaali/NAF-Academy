@@ -26,6 +26,8 @@ const nextConfig: NextConfig = {
       { source: '/:path*', headers: security },
       { source: '/admin/:path*', headers: [{ key: 'X-Robots-Tag', value: 'noindex, nofollow' }, { key: 'Cache-Control', value: 'private, no-store' }] },
       { source: '/learn/:path*', headers: [{ key: 'X-Robots-Tag', value: 'noindex' }] },
+      /* خطوط البريد تُطلب من نطاقات أخرى (عملاء البريد، ومعاينة القالب في اللوحة) */
+      { source: '/email-fonts/:path*', headers: [{ key: 'Access-Control-Allow-Origin', value: '*' }] },
       { source: '/sw.js', headers: [{ key: 'Cache-Control', value: 'no-cache' }, { key: 'Service-Worker-Allowed', value: '/' }] },
     ]
   },

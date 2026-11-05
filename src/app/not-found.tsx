@@ -4,7 +4,7 @@ import { brandView } from '@/server/brand'
 import { Header } from '@/components/Header'
 import { Footer } from '@/components/Footer'
 import { MotionRoot } from '@/components/MotionRoot'
-import { nav } from '@/content/seed'
+import { menuOf } from '@/content/home-defaults'
 import { homeContent } from '@/server/queries'
 import { NotFoundView } from '@/site/NotFoundView'
 
@@ -15,7 +15,7 @@ export default async function NotFound() {
   return (
     <>
       <MotionRoot />
-      <Header nav={nav} brand={brand} />
+      <Header nav={menuOf(home)} brand={brand} />
       <main id="main"><NotFoundView /></main>
       <Footer title={home.footer.title} cta={home.footer.cta} brand={brand} />
     </>

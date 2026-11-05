@@ -149,10 +149,3 @@ export const corporate = {
   interests: ['العقود', 'الشركات', 'العمل', 'التقاضي', 'التقنية القانونية', 'الامتثال'],
 }
 
-export const nav = [
-  { href: '/#ladder', label: 'سُلّم الكفاءة' },
-  { href: '/#tracks', label: 'المسارات' },
-  { href: '/#courses', label: 'الدورات' },
-  { href: '/#instructors', label: 'المدربون' },
-  { href: '/#corporate', label: 'للمؤسسات' },
-]

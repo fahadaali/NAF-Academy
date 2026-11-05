@@ -2,13 +2,14 @@
 /* تفاصيل الدرس داخل محرّر المنهج — تتبدّل الحقول بنوع الدرس:
    فيديو (Stream أو رابط + فصول)، مقال، ملف، اختبار (منشئ أسئلة)، واجب، جلسة مباشرة، جلسة حضورية.
    ومشترك للكل: الفتح المتدرّج، والنص، والمرفقات. */
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { CourseInput } from '@/admin/schemas'
 import type { Chapter, Quiz, QuizQuestion } from '@/lib/learning-types'
 import { EMPTY_ASSIGNMENT, EMPTY_QUIZ } from '@/lib/learning-types'
 import { DateTime, Field, Grid, Input, RowTools, Segmented, Switch, Textarea } from '@/admin/ui/kit'
-import { streamUpload, uploadLessonFile } from '@/admin/learning/actions'
+import { streamStatus, streamUpload, uploadLessonFile } from '@/admin/learning/actions'
 import d from './lesson.module.css'
+import { fileSize } from '@/lib/files'
 
 type Lesson = CourseInput['curriculum'][number]['lessons'][number]
 type Video = NonNullable<Lesson['video']>
@@ -20,7 +21,6 @@ const parseMmss = (v: string) => {
   return p.reduce((a, x) => a * 60 + x, 0)
 }
 const uid = () => Math.random().toString(36).slice(2, 8)
-const kb = (n: number) => (n > 1048576 ? `${(n / 1048576).toFixed(1)} م.ب` : `${Math.max(1, Math.round(n / 1024))} ك.ب`)
 
 export function LessonDetail({ value: l, onChange, err }: { value: Lesson; onChange: (patch: Partial<Lesson>) => void; err: (k: string) => string | undefined }) {
   const session = l.type === 'live' || l.type === 'onsite'
@@ -81,6 +81,14 @@ export function LessonDetail({ value: l, onChange, err }: { value: Lesson; onCha
 
 function VideoField({ label, hint, value, onChange, error }: { label: string; hint?: string; value: Video; onChange: (v: Video) => void; error?: string }) {
   const [busy, setBusy] = useState('')
+  /* حالة ربط Stream — مقفل حتى تُضاف مفاتيحه، فيُقال ذلك قبل محاولة الرفع */
+  const [stream, setStream] = useState<{ configured: boolean; problem?: string } | null>(null)
+  useEffect(() => {
+    if (value.provider !== 'stream' || stream) return
+    let live = true
+    streamStatus().then((s) => live && setStream(s)).catch(() => {})
+    return () => { live = false }
+  }, [value.provider, stream])
   const file = useRef<HTMLInputElement>(null)
   const upload = async (f: File) => {
     setBusy('جارٍ تجهيز الرفع…')
@@ -103,8 +111,11 @@ function VideoField({ label, hint, value, onChange, error }: { label: string; hi
         <div className={d.row}>
           <Input dir="ltr" value={value.uid} placeholder="معرّف الفيديو (32 حرفاً)" onChange={(e) => onChange({ provider: 'stream', uid: e.target.value.trim() })} />
           <input ref={file} type="file" accept="video/*" hidden onChange={(e) => e.target.files?.[0] && upload(e.target.files[0])} />
-          <button type="button" className="btn ghost" onClick={() => file.current?.click()}>رفع فيديو</button>
+          <button type="button" className="btn ghost" onClick={() => file.current?.click()} disabled={stream?.configured === false} aria-disabled={stream?.configured === false}>رفع فيديو</button>
         </div>
+      )}
+      {value.provider === 'stream' && stream?.configured === false && (
+        <span className={d.note} role="status">Stream غير مربوط: {stream.problem}. لن يُشغَّل الفيديو حتى تُضاف المفاتيح — استعمل «رابط مباشر» إلى ذلك الحين.</span>
       )}
       {busy && <span className={d.note} role="status">{busy}</span>}
     </Field>
@@ -150,7 +161,7 @@ function Attachments({ value, onChange }: { value: { assetId: string; name: stri
       <div className={d.list}>
         {value.map((a, i) => (
           <div key={a.assetId} className={d.file}>
-            <a href={`/admin/files/${a.assetId}`}>⇩ {a.name}</a><small className="num">{kb(a.size)}</small>
+            <a href={`/admin/files/${a.assetId}`}>⇩ {a.name}</a><small className="num">{fileSize(a.size)}</small>
             <button type="button" className={d.x} aria-label={`إزالة ${a.name}`} onClick={() => onChange(value.filter((_, k) => k !== i))}>×</button>
           </div>
         ))}

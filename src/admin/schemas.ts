@@ -202,7 +202,7 @@ export const homeInput = z.object({
   }),
   stats: z.array(z.object({ value: z.number().min(0).max(1e9), suffix: t(6).optional(), label: t(60) })).max(8),
   corporate: z.object({ title: t(120), body: t(600), sizes: z.array(t(20)).max(8), interests: z.array(t(40)).max(12) }),
-  sections: z.array(z.object({ key: z.enum(['ladder', 'tracks', 'courses', 'instructors', 'impact', 'corporate']), visible: z.boolean() })).length(6),
+  sections: z.array(z.object({ key: z.enum(['ladder', 'tracks', 'courses', 'instructors', 'impact', 'corporate']), visible: z.boolean(), menu: t(30).optional() })).length(6),
   heads: z.record(z.string(), z.object({ eyebrow: t(60), title: t(160) })),
   footer: z.object({ title: t(120), cta: t(40) }),
 })

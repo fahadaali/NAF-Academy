@@ -30,7 +30,7 @@ export function Impact({ stats }: { stats: Stat[] }) {
     return () => io.disconnect()
   }, [])
   return (
-    <section ref={ref} data-surface="night" className={styles.impact} aria-label="الأكاديمية بالأرقام">
+    <section ref={ref} id="impact" data-surface="night" className={styles.impact} aria-label="الأكاديمية بالأرقام">
       <div className={`wrap ${styles.grid}`}>
         {stats.map((s, i) => (
           <div key={s.label} className={`reveal ${styles.stat}`} style={{ ['--d' as string]: i }}>
