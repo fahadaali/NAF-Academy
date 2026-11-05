@@ -68,7 +68,7 @@ export function Header({ nav, brand }: { nav: Item[]; brand: BrandView }) {
   }, [nav])
 
   return (
-    <header ref={head} className={styles.header} data-open={open ? '1' : '0'}>
+    <header ref={head} className={styles.header} data-vt="site-header" data-open={open ? '1' : '0'}>
       <div className={`wrap ${styles.inner}`}>
         <a href="/" className={styles.brand} aria-label={`${brand.name} — الرئيسية`}>
           <Wordmark brand={brand} />

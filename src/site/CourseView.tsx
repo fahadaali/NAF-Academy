@@ -33,7 +33,7 @@ export function CourseView({ data, preview }: { data: CourseDetail; preview?: bo
       <CouponBanner slug={c.slug} />
 
       <header className={s.hero} data-surface="night">
-        {c.cover && <div className={s.heroImg}><Picture media={c.cover} priority /></div>}
+        {c.cover && <div className={s.heroImg} data-vt-hero><Picture media={c.cover} priority /></div>}
         <div className={s.heroShade} aria-hidden="true" />
         <div className={`wrap ${s.heroInner}`}>
           <nav className={s.crumbs} aria-label="المسار">
@@ -214,7 +214,7 @@ export function CourseView({ data, preview }: { data: CourseDetail; preview?: bo
         <section className={s.related}>
           <div className="wrap">
             <h2 className={s.h2}>من المسار نفسه</h2>
-            <div className={s.relatedGrid}>
+            <div className={`${s.relatedGrid} stagger reveal`}>
               {related.map((r) => <CourseCard key={r.slug} course={r} track={track} instructor={instructors[0]} />)}
             </div>
           </div>

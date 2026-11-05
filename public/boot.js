@@ -17,4 +17,41 @@
   setTimeout(function () {
     if (!root.classList.contains('reveal-ready')) root.classList.remove('js')
   }, root.classList.contains('opening') ? 6000 : 2500)
+
+  /* الانتقال بين الصفحات: الأسماء تُعطى لحظة التنقّل وتُزال بعده — فلا تتدخل في دائرة تبديل الوضع.
+     الشريط واللوحة الجانبية يبقيان، وغلاف الدورة المنقور يطير إلى رأس صفحتها. */
+  function name(sel, n) {
+    var el = typeof sel === 'string' ? document.querySelector(sel) : sel
+    if (el) el.style.viewTransitionName = n
+    return el
+  }
+  function clear(vt, els) {
+    vt.finished.finally(function () { els.forEach(function (el) { if (el) el.style.viewTransitionName = '' }) })
+  }
+  function seen(el) {
+    var r = el.getBoundingClientRect()
+    return r.bottom > 0 && r.top < innerHeight
+  }
+  addEventListener('pageswap', function (e) {
+    if (!e.viewTransition) return
+    var els = [name('[data-vt="site-header"]', 'site-header'), name('[data-vt="admin-nav"]', 'admin-nav')]
+    var to = e.activation && e.activation.entry && e.activation.entry.url
+    if (to) {
+      var path = new URL(to).pathname
+      var covers = document.querySelectorAll('[data-vt-cover]')
+      for (var i = 0; i < covers.length; i++) {
+        if (covers[i].getAttribute('data-vt-cover') === path && seen(covers[i])) { els.push(name(covers[i], 'course-cover')); break }
+      }
+    }
+    clear(e.viewTransition, els)
+  })
+  addEventListener('pagereveal', function (e) {
+    if (!e.viewTransition) return
+    /* الستار الافتتاحي يغطي الرئيسية — لا انتقال فوقه */
+    if (root.classList.contains('opening')) { e.viewTransition.skipTransition(); return }
+    var els = [name('[data-vt="site-header"]', 'site-header'), name('[data-vt="admin-nav"]', 'admin-nav')]
+    var hero = document.querySelector('[data-vt-hero]')
+    if (hero && seen(hero)) els.push(name(hero, 'course-cover'))
+    clear(e.viewTransition, els)
+  })
 })()

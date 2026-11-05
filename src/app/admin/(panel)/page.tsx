@@ -20,12 +20,12 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
       <PageHead title="نظرة عامة" sub="حال المحتوى المنشور الآن" actions={<Link className="btn" href="/admin/courses/new">+ دورة جديدة</Link>} />
       {denied && <p role="alert" style={{ padding: '12px 16px', borderRadius: 12, background: 'color-mix(in srgb, var(--danger) 12%, transparent)', color: 'var(--danger)', fontWeight: 600, marginBlockEnd: 16 }}>لا تملك صلاحية هذه الصفحة أو العملية. اطلبها من مالك الحساب.</p>}
       <div className={p.stats}>
-        <Link href="/admin/courses" className={p.stat}><strong>{live.length}</strong><span>دورة ظاهرة للتسجيل</span></Link>
-        <Link href="/admin/courses" className={p.stat}><strong>{drafts.length}</strong><span>مسودة</span></Link>
-        <Link href="/admin/courses" className={p.stat}><strong>{sales.length}</strong><span>عرض ساري</span></Link>
-        <Link href="/admin/tracks" className={p.stat}><strong>{tracks.length}</strong><span>مسار</span></Link>
-        <Link href="/admin/instructors" className={p.stat}><strong>{instructors.length}</strong><span>مدرب</span></Link>
-        <Link href="/admin/media" className={p.stat}><strong>{media.length}</strong><span>صورة</span></Link>
+        <Link href="/admin/courses" className={p.stat}><strong data-count>{live.length}</strong><span>دورة ظاهرة للتسجيل</span></Link>
+        <Link href="/admin/courses" className={p.stat}><strong data-count>{drafts.length}</strong><span>مسودة</span></Link>
+        <Link href="/admin/courses" className={p.stat}><strong data-count>{sales.length}</strong><span>عرض ساري</span></Link>
+        <Link href="/admin/tracks" className={p.stat}><strong data-count>{tracks.length}</strong><span>مسار</span></Link>
+        <Link href="/admin/instructors" className={p.stat}><strong data-count>{instructors.length}</strong><span>مدرب</span></Link>
+        <Link href="/admin/media" className={p.stat}><strong data-count>{media.length}</strong><span>صورة</span></Link>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 18 }}>
         <section>

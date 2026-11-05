@@ -42,7 +42,7 @@ export function Ring({ pct, size = 92 }: { pct: number; size?: number }) {
     <svg width={size} height={size} viewBox="0 0 100 100" className={o.ring} role="img" aria-label={`أنجزت ${pct}%`}>
       <circle cx="50" cy="50" r={r} className={o.ringBg} />
       <circle cx="50" cy="50" r={r} className={o.ringFg} style={{ strokeDasharray: c, strokeDashoffset: c * (1 - pct / 100) }} />
-      <text x="50" y="56" textAnchor="middle" className={o.ringText}>{pct}%</text>
+      <text x="50" y="56" textAnchor="middle" className={o.ringText} data-count>{pct}%</text>
     </svg>
   )
 }

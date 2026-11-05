@@ -28,3 +28,6 @@
 .timeline { display: grid; gap: 12px; }
 .timeline li { display: grid; grid-template-columns: 12px 1fr; gap: 12px; font-size: 14px; }
 .timeline li::before { content: ''; inline-size: 10px; block-size: 10px; border-radius: 50%; background: var(--gold-3); margin-block-start: 6px; }
+
+/* الحركة: بطاقات المؤشرات تتتابع (globals.css) */
+.kpis { composes: stagger from global; }

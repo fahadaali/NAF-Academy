@@ -1,23 +1,24 @@
 'use client'
 /* أدوات اللوحة — حقول ومحرّرات قوائم وترتيب بالسحب، بهوية الأكاديمية. */
 import { useRef, useState, type ReactNode } from 'react'
+import { Words } from '@/components/Words'
 import styles from './kit.module.css'
 
 export function PageHead({ title, sub, actions }: { title: string; sub?: string; actions?: ReactNode }) {
   return (
     <header className={styles.pageHead}>
       <div>
-        <h1>{title}</h1>
-        {sub && <p>{sub}</p>}
+        <Words as="h1" text={title} />
+        {sub && <p className="rise" style={{ ['--d' as string]: 3 }}>{sub}</p>}
       </div>
-      {actions && <div className={styles.actions}>{actions}</div>}
+      {actions && <div className={`${styles.actions} rise`} style={{ ['--d' as string]: 4 }}>{actions}</div>}
     </header>
   )
 }
 
 export function Section({ title, desc, children, aside }: { title: string; desc?: string; children: ReactNode; aside?: ReactNode }) {
   return (
-    <section className={styles.section}>
+    <section className={`${styles.section} reveal`}>
       <div className={styles.sectionHead}>
         <div>
           <h2>{title}</h2>

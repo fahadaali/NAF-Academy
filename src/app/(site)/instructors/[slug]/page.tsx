@@ -50,7 +50,7 @@ export default async function InstructorPage({ params }: { params: Promise<{ slu
         <section style={{ background: 'var(--surface-2)', paddingBlock: '60px 100px' }}>
           <div className="wrap">
             <h2 className="scene-title" style={{ marginBlockEnd: 26 }}>دورات {p.name}</h2>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 22 }}>
+            <div className="stagger reveal" style={{ display: 'flex', flexWrap: 'wrap', gap: 22 }}>
               {courses.map((c) => <CourseCard key={c.slug} course={c} track={tracks.find((t) => t.slug === c.track)} instructor={instructors.find((x) => x.slug === c.instructor)} />)}
             </div>
           </div>

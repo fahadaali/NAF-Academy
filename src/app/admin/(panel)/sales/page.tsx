@@ -20,12 +20,12 @@ export default async function Sales() {
       <PageHead title="المبيعات" sub={settings.enabled && st.configured ? 'الدفع الإلكتروني مفعّل' : 'الدفع الإلكتروني مقفل — الطلبات اليدوية والمنح تعمل'}
         actions={<><Link className="btn ghost" href="/admin/settings/payments">إعدادات الدفع</Link><Link className="btn" href="/admin/orders/new">+ طلب يدوي</Link></>} />
       <div className={s.kpis}>
-        <div className={s.kpi}><strong className="num">{sar(o.net30)}</strong><span>صافي الإيراد — 30 يوماً (ر.س)</span></div>
-        <div className={s.kpi}><strong className="num">{o.orders30}</strong><span>طلب مدفوع — 30 يوماً</span></div>
-        <div className={s.kpi}><strong className="num">{sar(o.net)}</strong><span>صافي الإيراد الكلي (ر.س)</span></div>
-        <div className={s.kpi}><strong className="num">{o.enrolled}</strong><span>تسجيل نشط</span></div>
-        <div className={s.kpi}><strong className="num">{o.pending}</strong><span>طلب معلّق الآن</span></div>
-        <div className={s.kpi}><strong className="num">{o.interested}</strong><span>مهتم وقائمة انتظار</span></div>
+        <div className={s.kpi}><strong className="num" data-count>{sar(o.net30)}</strong><span>صافي الإيراد — 30 يوماً (ر.س)</span></div>
+        <div className={s.kpi}><strong className="num" data-count>{o.orders30}</strong><span>طلب مدفوع — 30 يوماً</span></div>
+        <div className={s.kpi}><strong className="num" data-count>{sar(o.net)}</strong><span>صافي الإيراد الكلي (ر.س)</span></div>
+        <div className={s.kpi}><strong className="num" data-count>{o.enrolled}</strong><span>تسجيل نشط</span></div>
+        <div className={s.kpi}><strong className="num" data-count>{o.pending}</strong><span>طلب معلّق الآن</span></div>
+        <div className={s.kpi}><strong className="num" data-count>{o.interested}</strong><span>مهتم وقائمة انتظار</span></div>
       </div>
       <div className={s.chart} role="img" aria-label="الإيراد اليومي آخر 30 يوماً">
         {days.map((x, i) => <div key={x.d} title={`${x.d}: ${sar(x.v)} ر.س`} style={{ blockSize: `${(x.v / max) * 100}%`, ['--i' as string]: i }} />)}

@@ -62,3 +62,7 @@
 
 /* الجوال: الجداول العريضة تُمرَّر أفقياً داخل إطارها، لا الصفحة كلها (بعد القاعدة الأساسية لتغلبها) */
 @media (max-width: 900px) { .table { display: block; overflow-x: auto; max-inline-size: 100%; } }
+
+/* الحركة: بطاقات الأرقام تتتابع وتتصاعد أرقامها، وصفوف الجداول تصعد واحداً بعد واحد (globals.css) */
+.stats { composes: stagger from global; }
+.table { composes: stagger-rows from global; }

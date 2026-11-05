@@ -26,17 +26,17 @@ export default async function Certificate({ params }: P) {
   const url = verifyUrl(c.code!)
   return (
     <div className={`wrap ${st.page}`}>
-      <div className={st.status} data-valid={valid ? '1' : '0'} role="status">
+      <div className={`${st.status} rise`} data-valid={valid ? '1' : '0'} role="status">
         <span aria-hidden="true">{valid ? '✓' : '✕'}</span>
         <div>
           <h1 className={st.statusTitle}>{valid ? `شهادة صحيحة صادرة عن ${brand.name}` : 'هذه الشهادة ملغاة'}</h1>
           <small>{valid ? `تحقّقنا من الرقم ${c.code}` : c.reason || `ألغتها ${brand.name}`}</small>
         </div>
       </div>
-      <div className={st.sheet} data-revoked={valid ? '0' : '1'}>
+      <div className={`${st.sheet} wipe`} style={{ ['--d' as string]: 2 }} data-revoked={valid ? '0' : '1'}>
         <CertificateView design={c.design ?? DEFAULT_DESIGN} data={data} brand={brand} />
       </div>
-      <dl className={`${st.facts} num`}>
+      <dl className={`${st.facts} num stagger reveal`}>
         <div><dt>الاسم</dt><dd>{c.name}</dd></div>
         <div><dt>الدورة</dt><dd>{c.courseTitle}</dd></div>
         {c.hours > 0 && <div><dt>الساعات التدريبية</dt><dd>{c.hours}</dd></div>}

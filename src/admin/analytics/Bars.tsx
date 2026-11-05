@@ -14,13 +14,13 @@ export function Bars({ title, data, height = 160, total }: { title: string; data
   /* موضع داخل حدود الرسم — لا يخرج التلميح عن الحافة */
   const at = (i: number) => `${Math.min(86, Math.max(14, ((i + 0.5) / data.length) * 100))}%`
   return (
-    <figure className={b.fig}>
-      <figcaption className={b.cap}><span>{title}</span><strong className="num">{total}</strong></figcaption>
+    <figure className={`${b.fig} reveal`}>
+      <figcaption className={b.cap}><span>{title}</span><strong className="num" data-count>{total}</strong></figcaption>
       <div className={b.plot} style={{ blockSize: height, paddingBlockStart: 22 }} onMouseLeave={() => setHover(null)} aria-hidden="true">
         <i className={b.grid} style={{ insetBlockEnd: '50%' }} />
         <i className={b.base} />
         {data.map((d, i) => (
-          <div key={d.key} className={b.col} data-on={hover === i ? '1' : '0'} onMouseEnter={() => setHover(i)}>
+          <div key={d.key} className={b.col} data-on={hover === i ? '1' : '0'} onMouseEnter={() => setHover(i)} style={{ ['--k' as string]: i / Math.max(1, data.length - 1) }}>
             <span className={b.bar} style={{ blockSize: `${(d.value / max) * 100}%` }} />
           </div>
         ))}

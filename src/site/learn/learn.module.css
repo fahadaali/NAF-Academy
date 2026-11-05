@@ -38,3 +38,6 @@
 .install span { font-size: 13.5px; color: var(--muted); }
 .close { inline-size: 32px; block-size: 32px; border-radius: 50%; color: var(--muted); font-size: 18px; flex: none; }
 .close:hover { background: var(--surface-2); color: var(--text); }
+
+/* الحركة: البطاقات تتتابع عند التركيب (globals.css) */
+.grid { composes: stagger from global; }

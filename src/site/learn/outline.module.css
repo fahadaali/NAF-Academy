@@ -14,3 +14,9 @@ li[data-locked='1'] .row { opacity: 0.55; }
 .ringBg { fill: none; stroke: currentColor; stroke-opacity: 0.16; stroke-width: 8; }
 .ringFg { fill: none; stroke: var(--gold-3); stroke-width: 8; stroke-linecap: round; transform: rotate(-90deg); transform-origin: 50% 50%; transition: stroke-dashoffset calc(var(--t-gentle) * 4) var(--ease-glide); }
 .ringText { font-size: 20px; font-weight: 800; fill: currentColor; font-variant-numeric: tabular-nums; }
+
+/* الحركة: الوحدات تتتابع، وقوس الإنجاز يدور إلى موضعه ويظهر (تحويل وشفافية فقط) ورقمه يتصاعد */
+.outline { composes: stagger from global; }
+.ringFg { animation: ring-in calc(var(--t-gentle) * 5) var(--ease-glide) var(--t-gentle) backwards; }
+@keyframes ring-in { from { transform: rotate(-270deg); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .ringFg { animation: none; } }

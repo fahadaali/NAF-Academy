@@ -35,6 +35,12 @@
 - الحركة على `transform` و`opacity` (و`clip-path` للكشف) فقط.
 - كل مشهد يحترم `prefers-reduced-motion` ويعرض محتواه كاملاً بلا حركة.
 - المحتوى لا يبقى مخفياً إن تعطّل JS (`public/boot.js` له مؤقّت احتياطي).
+- `MotionRoot` في غلاف الموقع واللوحة كليهما. `mountReveal` يراقب ما يُضاف لاحقاً (MutationObserver)
+  ولا يلمس عنصراً قبل أن يرطّبه React. الأدوات العامة (globals.css): `.reveal`، `Words`، `.stagger` (أبناء متتابعون)،
+  `.stagger-rows` (صفوف الجداول)، `.rise`، `.wipe` (كشف clip-path)، و`data-count` (عدّاد يحرّك أول رقم في النص).
+  الملء `backwards` دائماً حتى لا تعلق الحركة على حالات التحويم.
+- الانتقال بين الصفحات: `@view-transition` بين المستندات، والأسماء (`data-vt`، `data-vt-cover` ← `data-vt-hero`)
+  تُعطى لحظة التنقّل في `boot.js` وتُزال بعده؛ والتنقّل داخل اللوحة عبر `<ViewTransition default="page-swap">`.
 
 ## المحتوى والبيانات
 - لا نص ولا صورة ولا سعر مكتوب في المكوّنات — كله من القاعدة عبر لوحة الإدارة `/admin`.

@@ -15,3 +15,13 @@
 .table summary { font-size: 13px; color: var(--muted); cursor: pointer; }
 .table table { inline-size: 100%; margin-block-start: 8px; font-size: 13px; border-collapse: collapse; }
 .table th, .table td { padding: 6px 8px; border-block-end: 1px solid var(--line); text-align: start; }
+
+/* الأعمدة تنمو من خط الأساس حين يدخل الرسم الشاشة — موجة من البداية إلى النهاية */
+:global(.js) .fig:global(.reveal) .bar { transform: scaleY(0); transform-origin: 50% 100%; }
+.fig:global(.reveal.in) .bar {
+  transform: none;
+  transition: transform calc(var(--t-gentle) * 3) var(--ease-glide) calc(var(--t-fast) + var(--k, 0) * var(--t-gentle) * 2), opacity var(--t-base);
+}
+.peak { transition: opacity var(--t-base); }
+:global(.js) .fig:global(.reveal:not(.in)) .peak { opacity: 0; }
+@media (prefers-reduced-motion: reduce) { :global(.js) .fig .bar { transform: none !important; } }

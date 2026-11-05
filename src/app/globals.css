@@ -93,6 +93,51 @@
     transition-delay: calc(var(--i) * 52ms + var(--d, 0) * 70ms);
   }
 
+  /* — تتابع العناصر: أبناء `.stagger` (وصفوف جداول `.stagger-rows`) تصعد واحداً بعد واحد عند ظهورها.
+     الملء `backwards` وحده: بعد الحركة يعود العنصر لأنماطه (التمرير والتحويم) بلا أثر.
+     ومع `.reveal` تنتظر الحركة دخول الحاوية الشاشة؛ وبدونها تبدأ عند التركيب (تنقّل اللوحة، التصفية). — */
+  @keyframes rise { from { opacity: 0; transform: translate3d(0, 18px, 0); } }
+  :where(.stagger > *, .stagger-rows > tbody > tr) {
+    animation: rise var(--t-reveal) var(--ease-glide) backwards;
+    animation-delay: calc(var(--si, 0) * 48ms + var(--d, 0) * 70ms);
+  }
+  :where(.stagger > *, .stagger-rows > tbody > tr):nth-child(2) { --si: 1; }
+  :where(.stagger > *, .stagger-rows > tbody > tr):nth-child(3) { --si: 2; }
+  :where(.stagger > *, .stagger-rows > tbody > tr):nth-child(4) { --si: 3; }
+  :where(.stagger > *, .stagger-rows > tbody > tr):nth-child(5) { --si: 4; }
+  :where(.stagger > *, .stagger-rows > tbody > tr):nth-child(6) { --si: 5; }
+  :where(.stagger > *, .stagger-rows > tbody > tr):nth-child(7) { --si: 6; }
+  :where(.stagger > *, .stagger-rows > tbody > tr):nth-child(8) { --si: 7; }
+  :where(.stagger > *, .stagger-rows > tbody > tr):nth-child(9) { --si: 8; }
+  :where(.stagger > *, .stagger-rows > tbody > tr):nth-child(10) { --si: 9; }
+  :where(.stagger > *, .stagger-rows > tbody > tr):nth-child(n+11) { --si: 10; }
+  .js .stagger.reveal { opacity: 1; transform: none; }
+  .js .stagger.reveal:not(.in) > * { animation-play-state: paused; }
+
+  /* — صعود مفرد عند التركيب (سطر تحت عنوان، أزرار الرأس) — */
+  .rise { animation: rise var(--t-reveal) var(--ease-glide) backwards; animation-delay: calc(var(--d, 0) * 70ms); }
+
+  /* — كشف بالستارة (clip-path) للأسطح الكبيرة: الشهادة، الغلاف — */
+  @keyframes wipe { from { clip-path: inset(0 0 100% 0 round var(--radius-l)); } to { clip-path: inset(0 0 0 0 round var(--radius-l)); } }
+  .wipe { animation: wipe calc(var(--t-gentle) * 4) var(--ease-travel) backwards; animation-delay: calc(var(--d, 0) * 70ms); }
+
+  /* — الانتقال بين الصفحات (View Transitions بين المستندات): الشريط واللوحة الجانبية ثابتان،
+     والمحتوى يخرج سريعاً ويدخل صاعداً؛ وغلاف الدورة يطير من بطاقتها إلى صفحتها.
+     الأسماء تُعطى لحظة التنقّل فقط (boot.js) فلا تتدخل في دائرة تبديل الوضع. — */
+  ::view-transition-old(root) { animation: vt-out var(--t-base) var(--ease-out) both; }
+  ::view-transition-new(root) { animation: vt-in var(--t-reveal) var(--ease-glide) both; }
+  ::view-transition-group(site-header), ::view-transition-group(admin-nav) { animation-duration: var(--t-gentle); }
+  ::view-transition-old(site-header), ::view-transition-old(admin-nav) { animation: none; opacity: 0; }
+  ::view-transition-new(site-header), ::view-transition-new(admin-nav) { animation: none; }
+  ::view-transition-group(course-cover) { animation-duration: calc(var(--t-gentle) * 2); animation-timing-function: var(--ease-travel); }
+  ::view-transition-old(course-cover), ::view-transition-new(course-cover) { animation-duration: calc(var(--t-gentle) * 2); block-size: 100%; object-fit: cover; overflow: clip; }
+  /* التنقّل داخل اللوحة (روابط Next) — حدود React <ViewTransition> */
+  ::view-transition-group(.page-swap) { animation: none; }
+  ::view-transition-old(.page-swap) { animation: vt-out var(--t-fast) var(--ease-out) both; }
+  ::view-transition-new(.page-swap) { animation: vt-in var(--t-reveal) var(--ease-glide) var(--t-fast) both; }
+  @keyframes vt-out { to { opacity: 0; } }
+  @keyframes vt-in { from { opacity: 0; transform: translate3d(0, 22px, 0); } }
+
   /* — دائرة تبديل الوضع — */
   .theme-vt::view-transition-old(root), .theme-vt::view-transition-new(root) { animation: none; mix-blend-mode: normal; }
   .theme-vt::view-transition-new(root) { animation: theme-circle var(--t-sweep) var(--ease-travel) both; }
@@ -104,11 +149,14 @@
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
     .js .reveal, .js .words .w > span { opacity: 1 !important; transform: none !important; }
+    :where(.stagger > *, .stagger-rows > tbody > tr), .rise, .wipe { animation: none !important; }
+    ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; }
   }
 }
 
 @media (prefers-reduced-motion: no-preference) {
   html { scroll-behavior: smooth; }
+  @view-transition { navigation: auto; }
 }
 
 @layer base {

@@ -27,13 +27,13 @@ export default async function Analytics({ searchParams }: { searchParams: Promis
       </div>
 
       <div className={p.stats}>
-        <div className={p.stat}><strong className="num">{o.kpi.views.toLocaleString('en-US')}</strong><span>زيارة</span></div>
-        <div className={p.stat}><strong className="num">{o.kpi.enrollments}</strong><span>تسجيل جديد</span></div>
-        <div className={p.stat}><strong className="num">{sar(o.kpi.revenue)}</strong><span>صافي الإيراد (ر.س)</span></div>
-        <div className={p.stat}><strong className="num">{o.kpi.completion}%</strong><span>نسبة الإكمال <small className="num">({o.kpi.active} تسجيل فعّال)</small></span></div>
-        <div className={p.stat}><strong className="num">{o.kpi.avgProgress}%</strong><span>متوسط الإنجاز</span></div>
-        <div className={p.stat}><strong className="num">{o.kpi.rating ?? '—'}</strong><span>متوسط التقييم <small className="num">({o.kpi.ratings})</small></span></div>
-        <div className={p.stat}><strong className="num">{o.kpi.certificates}</strong><span>شهادة صادرة</span></div>
+        <div className={p.stat}><strong className="num" data-count>{o.kpi.views.toLocaleString('en-US')}</strong><span>زيارة</span></div>
+        <div className={p.stat}><strong className="num" data-count>{o.kpi.enrollments}</strong><span>تسجيل جديد</span></div>
+        <div className={p.stat}><strong className="num" data-count>{sar(o.kpi.revenue)}</strong><span>صافي الإيراد (ر.س)</span></div>
+        <div className={p.stat}><strong className="num" data-count>{o.kpi.completion}%</strong><span>نسبة الإكمال <small className="num">({o.kpi.active} تسجيل فعّال)</small></span></div>
+        <div className={p.stat}><strong className="num" data-count>{o.kpi.avgProgress}%</strong><span>متوسط الإنجاز</span></div>
+        <div className={p.stat}><strong className="num" data-count>{o.kpi.rating ?? '—'}</strong><span>متوسط التقييم <small className="num">({o.kpi.ratings})</small></span></div>
+        <div className={p.stat}><strong className="num" data-count>{o.kpi.certificates}</strong><span>شهادة صادرة</span></div>
       </div>
 
       <div className={a.charts}>

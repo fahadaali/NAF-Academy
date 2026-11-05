@@ -51,7 +51,7 @@ export function Sidebar({ name, role, mode, perms, brand }: { name: string; role
   const active = groups.flatMap((g) => g.items).filter((i) => hit(i.href)).sort((a, b) => b.href.length - a.href.length)[0]?.href
   const on = (href: string) => href === active
   return (
-    <aside className={styles.side}>
+    <aside className={styles.side} data-vt="admin-nav">
       <Link href="/admin" className={styles.brand}>
         <LogoMark pair={brand.academy} alt={brand.showName ? '' : brand.name} height={34} tone="dark" />
         <span>{(brand.showName || !(brand.academy.light || brand.academy.dark)) && <strong>{brand.name}</strong>}<small>لوحة الإدارة</small></span>
