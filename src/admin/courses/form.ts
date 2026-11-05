@@ -7,7 +7,7 @@ type Curriculum = CourseInput['curriculum']
 
 export function blankCourse(): CourseInput {
   return {
-    slug: '', title: '', subtitle: '', trackId: null, level: 'practitioner', mode: 'live', status: 'draft',
+    slug: '', title: '', subtitle: '', titleEn: '', trackId: null, level: 'practitioner', mode: 'live', status: 'draft',
     publishAt: null, startsAt: null, endsAt: null, hours: 0, seatsTotal: null, seatsTaken: 0, city: '', venue: '', venueMapUrl: '',
     coverId: null, price: 0, compareAt: null, saleStartsAt: null, saleEndsAt: null, free: false, accessDays: null, teaser: { provider: 'none' }, description: '', content: null, outcomes: [], audience: [],
     requirements: [], faq: [], featured: false, certificate: DEFAULT_RULES, seoTitle: '', seoDescription: '', instructorIds: [], curriculum: [], tiers: [], groupRules: [],

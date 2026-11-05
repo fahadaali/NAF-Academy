@@ -22,6 +22,7 @@ const tpl = z.object({
   heading: z.string().trim().min(1, 'العنوان الرئيسي مطلوب').max(200),
   body: z.string().trim().min(1, 'نص الرسالة مطلوب').max(5000),
   cta: z.string().trim().max(60),
+  cta2: z.string().trim().max(60).default(''),
   sms: z.string().trim().max(320),
 })
 const settingsInput = z.object({
@@ -64,6 +65,7 @@ async function compose(event: EventKey, t: Template, site: string, forceDark = f
     site, brand, forceDark, heading: fill(t.heading, v), body: fill(t.body, v), preheader: fill(t.subject, v),
     facts: meta.facts.map(([k, x]) => [k, v[x] ?? ''] as [string, string]),
     cta: t.cta ? { label: fill(t.cta, v), href: v.link } : undefined,
+    cta2: meta.cta2Var && t.cta2 ? { label: fill(t.cta2, v), href: `${site}/learn` } : undefined,
     unsubscribe: meta.category !== 'transactional' ? `${site}/unsubscribe` : undefined,
   })
   return { subject: fill(t.subject, v), html, text, sms: meta.sms ? fill(t.sms, v) : '' }

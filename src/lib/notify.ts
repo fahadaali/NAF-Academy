@@ -19,6 +19,8 @@ export type Template = {
   heading: string
   body: string
   cta: string
+  /** زر ثانٍ (التقييم أو LinkedIn) — فارغ = بلا زر */
+  cta2?: string
   sms: string
 }
 
@@ -50,6 +52,8 @@ export type EventMeta = {
   vars: string[]
   /** صفوف التفاصيل في البريد: [العنوان، المتغير] — تُعرض إن كان للمتغير قيمة */
   facts: [string, string][]
+  /** رابط الزر الثاني (متغيّر) — يغيب الزر إن كان فارغاً */
+  cta2Var?: 'review_url' | 'linkedin_url'
 }
 
 export const VAR_LABEL: Record<string, string> = {
@@ -57,7 +61,7 @@ export const VAR_LABEL: Record<string, string> = {
   starts: 'بداية الدورة', link: 'رابط الدرس أو الدورة', calendar: 'رابط التقويم', pct: 'نسبة الإنجاز',
   price: 'السعر', ends: 'انتهاء العرض', coupon: 'الكوبون', order: 'رقم الطلب', left: 'المتبقي على الجلسة',
   code: 'رقم الشهادة', total: 'المبلغ المدفوع', amount: 'المبلغ المسترد', seats: 'عدد المقاعد',
-  cohort: 'الدفعة', until: 'نهاية الوصول',
+  cohort: 'الدفعة', until: 'نهاية الوصول', review_url: 'رابط تقييم الدورة', linkedin_url: 'رابط الإضافة إلى LinkedIn',
 }
 
 const COMMON = ['name', 'course', 'link']
@@ -73,7 +77,7 @@ export const EVENT_META: Record<EventKey, EventMeta> = {
   },
   session_followup: {
     label: 'ما بعد الجلسة', hint: 'بعد انتهاء الجلسة: التسجيل والواجب والتقييم', category: 'transactional', sms: false,
-    vars: [...COMMON, 'lesson'], facts: [['الجلسة', 'lesson']],
+    vars: [...COMMON, 'lesson', 'review_url'], facts: [['الجلسة', 'lesson']], cta2Var: 'review_url',
   },
   drip_unlocked: {
     label: 'درس جديد متاح', hint: 'حين يُفتح درس مجدول بالفتح المتدرّج', category: 'transactional', sms: false,
@@ -89,7 +93,7 @@ export const EVENT_META: Record<EventKey, EventMeta> = {
   },
   completed: {
     label: 'تهنئة الإكمال', hint: 'عند إكمال كل الدروس', category: 'engagement', sms: false,
-    vars: COMMON, facts: [],
+    vars: [...COMMON, 'review_url'], facts: [], cta2Var: 'review_url',
   },
   registration_open: {
     label: 'فُتح التسجيل', hint: 'لمن طلب إبلاغه أو انتظر مقعداً أو دفعة قادمة', category: 'marketing', sms: true,
@@ -105,7 +109,7 @@ export const EVENT_META: Record<EventKey, EventMeta> = {
   },
   certificate_issued: {
     label: 'صدور الشهادة', hint: 'بعد اعتماد الشهادة', category: 'transactional', sms: true,
-    vars: [...COMMON, 'code'], facts: [['رقم الشهادة', 'code']],
+    vars: [...COMMON, 'code', 'linkedin_url'], facts: [['رقم الشهادة', 'code']], cta2Var: 'linkedin_url',
   },
   order_paid: {
     label: 'تأكيد الطلب والفاتورة', hint: 'فور اكتمال الدفع — للمشتري ولو اشترى مقاعد لفريقه دون أن يحضر، برابط الطلب والفاتورة الضريبية', category: 'transactional', sms: false,
@@ -129,21 +133,21 @@ export const EVENT_META: Record<EventKey, EventMeta> = {
   },
 }
 
-const t = (subject: string, heading: string, body: string, cta: string, sms = ''): Template => ({ enabled: true, subject, heading, body, cta, sms })
+const t = (subject: string, heading: string, body: string, cta: string, sms = '', cta2 = ''): Template => ({ enabled: true, subject, heading, body, cta, sms, cta2 })
 
 export const DEFAULT_NOTIFY: NotifySettings = {
   templates: {
     enrolled: t('تمّ تسجيلك في {{course}}', 'أهلاً بك يا {{name}}', 'سُجّلت في «{{course}}». كل ما تحتاجه في مساحة التعلّم: الدروس، والجلسات، والمرفقات.\n\n- أضف مواعيد الدورة إلى تقويمك\n- ستصلك التذكيرات قبل كل جلسة\n- اسأل المدرب تحت أي درس', 'ابدأ التعلّم', 'أكاديمية ناف: سُجّلت في {{course}}. مساحة التعلّم: {{link}}'),
     session_reminder: t('تذكير: {{lesson}} — {{left}}', 'جلستك {{left}}', 'تبدأ جلسة «{{lesson}}» من دورة «{{course}}» {{when}}.\n\nيُفعَّل زر الانضمام قبل الموعد بربع ساعة.', 'تفاصيل الجلسة', 'أكاديمية ناف: {{lesson}} {{left}}. {{link}}'),
-    session_followup: t('بعد جلسة {{lesson}}', 'شكراً لحضورك', 'انتهت جلسة «{{lesson}}». تجد في مساحة التعلّم التسجيل إن أُتيح، والمرفقات، والواجب إن وُجد.\n\nرأيك يهمنا لتحسين الجلسات القادمة.', 'افتح الدرس'),
+    session_followup: t('بعد جلسة {{lesson}}', 'شكراً لحضورك', 'انتهت جلسة «{{lesson}}». تجد في مساحة التعلّم التسجيل إن أُتيح، والمرفقات، والواجب إن وُجد.\n\nرأيك يهمنا لتحسين الجلسات القادمة.', 'افتح الدرس', '', 'قيّم الدورة'),
     drip_unlocked: t('درس جديد: {{lesson}}', 'درس جديد بانتظارك', 'فُتح درس «{{lesson}}» في دورة «{{course}}».', 'ابدأ الدرس'),
     inactive_nudge: t('نكمل {{course}}؟', 'اشتقنا لك يا {{name}}', 'أنجزت {{pct}} من «{{course}}». خطوة صغيرة اليوم تقرّبك من الشهادة.', 'تابع من حيث توقفت'),
     halfway: t('منتصف الطريق في {{course}}', 'أنجزت نصف الدورة', 'أحسنت يا {{name}} — بلغت منتصف «{{course}}». استمر بالإيقاع نفسه.', 'تابع التعلّم'),
-    completed: t('أكملت {{course}}', 'مبارك الإكمال', 'أكملت كل دروس «{{course}}». تُراجَع متطلبات الشهادة وتصلك فور اعتمادها.', 'مساحة التعلّم'),
+    completed: t('أكملت {{course}}', 'مبارك الإكمال', 'أكملت كل دروس «{{course}}». تُراجَع متطلبات الشهادة وتصلك فور اعتمادها. رأيك في الدورة يعين غيرك على الاختيار.', 'مساحة التعلّم', '', 'قيّم الدورة'),
     registration_open: t('فُتح التسجيل: {{course}}', 'التسجيل مفتوح الآن', 'طلبت إبلاغك بدورة «{{course}}» — فُتح التسجيل والمقاعد محدودة.', 'سجّل الآن', 'أكاديمية ناف: فُتح التسجيل في {{course}}. {{link}}'),
     sale_ending: t('العرض ينتهي قريباً: {{course}}', 'العرض على وشك الانتهاء', 'سعر «{{course}}» الحالي {{price}} ينتهي {{ends}}.', 'سجّل بالسعر الحالي'),
     cart_abandoned: t('أكمل تسجيلك في {{course}}', 'مقعدك بانتظارك', 'بدأت التسجيل في «{{course}}» ولم يكتمل. يمكنك المتابعة من حيث توقفت.', 'أكمل التسجيل'),
-    certificate_issued: t('صدرت شهادتك: {{course}}', 'مبارك يا {{name}}', 'صدرت شهادة إتمام «{{course}}». يمكنك تنزيلها ومشاركتها، ويتحقق منها أي أحد برقمها.', 'عرض الشهادة', 'أكاديمية ناف: صدرت شهادتك في {{course}}. {{link}}'),
+    certificate_issued: t('صدرت شهادتك: {{course}}', 'مبارك يا {{name}}', 'صدرت شهادة إتمام «{{course}}». يمكنك تنزيلها ومشاركتها، ويتحقق منها أي أحد برقمها.', 'عرض الشهادة', 'أكاديمية ناف: صدرت شهادتك في {{course}}. {{link}}', 'أضفها إلى LinkedIn'),
     order_paid: t('طلبك {{order}}: {{course}}', 'اكتمل طلبك', 'استلمنا دفعتك لـ«{{course}}». تجد الفاتورة الضريبية وتفاصيل الطلب في صفحته، ومنها يُخصَّص كل مقعد لصاحبه إن اشتريت لفريقك.', 'الطلب والفاتورة'),
     cohort_transfer: t('انتقلت إلى {{cohort}}: {{course}}', 'دفعتك الجديدة', 'نُقل تسجيلك في «{{course}}» إلى «{{cohort}}». تقدّمك محفوظ، ومواعيد الجلسات صارت مواعيد الدفعة الجديدة — أضفها إلى تقويمك.', 'مساحة التعلّم', 'أكاديمية ناف: انتقلت إلى {{cohort}} في {{course}}. {{link}}'),
     recording_ready: t('تسجيل {{lesson}} متاح الآن', 'شاهد التسجيل متى شئت', 'أُضيف تسجيل جلسة «{{lesson}}» من دورة «{{course}}» — تجده تحت الجلسة في مساحة التعلّم.', 'شاهد التسجيل'),

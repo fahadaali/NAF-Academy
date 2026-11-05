@@ -66,13 +66,21 @@ export async function channelOpen(c: Channel) {
   return st.configured && (c === 'email' ? set.emailEnabled : c === 'sms' ? set.smsEnabled : set.pushEnabled)
 }
 
-type Message = { channel: Channel; to: string; subject?: string; text: string; html?: string; kind: string; secret?: string; headers?: Record<string, string> }
+type Message = { channel: Channel; to: string; subject?: string; text: string; html?: string; kind: string; secret?: string; headers?: Record<string, string>; attachments?: { filename: string; content: Uint8Array }[] }
 
 /** يرسل ويسجّل. السرّ (مثل رمز التحقق) يُخفى من السجل في الإنتاج. */
 export async function send(m: Message): Promise<{ ok: boolean; error?: string; id: string }> {
   const st = channelState(m.channel)
   const logBody = m.secret && !dev() ? m.text.replaceAll(m.secret, '••••••') : m.text
   const row = { id: randomUUID(), channel: m.channel, to: m.to, subject: m.subject ?? '', body: logBody, kind: m.kind, provider: st.provider ?? 'none' }
+  /* عنوان ارتدّ ارتداداً دائماً أو اشتكى: لا يُرسل إليه (يحمي سمعة النطاق) */
+  if (m.channel === 'email') {
+    const [sup] = await db.select().from(s.mailSuppressions).where(eq(s.mailSuppressions.email, m.to.trim().toLowerCase()))
+    if (sup) {
+      await db.insert(s.messageLog).values({ ...row, status: 'suppressed', error: sup.reason === 'bounce' ? 'ارتدّ البريد سابقاً' : 'شكوى سابقة' })
+      return { ok: false, error: 'العنوان مكتوم', id: row.id }
+    }
+  }
   if (!st.configured) {
     await db.insert(s.messageLog).values({ ...row, status: 'failed', error: st.problem })
     return { ok: false, error: 'القناة غير مربوطة', id: row.id }
@@ -87,7 +95,7 @@ export async function send(m: Message): Promise<{ ok: boolean; error?: string; i
       const r = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: { authorization: `Bearer ${envVar('RESEND_API_KEY')}`, 'content-type': 'application/json' },
-        body: JSON.stringify({ from: envVar('MAIL_FROM'), to: [m.to], subject: m.subject, text: m.text, html: m.html, headers: m.headers }),
+        body: JSON.stringify({ from: envVar('MAIL_FROM'), to: [m.to], subject: m.subject, text: m.text, html: m.html, headers: m.headers, attachments: m.attachments?.map((a) => ({ filename: a.filename, content: Buffer.from(a.content).toString('base64') })) }),
       })
       if (!r.ok) throw new Error(`resend ${r.status}: ${(await r.text()).slice(0, 200)}`)
       providerId = ((await r.json()) as { id?: string }).id ?? ''

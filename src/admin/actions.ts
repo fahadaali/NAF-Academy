@@ -319,7 +319,14 @@ export async function uploadMedia(form: FormData): Promise<{ ok: boolean; id?: s
   const key = `${id.slice(0, 8)}${Date.now().toString(36)}.${ext}`
   await putObject(key, bytes, file.type)
   const alt = String(form.get('alt') ?? '').slice(0, 200) || file.name.replace(/\.[^.]+$/, '').slice(0, 200)
-  await db.insert(s.media).values({ id, key, mime: file.type, width, height, size: bytes.length, alt })
+  /* توأم JPEG لصور المشاركة (WebP/AVIF لا تقرؤها) — يُقبل JPEG صالحاً فقط */
+  let ogKey: string | null = null
+  const og = form.get('og')
+  if ((file.type === 'image/webp' || file.type === 'image/avif') && og instanceof File && og.type === 'image/jpeg' && og.size <= MAX) {
+    const b = new Uint8Array(await og.arrayBuffer())
+    if (b[0] === 0xff && b[1] === 0xd8) { ogKey = `${id.slice(0, 8)}${Date.now().toString(36)}-og.jpg`; await putObject(ogKey, b, 'image/jpeg') }
+  }
+  await db.insert(s.media).values({ id, key, mime: file.type, width, height, size: bytes.length, alt, ogKey })
   await audit(admin.name, 'upload', 'media', id, alt)
   revalidatePath('/admin/media')
   return { ok: true, id }

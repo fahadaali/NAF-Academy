@@ -113,6 +113,7 @@ export const courseInput = z
     slug,
     title: text(160).min(3, 'العنوان مطلوب'),
     subtitle: text(300),
+    titleEn: z.string().trim().max(200).default(''),
     trackId: z.string().nullable(),
     level: z.enum(LEVEL),
     mode: z.enum(DELIVERY),

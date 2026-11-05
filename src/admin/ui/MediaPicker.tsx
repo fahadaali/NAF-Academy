@@ -5,6 +5,7 @@ import type { Media } from '@/server/db/schema'
 import { listMedia, uploadMedia } from '@/admin/actions'
 import styles from './media.module.css'
 import { useCan } from './perms'
+import { uploadForm } from './og-twin'
 
 export const urlOf = (m: Pick<Media, 'key'>) => `/media/${m.key}`
 
@@ -32,9 +33,7 @@ export function MediaPicker({ value, onChange, library, ratio = '16 / 9', label 
   const upload = async (f: File) => {
     setBusy(true)
     setError('')
-    const fd = new FormData()
-    fd.set('file', f)
-    const r = await uploadMedia(fd)
+    const r = await uploadMedia(await uploadForm(f))
     setBusy(false)
     if (!r.ok) return setError(r.error ?? 'تعذّر الرفع')
     const list = only(await listMedia())

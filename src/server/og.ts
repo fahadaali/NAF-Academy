@@ -36,13 +36,24 @@ function brandRow(b: OgBrand, display: Font, R: number): { svg: string; bottom: 
   return { svg, bottom: 62 + H }
 }
 
-export async function ogSvg(o: { kicker?: string; title: string; meta?: string; brand: OgBrand }) {
+/** غلاف الدورة في صورة المشاركة — JPEG أو PNG، ونقطة التركيز تختار جهة القص */
+export type OgCover = { bytes: Uint8Array; mime: 'image/jpeg' | 'image/png'; focalX: number; focalY: number }
+
+export async function ogSvg(o: { kicker?: string; title: string; meta?: string; brand: OgBrand; cover?: OgCover | null }) {
   if (o.kicker?.trim() === o.brand.name) o = { ...o, kicker: undefined }
   const [display, sans] = [await loadFont(FONTS.display), await loadFont(FONTS.sans)]
   const R = W - 90
-  let size = 76
-  let lines = wrap(o.title, display, size, 900, 3)
-  if (lines.length === 3) { size = 64; lines = wrap(o.title, display, size, 920, 3) }
+  /* بغلاف: النص في الجهة اليمنى والغلاف في اليسرى */
+  const maxW = o.cover ? 560 : 900
+  let size = o.cover ? 64 : 76
+  let lines = wrap(o.title, display, size, maxW, 3)
+  if (lines.length === 3) { size = o.cover ? 54 : 64; lines = wrap(o.title, display, size, maxW + 20, 3) }
+  const CX = 52, CY = 52, CW = 440, CH = H - 104
+  const align = (v: number) => (v < 34 ? 'Min' : v > 66 ? 'Max' : 'Mid')
+  const cover = o.cover
+    ? `<defs><clipPath id="cv"><rect x="${CX}" y="${CY}" width="${CW}" height="${CH}" rx="18"/></clipPath></defs>
+<image href="data:${o.cover.mime};base64,${Buffer.from(o.cover.bytes).toString('base64')}" x="${CX}" y="${CY}" width="${CW}" height="${CH}" preserveAspectRatio="x${align(o.cover.focalX)}Y${align(o.cover.focalY)} slice" clip-path="url(#cv)"/>`
+    : ''
   const lh = size * 1.32
   /* السطر الأول يبدأ تحت التمهيد مهما طال العنوان */
   const head = brandRow(o.brand, display, R)
@@ -51,7 +62,7 @@ export async function ogSvg(o: { kicker?: string; title: string; meta?: string; 
 <rect width="${W}" height="${H}" fill="${C.bg}"/>
 <rect x="28" y="28" width="${W - 56}" height="${H - 56}" fill="none" stroke="${C.gold}" stroke-width="2"/>
 <rect x="38" y="38" width="${W - 76}" height="${H - 76}" fill="none" stroke="${C.line}" stroke-width="1"/>
-${o.brand.logo ? '' : emblem(70, H - 300, 300, C.gold, C.gold2, 0.13)}
+${cover || (o.brand.logo ? '' : emblem(70, H - 300, 300, C.gold, C.gold2, 0.13))}
 ${head.svg}
 ${o.kicker ? text(sans, o.kicker, R, head.bottom + 54, 28, C.gold) : ''}
 ${lines.map((l, i) => text(display, l, R, first + i * lh, size, C.ink)).join('\n')}

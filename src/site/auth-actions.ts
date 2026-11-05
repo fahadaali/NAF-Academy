@@ -34,6 +34,8 @@ const profile = z.object({
   name: z.string().trim().min(2, 'الاسم مطلوب').max(120),
   phone: z.string().trim().max(20),
   org: z.string().trim().max(160),
+  /** بحروف لاتينية — للشهادة الثنائية */
+  nameEn: z.union([z.literal(''), z.string().trim().max(120).regex(/^[A-Za-z][A-Za-z .'-]*$/, 'الاسم بالإنجليزية بحروف لاتينية')]).default(''),
   vatNumber: z.union([z.literal(''), z.string().regex(/^3\d{13}3$/, 'الرقم الضريبي 15 رقماً يبدأ وينتهي بـ 3')]),
 })
 

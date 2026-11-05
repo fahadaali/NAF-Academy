@@ -21,6 +21,8 @@ export const media = sqliteTable('media', {
   /** نقطة التركيز 0–100 — تحفظ الوجه/الموضوع في كل نسبة قص */
   focalX: real('focal_x').notNull().default(50),
   focalY: real('focal_y').notNull().default(50),
+  /** نسخة JPEG للصور التي لا تقرؤها صور المشاركة (WebP/AVIF) — يولّدها المتصفح عند الرفع */
+  ogKey: text('og_key'),
   ...stamps,
   ...soft,
 })
@@ -75,6 +77,8 @@ export const courses = sqliteTable(
     slug: text('slug').notNull().unique(),
     title: text('title').notNull(),
     subtitle: text('subtitle').notNull().default(''),
+    /** العنوان بالإنجليزية — للشهادة الثنائية */
+    titleEn: text('title_en').notNull().default(''),
     trackId: text('track_id').references(() => tracks.id, { onDelete: 'set null' }),
     level: text('level', { enum: LEVEL }).notNull().default('practitioner'),
     mode: text('mode', { enum: DELIVERY }).notNull().default('recorded'),
@@ -277,6 +281,8 @@ export const learners = sqliteTable('learners', {
   phone: text('phone').notNull().default(''),
   org: text('org').notNull().default(''),
   vatNumber: text('vat_number').notNull().default(''),
+  /** الاسم بالإنجليزية للشهادة الثنائية — يكتبه المتدرب في ملفه */
+  nameEn: text('name_en').notNull().default(''),
   ...stamps,
 })
 
@@ -568,9 +574,16 @@ export const messageLog = sqliteTable(
     status: text('status').notNull(),
     providerId: text('provider_id'),
     error: text('error'),
+    /* تتبّع التسليم (أحداث مزوّد البريد) */
+    deliveredAt: text('delivered_at'),
+    openedAt: text('opened_at'),
+    clickedAt: text('clicked_at'),
+    bouncedAt: text('bounced_at'),
+    complainedAt: text('complained_at'),
+    opens: integer('opens').notNull().default(0),
     ...stamps,
   },
-  (t) => [index('msg_to_idx').on(t.to)],
+  (t) => [index('msg_to_idx').on(t.to), index('msg_provider_idx').on(t.providerId)],
 )
 
 export type MemberRow = typeof members.$inferSelect
@@ -711,6 +724,9 @@ export const certificates = sqliteTable('certificates', {
   /** لقطة عند الإصدار: لا تتغير الشهادة إن تغيّر الاسم أو الدورة أو القالب لاحقاً */
   name: text('name').notNull(),
   courseTitle: text('course_title').notNull(),
+  /** لقطة الإنجليزية للشهادة الثنائية */
+  nameEn: text('name_en').notNull().default(''),
+  courseTitleEn: text('course_title_en').notNull().default(''),
   hours: real('hours').notNull().default(0),
   criteria: text('criteria', { mode: 'json' }).$type<Criterion[]>().notNull().default(sql`'[]'`),
   templateId: text('template_id'),
@@ -861,3 +877,10 @@ export const inbox = sqliteTable(
   },
   (t) => [index('inbox_learner_idx').on(t.learnerId, t.createdAt)],
 )
+
+/** عناوين لا يُرسل إليها البريد: ارتداد دائم أو شكوى (من أحداث المزوّد) */
+export const mailSuppressions = sqliteTable('mail_suppressions', {
+  email: text('email').primaryKey(),
+  reason: text('reason', { enum: ['bounce', 'complaint'] }).notNull(),
+  createdAt: stamps.createdAt,
+})

@@ -20,6 +20,8 @@ import { dripOpensAt } from '@/lib/learning'
 import { formatDay, formatHijri, formatTime, formatWeekday } from '@/lib/dates'
 import { formatAmount, priceView } from '@/lib/pricing'
 import { resolveStatus } from '@/lib/course-meta'
+import { linkedinUrl } from '@/lib/certificate'
+import { REVIEW_MIN_PCT } from '@/lib/reviews'
 import { chunksOf, inList } from '@/server/db/limits'
 import { hasAccess, withSession } from '@/lib/cohorts'
 import { sessionsOf } from '../cohorts'
@@ -508,11 +510,20 @@ async function contextFor(n: typeof s.notifications.$inferSelect, site: string, 
     case 'certificate_issued': {
       const [c] = await db.select().from(s.certificates).where(eq(s.certificates.id, String(n.ref.certificateId)))
       if (!c || c.status !== 'issued' || !c.code) return { ok: false, reason: 'الشهادة غير صادرة' }
-      Object.assign(vars, { code: c.code, link: `${site}/certificates/${c.code}` })
+      Object.assign(vars, {
+        code: c.code, link: `${site}/certificates/${c.code}`,
+        linkedin_url: linkedinUrl({ course: c.courseTitle.replace(/~\d/g, ''), code: c.code, url: `${site}/certificates/${c.code}`, issuedAt: c.issuedAt ?? new Date().toISOString(), org: (await brandView()).name }),
+      })
       break
     }
     default:
       break
+  }
+  /* رابط التقييم لمن بلغ نسبة التقييم ولم يقيّم بعد — وإلا يغيب الزر */
+  if ((ev === 'session_followup' || ev === 'completed') && n.learnerId) {
+    const p = (await progressOf([{ learnerId: n.learnerId, courseId: course.id }])).get(`${n.learnerId}:${course.id}`)
+    const [mine] = await db.select({ id: s.reviews.id }).from(s.reviews).where(and(eq(s.reviews.learnerId, n.learnerId), eq(s.reviews.courseId, course.id)))
+    if ((p?.pct ?? 0) >= REVIEW_MIN_PCT && !mine) vars.review_url = `${site}/learn/${course.slug}#review`
   }
   return { ok: true, vars, name: vars.name }
 }
@@ -581,8 +592,21 @@ export async function dispatch(now: Date, opt: { limit?: number; keys?: string[]
         site, brand: mailBrand, heading: fill(tpl.heading, v), body: fill(tpl.body, v), preheader: fill(tpl.subject, v),
         facts: meta.facts.map(([k, x]) => [k, v[x] ?? ''] as [string, string]),
         cta: tpl.cta && v.link ? { label: fill(tpl.cta, v), href: v.link } : undefined, unsubscribe: unsub,
+        cta2: meta.cta2Var && tpl.cta2 && v[meta.cta2Var] ? { label: fill(tpl.cta2, v), href: v[meta.cta2Var] } : undefined,
       })
-      r = await send({ channel: 'email', to: n.to, subject: fill(tpl.subject, v), text, html, kind: ev, headers: unsub ? { 'List-Unsubscribe': `<${unsub.replace('/unsubscribe?', '/api/unsubscribe?')}>`, 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' } : undefined })
+      /* الفاتورة أو الإشعار الدائن مرفقاً PDF — فشل توليده لا يمنع الرسالة */
+      let attachments: { filename: string; content: Uint8Array }[] | undefined
+      if ((ev === 'order_paid' || ev === 'refund_issued') && n.ref?.orderId) {
+        try {
+          const [o] = await db.select().from(s.orders).where(eq(s.orders.id, String(n.ref.orderId)))
+          const [inv] = o ? await db.select().from(s.invoices).where(and(eq(s.invoices.orderId, o.id), eq(s.invoices.kind, ev === 'order_paid' ? 'invoice' : 'credit_note'))).orderBy(desc(s.invoices.issuedAt)).limit(1) : []
+          if (o && inv) {
+            const { invoiceFile } = await import('../invoices')
+            attachments = [{ filename: `${inv.number}.pdf`, content: await invoiceFile(inv, { orderNumber: o.number, vatRate: o.vatRate }) }]
+          }
+        } catch (e) { console.error('invoice attachment', e) }
+      }
+      r = await send({ channel: 'email', to: n.to, subject: fill(tpl.subject, v), text, html, kind: ev, attachments, headers: unsub ? { 'List-Unsubscribe': `<${unsub.replace('/unsubscribe?', '/api/unsubscribe?')}>`, 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' } : undefined })
     } else if (n.channel === 'push') {
       r = await sendPushTo(n.learnerId!, { title: fill(tpl.subject, v), body: fill(tpl.sms.trim() ? tpl.sms : tpl.heading, v).replace(/\s*https?:\/\/\S+/g, '').slice(0, 200), url: v.link ?? `${site}/learn`, tag: n.key.split(':').slice(0, 2).join(':'), icon: pushIcon }, ev)
     } else {

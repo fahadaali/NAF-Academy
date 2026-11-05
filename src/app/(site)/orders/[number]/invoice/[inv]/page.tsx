@@ -25,7 +25,7 @@ export default async function Invoice({ params, searchParams }: { params: Promis
   const brand = await brandView()
   return (
     <div className={s.page}>
-      <div className={s.toolbar}><PrintButton /><a href={`/orders/${number}?t=${t}`}>العودة للطلب</a></div>
+      <div className={s.toolbar}><PrintButton /><a href={`/orders/${number}/invoice/${invoice.number}/pdf?t=${t}`} download>تنزيل PDF</a><a href={`/orders/${number}?t=${t}`}>العودة للطلب</a></div>
       <article className={s.sheet}>
         <header className={s.head}>
           <div className={s.brand}>

@@ -11,7 +11,7 @@ export default async function Profile() {
   const me = (await currentLearner())!
   return (
     <div style={{ display: 'grid', gap: 22 }}>
-      <ProfileForm email={me.email} initial={{ name: me.name, phone: me.phone, org: me.org, vatNumber: me.vatNumber }} />
+      <ProfileForm email={me.email} initial={{ name: me.name, nameEn: me.nameEn, phone: me.phone, org: me.org, vatNumber: me.vatNumber }} />
       {me.email && <MailPrefs optedOut={await isOptedOut(me.email)} />}
       {(await channelOpen('push')) && vapidKeys() && (
         /* تذكيرات المتصفح تتبع المواعيد العاجلة (المفعّلة للجوال) في «الرسائل الآلية» */

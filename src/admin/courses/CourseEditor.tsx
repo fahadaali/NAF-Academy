@@ -153,6 +153,9 @@ export function CourseEditor({ id, initial, previewToken, tracks, instructors, m
               <Field label="العنوان الفرعي" hint="سطر واحد يلخّص قيمة الدورة" wide>
                 <Input value={v.subtitle} onChange={(e) => set('subtitle', e.target.value)} />
               </Field>
+              <Field label="العنوان بالإنجليزية" hint="للشهادة ثنائية اللغة — اختياري" wide>
+                <Input dir="ltr" value={v.titleEn ?? ''} onChange={(e) => set('titleEn', e.target.value)} placeholder="Commercial Contract Drafting" />
+              </Field>
               <Grid>
                 <Field label="رابط الصفحة" error={err('slug')} hint={`/courses/${v.slug || '…'}`}>
                   <Input dir="ltr" value={v.slug} onChange={(e) => { setSlugTouched(true); set('slug', e.target.value.toLowerCase()) }} placeholder="contract-drafting" />

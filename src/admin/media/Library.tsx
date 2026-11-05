@@ -1,5 +1,6 @@
 'use client'
 /* مكتبة الصور — رفع متعدد، ونص بديل، ونقطة تركيز بالنقر مع معاينة القص بثلاث نسب. */
+import { uploadForm } from '@/admin/ui/og-twin'
 import { useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import type { Media } from '@/server/db/schema'
@@ -26,9 +27,7 @@ export function Library({ items }: { items: Media[] }) {
     setBusy(files.length)
     let last: string | undefined
     for (const f of Array.from(files)) {
-      const fd = new FormData()
-      fd.set('file', f)
-      const r = await uploadMedia(fd)
+      const r = await uploadMedia(await uploadForm(f))
       if (!r.ok) setError(`${f.name}: ${r.error}`)
       else last = r.id
       setBusy((b) => b - 1)

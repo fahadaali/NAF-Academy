@@ -79,8 +79,8 @@ export async function issueCertificate(id: string, by: string) {
   const { id: tid, design } = await designFor(c.templateId)
   const issuedAt = nowIso()
   /* اللقطة تؤخذ عند الإصدار لا عند الاستيفاء: إن صحّح المتدرب اسمه أو عُدّلت الدورة قبل الاعتماد يظهر الصحيح */
-  const [learner] = await db.select({ name: s.learners.name, email: s.learners.email }).from(s.learners).where(eq(s.learners.id, c.learnerId))
-  const [course] = await db.select({ title: s.courses.title, hours: s.courses.hours }).from(s.courses).where(eq(s.courses.id, c.courseId))
+  const [learner] = await db.select({ name: s.learners.name, email: s.learners.email, nameEn: s.learners.nameEn }).from(s.learners).where(eq(s.learners.id, c.learnerId))
+  const [course] = await db.select({ title: s.courses.title, hours: s.courses.hours, titleEn: s.courses.titleEn }).from(s.courses).where(eq(s.courses.id, c.courseId))
   let code = ''
   for (let i = 0; i < 5 && !code; i++) {
     const k = certCode(randomInt)
@@ -90,6 +90,7 @@ export async function issueCertificate(id: string, by: string) {
   const [row] = await db.update(s.certificates).set({
     status: 'issued', code, issuedAt, design, templateId: tid, decidedBy: by, reason: '', updatedAt: issuedAt,
     name: learner?.name || c.name || learner?.email || '', courseTitle: course ? course.title.replace(/~\d/g, '') : c.courseTitle, hours: course?.hours ?? c.hours,
+    nameEn: learner?.nameEn ?? '', courseTitleEn: course?.titleEn ?? '',
   })
     .where(and(eq(s.certificates.id, id), inArray(s.certificates.status, ['pending', 'rejected']))).returning()
   if (!row) return c
@@ -110,6 +111,8 @@ export async function issueCertificate(id: string, by: string) {
 const dateAr = (iso: string) => new Intl.DateTimeFormat('ar-SA-u-nu-latn-ca-gregory', { timeZone: 'Asia/Riyadh', day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(iso))
 const hijriAr = (iso: string) => `${formatHijri(iso)} ${new Intl.DateTimeFormat('ar-SA-u-nu-latn-ca-islamic-umalqura', { timeZone: 'Asia/Riyadh', year: 'numeric' }).format(new Date(iso)).replace(/[^\d]/g, '')}`
 
+const dateEn = (iso: string) => new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Riyadh', day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(iso))
+
 export const verifyUrl = (code: string) => `${siteUrl() ?? ''}/certificates/${code}`
 
 /** الهوية للشهادة — شعار الأكاديمية بالنسخة الفاتحة للقالب العاجي والداكنة للكحلي */
@@ -126,6 +129,7 @@ export async function renderPdf(c: typeof s.certificates.$inferSelect, design?: 
   const d = design ?? c.design ?? DEFAULT_DESIGN
   return certificatePdf(d, {
     name: c.name, course: c.courseTitle, hours: c.hours, date: dateAr(c.issuedAt ?? nowIso()), hijri: hijriAr(c.issuedAt ?? nowIso()),
+    nameEn: c.nameEn, courseEn: c.courseTitleEn, dateEn: dateEn(c.issuedAt ?? nowIso()),
     code: c.code ?? 'NAF-XXXX-XXXX', verifyUrl: verifyUrl(c.code ?? ''),
   }, await certBrand(d.tone))
 }
@@ -173,7 +177,7 @@ export async function viewData(c: typeof s.certificates.$inferSelect) {
   const qrSvg = c.code
     ? (await QRCode.toString(verifyUrl(c.code), { type: 'svg', margin: 0, errorCorrectionLevel: 'M' })).replace(/fill="#ffffff"/gi, 'fill="transparent"').replace(/#000000/g, 'currentColor')
     : undefined
-  return { name: c.name, course: c.courseTitle, hours: c.hours, date: dateAr(at), hijri: hijriAr(at), code: c.code ?? 'NAF-XXXX-XXXX', qrSvg }
+  return { name: c.name, course: c.courseTitle, hours: c.hours, date: dateAr(at), hijri: hijriAr(at), code: c.code ?? 'NAF-XXXX-XXXX', qrSvg, nameEn: c.nameEn, courseEn: c.courseTitleEn, dateEn: dateEn(at) }
 }
 
 export { dateAr, hijriAr }

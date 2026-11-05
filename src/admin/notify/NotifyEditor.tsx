@@ -12,7 +12,7 @@ import { useCan } from '@/admin/ui/perms'
 const CAT: Record<Category, string> = { transactional: 'أساسية — تُرسل دائماً', engagement: 'تحفيز — يمكن إيقافها', marketing: 'عروض — يمكن إيقافها' }
 const TIMING = 'timing' as const
 type Pick = EventKey | typeof TIMING
-type FieldKey = 'subject' | 'heading' | 'body' | 'cta' | 'sms'
+type FieldKey = 'subject' | 'heading' | 'body' | 'cta' | 'cta2' | 'sms'
 
 export function NotifyEditor({ initial, staffEmail }: { initial: NotifySettings; staffEmail: string }) {
   const [v, setV] = useState(initial)
@@ -89,7 +89,7 @@ function TemplateEditor({ event, t, set, errors, staffEmail }: { event: EventKey
     requestAnimationFrame(() => { f.el.focus(); const p = (a ?? 0) + tok.length; f.el.setSelectionRange(p, p) })
   }
   const bind = (k: FieldKey) => ({
-    value: t[k],
+    value: t[k] ?? '',
     onFocus: (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => { focus.current = { k, el: e.currentTarget } },
     onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => set({ [k]: e.target.value } as Partial<Template>),
   })
@@ -106,6 +106,7 @@ function TemplateEditor({ event, t, set, errors, staffEmail }: { event: EventKey
           <Field label="العنوان داخل الرسالة" error={err('heading')} wide><Input {...bind('heading')} /></Field>
           <Field label="النص" hint="سطر فارغ يفصل الفقرات، و«- » في أول السطر لقائمة" error={err('body')} wide><Textarea rows={7} {...bind('body')} /></Field>
           <Field label="نص الزر" hint="يقود إلى الدرس أو الدورة — اتركه فارغاً بلا زر" error={err('cta')}><Input {...bind('cta')} /></Field>
+          {meta.cta2Var && <Field label={meta.cta2Var === 'review_url' ? 'زر التقييم' : 'زر LinkedIn'} hint={meta.cta2Var === 'review_url' ? 'يظهر لمن بلغ نسبة التقييم ولم يقيّم بعد — فارغ = بلا زر' : 'يفتح إضافة الشهادة إلى ملف LinkedIn — فارغ = بلا زر'} error={err('cta2')}><Input {...bind('cta2')} /></Field>}
           {meta.sms && <Field label="الرسالة النصية (الجوال)" hint={`${t.sms.length} حرفاً — فارغ = لا رسالة نصية`} error={err('sms')}><Textarea rows={3} {...bind('sms')} /></Field>}
         </Grid>
       </Section>

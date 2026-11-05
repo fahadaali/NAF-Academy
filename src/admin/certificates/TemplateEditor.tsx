@@ -6,14 +6,14 @@ import { useEffect, useRef, useState } from 'react'
 import type { BrandView } from '@/lib/brand'
 import { useRouter } from 'next/navigation'
 import type { Media } from '@/server/db/schema'
-import { BLOCKS, BLOCK_LABEL, type BlockKey, type CertDesign } from '@/lib/certificate'
+import { BLOCKS, BLOCK_LABEL, type BlockKey, type CertDesign, DEFAULT_DESIGN } from '@/lib/certificate'
 import { CertificateView } from '@/components/CertificateView'
 import { Field, Grid, Input, SaveBar, Section, Segmented, Switch } from '@/admin/ui/kit'
 import { MediaPicker } from '@/admin/ui/MediaPicker'
 import { deleteTemplate, duplicateTemplate, previewTemplatePdf, saveTemplate } from './actions'
 import t from './template.module.css'
 
-const SAMPLE = { name: 'سارة عبدالله المتدربة', course: 'نظام الإثبات: من النص إلى المرافعة', hours: 12, date: '5 نوفمبر 2026', hijri: '14 جمادى الأولى 1448', code: 'NAF-DEMO-2026' }
+const SAMPLE = { name: 'سارة عبدالله المتدربة', course: 'نظام الإثبات: من النص إلى المرافعة', hours: 12, date: '5 نوفمبر 2026', hijri: '14 جمادى الأولى 1448', code: 'NAF-DEMO-2026', nameEn: 'Sarah Abdullah', courseEn: 'Evidence Law: From Text to Pleading', dateEn: '5 November 2026' }
 
 export function TemplateEditor({ id, initial, media, brand }: { id: string | null; initial: { name: string; isDefault: boolean; design: CertDesign }; media: Media[]; brand: BrandView }) {
   const router = useRouter()
@@ -107,12 +107,30 @@ export function TemplateEditor({ id, initial, media, brand }: { id: string | nul
             <Field label="سطر الساعات" hint="{{hours}} يُستبدل بساعات الدورة"><Input value={d.hoursText} onChange={(e) => setD({ hoursText: e.target.value })} /></Field>
           </Section>
 
+          <Section title="الوجه الإنجليزي" desc="شهادة ثنائية اللغة: تحت كل سطر عربي سطره الإنجليزي — والاسم بالإنجليزية من ملف المتدرب، وعنوان الدورة من محرّرها">
+            <Switch checked={!!d.bilingual} onChange={(bilingual) => setD({ bilingual })} label={d.bilingual ? 'ثنائية اللغة' : 'عربية فقط'} />
+            {d.bilingual && (() => {
+              const en = { ...DEFAULT_DESIGN.en, ...(d.en ?? {}) }
+              const setEn = (p: Partial<typeof en>) => setD({ en: { ...en, ...p } })
+              return (
+                <>
+                  <Field label="العنوان"><Input dir="ltr" value={en.title} onChange={(e) => setEn({ title: e.target.value })} /></Field>
+                  <Field label="قبل الاسم"><Input dir="ltr" value={en.lead} onChange={(e) => setEn({ lead: e.target.value })} /></Field>
+                  <Field label="قبل اسم الدورة"><Input dir="ltr" value={en.courseLead} onChange={(e) => setEn({ courseLead: e.target.value })} /></Field>
+                  <Field label="سطر الساعات" hint="{{hours}}"><Input dir="ltr" value={en.hoursText} onChange={(e) => setEn({ hoursText: e.target.value })} /></Field>
+                  <Field label="قبل التاريخ"><Input dir="ltr" value={en.issued} onChange={(e) => setEn({ issued: e.target.value })} /></Field>
+                </>
+              )
+            })()}
+          </Section>
+
           <Section title="الموقّعون" desc="حتى ثلاثة">
             {d.signatories.map((sg, i) => (
               <div key={i} className={t.signer}>
                 <Grid>
                   <Field label="الاسم" error={errors[`design.signatories.${i}.name`]}><Input value={sg.name} onChange={(e) => setD({ signatories: d.signatories.map((x, k) => (k === i ? { ...x, name: e.target.value } : x)) })} /></Field>
                   <Field label="الصفة"><Input value={sg.title} onChange={(e) => setD({ signatories: d.signatories.map((x, k) => (k === i ? { ...x, title: e.target.value } : x)) })} /></Field>
+                  {d.bilingual && <Field label="الصفة بالإنجليزية"><Input dir="ltr" value={sg.titleEn ?? ''} onChange={(e) => setD({ signatories: d.signatories.map((x, k) => (k === i ? { ...x, titleEn: e.target.value } : x)) })} /></Field>}
                 </Grid>
                 <MediaPicker label="صورة التوقيع (PNG شفاف)" value={sg.signatureId} onChange={(signatureId) => setD({ signatories: d.signatories.map((x, k) => (k === i ? { ...x, signatureId } : x)) })} library={images} ratio="3 / 1" accept={['image/png']} />
                 <button type="button" className={t.remove} onClick={() => setD({ signatories: d.signatories.filter((_, k) => k !== i) })}>إزالة الموقّع</button>

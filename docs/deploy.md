@@ -29,6 +29,7 @@ npx wrangler r2 bucket create naf-academy-media
 | `RESEND_API_KEY` · `MAIL_FROM` | سرّ · عام | البريد (رموز الدخول، الرسائل الآلية) | قناة البريد مقفلة |
 | `TAQNYAT_API_KEY` · `SMS_SENDER` | سرّ · عام | الرسائل النصية | قناة الجوال مقفلة |
 | `CF_ACCOUNT_ID` · `CF_STREAM_TOKEN` · `CF_STREAM_CUSTOMER` | أسرار | فيديو الدروس على Cloudflare Stream بروابط موقّعة | يعمل الفيديو برابط مباشر فقط |
+| `RESEND_WEBHOOK_SECRET` | سرّ | أحداث البريد من Resend على `/api/mail/webhook` (التسليم، الفتح، النقر، الارتداد، الشكوى) — فعّل تتبّع الفتح والنقر من إعدادات النطاق في Resend | لا تتبّع ولا كتم تلقائي |
 | `ZOOM_WEBHOOK_SECRET` | سرّ | إشعارات Zoom (حدث Recording Completed على `/api/zoom/webhook`) — تُلحق تسجيلات الجلسات تلقائياً بعد تفعيلها من «الجلسات والحضور»، وتحتاج Stream لنسخ الملف | الإلحاق يدوي |
 | `VAPID_PUBLIC_KEY` · `VAPID_SUBJECT` · `VAPID_PRIVATE_KEY` | عام · عام · سرّ | إشعارات المتصفح — ولّدها بـ `node scripts/vapid.mjs` | قناة المتصفح مقفلة |
 

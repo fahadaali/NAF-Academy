@@ -85,6 +85,13 @@
       "when": 1793914585242,
       "tag": "0011_captions_achievements_zoom",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1793915131339,
+      "tag": "0012_tracking_bilingual_docs",
+      "breakpoints": true
     }
   ]
 }

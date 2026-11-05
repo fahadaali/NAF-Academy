@@ -109,7 +109,10 @@ const designInput = z.object({
   courseLead: z.string().trim().max(120),
   hoursText: z.string().trim().max(120),
   english: z.boolean(),
-  signatories: z.array(z.object({ name: z.string().trim().min(1, 'اسم الموقّع مطلوب').max(80), title: z.string().trim().max(80), signatureId: z.string().nullable() })).max(3),
+  bilingual: z.boolean().default(false),
+  en: z.object({ title: z.string().trim().max(80), lead: z.string().trim().max(120), courseLead: z.string().trim().max(120), hoursText: z.string().trim().max(120), issued: z.string().trim().max(40) })
+    .default({ title: 'Certificate of Completion', lead: 'This certificate is awarded to', courseLead: 'for completing the requirements of', hoursText: '{{hours}} training hours', issued: 'Issued on' }),
+  signatories: z.array(z.object({ name: z.string().trim().min(1, 'اسم الموقّع مطلوب').max(80), title: z.string().trim().max(80), titleEn: z.string().trim().max(80).optional(), signatureId: z.string().nullable() })).max(3),
   blocks: z.object(Object.fromEntries(BLOCKS.map((k) => [k, block])) as Record<(typeof BLOCKS)[number], typeof block>),
 })
 const templateInput = z.object({ name: z.string().trim().min(2, 'اسم القالب مطلوب').max(80), isDefault: z.boolean(), design: designInput })
@@ -155,7 +158,7 @@ export async function previewTemplatePdf(design: CertDesign): Promise<string> {
   const bytes = await certificatePdf(d, {
     name: 'سارة عبدالله المتدربة', course: 'نظام الإثبات: من النص إلى المرافعة', hours: 12,
     date: new Intl.DateTimeFormat('ar-SA-u-nu-latn-ca-gregory', { timeZone: 'Asia/Riyadh', day: 'numeric', month: 'long', year: 'numeric' }).format(new Date()),
-    hijri: '—', code: 'NAF-DEMO-2026', verifyUrl: 'https://academy.example/certificates/NAF-DEMO-2026',
+    hijri: '—', code: 'NAF-DEMO-2026', verifyUrl: 'https://academy.example/certificates/NAF-DEMO-2026', nameEn: 'Sarah Abdullah', courseEn: 'Evidence Law: From Text to Pleading', dateEn: '5 November 2026',
   }, await certBrand(d.tone))
   return `data:application/pdf;base64,${Buffer.from(bytes).toString('base64')}`
 }

@@ -22,6 +22,8 @@ export type EmailParts = {
   body: string
   facts?: [string, string][]
   cta?: { label: string; href: string }
+  /** زر ثانوي (إطار ذهبي) بعد الأول */
+  cta2?: { label: string; href: string }
   /** رمز التحقق بخط كبير */
   code?: string
   note?: string
@@ -51,6 +53,9 @@ export function renderEmail(p: EmailParts): { html: string; text: string } {
   const cta = p.cta
     ? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:6px 0 8px"><tr><td style="border-radius:999px;background:${C.gold}"><a href="${esc(p.cta.href)}" style="display:inline-block;padding:14px 30px;font-family:${font};font-size:16px;font-weight:700;color:${C.night};text-decoration:none;border-radius:999px">${esc(p.cta.label)}</a></td></tr></table>`
     : ''
+  const cta2 = p.cta2
+    ? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:6px 0 8px"><tr><td style="border-radius:999px;border:1.5px solid ${C.gold}"><a href="${esc(p.cta2.href)}" style="display:inline-block;padding:12px 26px;font-family:${font};font-size:15px;font-weight:700;color:${C.goldText};text-decoration:none;border-radius:999px">${esc(p.cta2.label)}</a></td></tr></table>`
+    : ''
   const unsub = p.unsubscribe ? ` · <a href="${esc(p.unsubscribe)}" style="color:${C.muted}" class="muted">إيقاف هذه الرسائل</a>` : ''
   const dark = `.bg{background:${C.dBg}!important}.card{background:${C.dCard}!important;border-color:${C.dLine}!important}.ink{color:${C.dInk}!important}.soft{color:${C.dSoft}!important}.box{background:${C.dBg}!important}.line{border-color:${C.dLine}!important}`
   const html = `<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -70,7 +75,7 @@ ${p.preheader ? `<div style="display:none;max-height:0;overflow:hidden;opacity:0
 <tr><td style="height:3px;background:${C.gold};line-height:3px;font-size:0">&nbsp;</td></tr>
 <tr><td class="pad" style="padding:34px 32px 26px;text-align:right">
 <h1 class="ink" style="margin:0 0 14px;font-family:${font};font-size:26px;line-height:1.4;font-weight:700;color:${C.ink}">${esc(p.heading)}</h1>
-${blocks(p.body)}${code}${factsHtml}${cta}
+${blocks(p.body)}${code}${factsHtml}${cta}${cta2}
 ${p.note ? `<p class="muted" style="margin:18px 0 0;font-size:13px;line-height:1.7;color:${C.muted}">${esc(p.note)}</p>` : ''}
 </td></tr>
 <tr><td class="line muted" style="padding:16px 32px;border-top:1px solid ${C.line};font-size:12px;line-height:1.8;color:${C.muted};text-align:right">${esc(p.brand.name)} — إحدى مبادرات ${esc(p.brand.companyName)} · <a href="${esc(p.site)}" style="color:${C.goldText}">الموقع</a>${unsub}</td></tr>
@@ -82,6 +87,7 @@ ${p.note ? `<p class="muted" style="margin:18px 0 0;font-size:13px;line-height:1
     p.code ? `\nالرمز: ${p.code}` : '',
     facts.length ? '\n' + facts.map(([k, v]) => `${k}: ${v}`).join('\n') : '',
     p.cta ? `\n${p.cta.label}: ${p.cta.href}` : '',
+    p.cta2 ? `${p.cta2.label}: ${p.cta2.href}` : '',
     p.note ? `\n${p.note}` : '',
     `\n—\n${p.brand.name} · ${p.site}`,
     p.unsubscribe ? `إيقاف هذه الرسائل: ${p.unsubscribe}` : '',

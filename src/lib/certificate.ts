@@ -24,7 +24,10 @@ export const BLOCKS = ['brand', 'title', 'lead', 'name', 'course', 'hours', 'dat
 export type BlockKey = (typeof BLOCKS)[number]
 export type Block = { x: number; y: number; size: number; show: boolean }
 
-export type Signatory = { name: string; title: string; signatureId: string | null }
+export type Signatory = { name: string; title: string; signatureId: string | null; titleEn?: string }
+
+/** نصوص الوجه الإنجليزي للشهادة الثنائية — {{hours}} للساعات */
+export type CertEnglish = { title: string; lead: string; courseLead: string; hoursText: string; issued: string }
 
 export type CertDesign = {
   tone: 'ivory' | 'night'
@@ -33,7 +36,11 @@ export type CertDesign = {
   lead: string
   courseLead: string
   hoursText: string
+  /** سطر «CERTIFICATE OF COMPLETION» تحت العنوان */
   english: boolean
+  /** ثنائية اللغة كاملة: تحت كل سطر عربي سطره الإنجليزي (العنوان، التمهيد، الاسم، الدورة، الساعات، التاريخ، المسمّيات) */
+  bilingual: boolean
+  en: CertEnglish
   signatories: Signatory[]
   blocks: Record<BlockKey, Block>
 }
@@ -53,7 +60,9 @@ export const DEFAULT_DESIGN: CertDesign = {
   courseLead: 'لإتمام متطلبات دورة',
   hoursText: 'بواقع {{hours}} ساعة تدريبية',
   english: true,
-  signatories: [{ name: 'مدير الأكاديمية', title: 'أكاديمية ناف', signatureId: null }],
+  bilingual: false,
+  en: { title: 'Certificate of Completion', lead: 'This certificate is awarded to', courseLead: 'for completing the requirements of', hoursText: '{{hours}} training hours', issued: 'Issued on' },
+  signatories: [{ name: 'مدير الأكاديمية', title: 'أكاديمية ناف', signatureId: null, titleEn: 'NAF Academy' }],
   blocks: {
     brand: b(50, 12, 15),
     title: b(50, 26, 44),
@@ -71,7 +80,7 @@ export const DEFAULT_DESIGN: CertDesign = {
 export function mergeDesign(v: Partial<CertDesign> | null | undefined): CertDesign {
   const blocks = { ...DEFAULT_DESIGN.blocks }
   for (const k of BLOCKS) if (v?.blocks?.[k]) blocks[k] = { ...DEFAULT_DESIGN.blocks[k], ...v.blocks[k] }
-  return { ...DEFAULT_DESIGN, ...v, blocks, signatories: v?.signatories ?? DEFAULT_DESIGN.signatories }
+  return { ...DEFAULT_DESIGN, ...v, blocks, en: { ...DEFAULT_DESIGN.en, ...(v?.en ?? {}) }, bilingual: v?.bilingual ?? false, signatories: v?.signatories ?? DEFAULT_DESIGN.signatories }
 }
 
 export const mergeRules = (v: Partial<CertRules> | null | undefined): CertRules => ({ ...DEFAULT_RULES, ...v })
