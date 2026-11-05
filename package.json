@@ -15,13 +15,21 @@
     "pretypecheck": "node scripts/setup-fonts.mjs",
     "db:setup": "tsx scripts/db-setup.ts",
     "db:reset": "tsx scripts/db-setup.ts --reset",
-    "db:generate": "drizzle-kit generate"
+    "db:generate": "drizzle-kit generate",
+    "cf:build": "opennextjs-cloudflare build",
+    "cf:preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
+    "cf:deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
+    "db:migrate:remote": "wrangler d1 migrations apply naf_academy --remote",
+    "db:seed:remote": "tsx scripts/export-seed.ts && wrangler d1 execute naf_academy --remote --file=.data/seed.sql",
+    "db:seed:local-d1": "tsx scripts/export-seed.ts && wrangler d1 execute naf_academy --local --file=.data/seed.sql"
   },
   "dependencies": {
     "@emran-alhaddad/saudi-riyal-font": "^1.1.0",
     "@libsql/client": "^0.18.0",
+    "@opennextjs/cloudflare": "^1.20.16",
     "drizzle-orm": "^0.45.4",
     "image-size": "^2.0.4",
+    "naf-auth": "github:fahadaali/naf-auth#v3.4.0",
     "next": "^16.4.5",
     "qrcode": "^1.5.4",
     "react": "^19.3.1",
@@ -37,6 +45,7 @@
     "axe-core": "^4.14.0",
     "drizzle-kit": "^0.31.11",
     "tsx": "^4.23.15",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "wrangler": "^4.158.0"
   }
 }
