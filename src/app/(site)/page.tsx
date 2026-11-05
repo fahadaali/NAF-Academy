@@ -6,12 +6,15 @@ import { ldJson, organization, website } from '@/lib/seo'
 import { siteUrl } from '@/server/site'
 import { CourseCard } from '@/components/CourseCard'
 import { Opening } from '@/scenes/opening/Opening'
-import { Ladder } from '@/scenes/ladder/Ladder'
-import { TrackShelf } from '@/scenes/shelf/TrackShelf'
-import { Timeline } from '@/scenes/timeline/Timeline'
+import dynamic from 'next/dynamic'
 import { Instructors } from '@/scenes/people/Instructors'
-import { Impact } from '@/scenes/impact/Impact'
-import { Corporate } from '@/scenes/corporate/Corporate'
+
+/* مشاهد تحت الطيّة: شيفرتها في حزم مستقلة تُحمَّل بعد الافتتاح، ومحتواها يُعرض من الخادم كما هو (بلا فراغ ولا قفزة) */
+const Ladder = dynamic(() => import('@/scenes/ladder/Ladder').then((m) => m.Ladder))
+const TrackShelf = dynamic(() => import('@/scenes/shelf/TrackShelf').then((m) => m.TrackShelf))
+const Timeline = dynamic(() => import('@/scenes/timeline/Timeline').then((m) => m.Timeline))
+const Impact = dynamic(() => import('@/scenes/impact/Impact').then((m) => m.Impact))
+const Corporate = dynamic(() => import('@/scenes/corporate/Corporate').then((m) => m.Corporate))
 import { Voices } from '@/scenes/voices/Voices'
 import { Partners } from '@/scenes/partners/Partners'
 import { Faq } from '@/scenes/faq/Faq'

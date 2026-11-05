@@ -13,3 +13,7 @@ next-env.d.ts
 public/email-fonts
 .cf
 public/cert-fonts
+
+# اختبارات المتصفح
+/test-results/
+/playwright-report/

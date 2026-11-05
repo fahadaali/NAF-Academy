@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit",
     "test": "node --conditions=react-server --import tsx --test \"tests/**/*.test.ts\"",
     "check": "npm run -s typecheck && npm run -s test",
+    "test:e2e": "playwright test",
     "predev": "node scripts/setup-fonts.mjs && tsx scripts/db-setup.ts",
     "prebuild": "node scripts/setup-fonts.mjs && tsx scripts/db-setup.ts",
     "pretypecheck": "node scripts/setup-fonts.mjs",
@@ -42,6 +43,7 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "@types/node": "^26.6.6",
     "@types/qrcode": "^1.5.6",
     "@types/react": "^19.3.0",

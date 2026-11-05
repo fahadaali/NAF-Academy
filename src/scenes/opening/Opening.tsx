@@ -7,7 +7,7 @@ import { Words } from '@/components/Words'
 import { Emblem } from '@/components/Emblem'
 import { pinProgress, subscribe } from '@/motion/scroll-bus'
 import { clamp01, prefersCalm } from '@/motion/tokens'
-import { layoutField, makeField, makeRenderer, stepField, type Pointer } from './particles'
+import type { Pointer } from './particles'
 import styles from './Opening.module.css'
 
 type Props = {
@@ -52,8 +52,11 @@ export function Opening({ eyebrow, lines, phases, cta, logo, logoAlt = '' }: Pro
     const small = matchMedia('(max-width: 720px)').matches
     const nav = navigator as Navigator & { deviceMemory?: number }
     const modest = (nav.hardwareConcurrency ?? 8) <= 4 || (nav.deviceMemory ?? 8) <= 4
-    const field = makeField(calm ? 900 : modest ? 1100 : small ? 1300 : 2400)
-    let renderer: ReturnType<typeof makeRenderer> = null
+    /* محرّك الجسيمات يُحمَّل كسولاً عند بدء المشهد (بعد أول رسم) — لا يثقل حزمة الصفحة */
+    type Engine = typeof import('./particles')
+    let eng: Engine | null = null
+    let field: ReturnType<Engine['makeField']> | null = null
+    let renderer: ReturnType<Engine['makeRenderer']> = null
     let w = 0, h = 0, dpr = 1
     const size = () => {
       if (!renderer) return
@@ -64,7 +67,7 @@ export function Opening({ eyebrow, lines, phases, cta, logo, logoAlt = '' }: Pro
       cv.width = Math.round(w * dpr)
       cv.height = Math.round(h * dpr)
       renderer.resize(cv.width, cv.height)
-      layoutField(field, { w, h }, mask)
+      if (eng && field) eng.layoutField(field, { w, h }, mask)
     }
     /* شعار مرفوع: نقاطه من بكسلاته المعتمة، ثم يُعاد التخطيط */
     let mask: Float32Array | null = null
@@ -122,8 +125,8 @@ export function Opening({ eyebrow, lines, phases, cta, logo, logoAlt = '' }: Pro
       ptr.x += (target.x - ptr.x) * 0.12
       ptr.y += (target.y - ptr.y) * 0.12
       ptr.on += (target.on - ptr.on) * 0.08
-      if (!renderer) return
-      stepField(field, p, t, ptr, dpr)
+      if (!renderer || !eng || !field) return
+      eng.stepField(field, p, t, ptr, dpr)
       renderer.draw(field, cv.width, cv.height)
       if (visible && !calm) raf = requestAnimationFrame(loop)
     }
@@ -135,10 +138,14 @@ export function Opening({ eyebrow, lines, phases, cta, logo, logoAlt = '' }: Pro
 
     /* المشهد الثقيل يُبنى بعد أول رسم وفي وقت الفراغ — لا يزاحم تحميل الصفحة */
     let started = false
-    const start = () => {
+    let gone = false
+    const start = async () => {
       if (started) return
       started = true
-      renderer = makeRenderer(cv)
+      eng = await import('./particles')
+      if (gone) return
+      field = eng.makeField(calm ? 900 : modest ? 1100 : small ? 1300 : 2400)
+      renderer = eng.makeRenderer(cv)
       if (!renderer) return
       size()
       ro.observe(st)
@@ -146,13 +153,15 @@ export function Opening({ eyebrow, lines, phases, cta, logo, logoAlt = '' }: Pro
       if (calm) requestAnimationFrame(loop)
     }
     const w8 = window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number }
-    const idle = () => (w8.requestIdleCallback ? w8.requestIdleCallback(start, { timeout: 1200 }) : setTimeout(start, 300))
+    const go = () => { void start() }
+    const idle = () => (w8.requestIdleCallback ? w8.requestIdleCallback(go, { timeout: 1200 }) : setTimeout(go, 300))
     if (document.documentElement.classList.contains('opening')) document.addEventListener('academy:unveil', idle, { once: true })
     else idle()
 
     return () => {
       off()
       started = true
+      gone = true
       document.removeEventListener('academy:unveil', idle)
       ro.disconnect()
       io.disconnect()

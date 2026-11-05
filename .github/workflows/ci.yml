@@ -1,0 +1,52 @@
+# الفحص المستمر: الأنواع ← اختبارات الوحدات والتكامل ← البناء ← اختبارات المتصفح.
+# naf-auth من مستودع عام على وسم ثابت فلا يلزم سرّ وصول.
+name: CI
+
+on:
+  push:
+    branches: [main, 'claude/**']
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NEXT_TELEMETRY_DISABLED: '1'
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: الأنواع
+        run: npm run typecheck
+
+      - name: اختبارات الوحدات والتكامل
+        run: npm test
+
+      - name: البناء
+        run: npm run build
+
+      - name: متصفح الاختبار
+        run: npx playwright install --with-deps chromium
+
+      - name: اختبارات المتصفح
+        run: npm run test:e2e
+
+      - name: تقرير الفشل
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright
+          path: test-results/
+          retention-days: 7
