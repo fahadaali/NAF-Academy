@@ -7,6 +7,7 @@ import { paymentSettings } from '@/server/settings'
 import { plain } from '@/motion/kashida'
 import { breadcrumbs, course, ldJson } from '@/lib/seo'
 import { siteUrl } from '@/server/site'
+import { priceView } from '@/lib/pricing'
 
 export const revalidate = 300
 
@@ -29,11 +30,14 @@ export default async function CoursePage({ params }: { params: Promise<{ slug: s
   const site = siteUrl() ?? ''
   const r = d.row
   const [home, pay] = await Promise.all([homeContent(), paymentSettings()])
+  /* البيانات المنظّمة كما تراها الصفحة: السعر بالعروض السارية (priceView)، والموعد والمدينة من الدفعة الممثّلة */
+  const pv = priceView(d.course.pricing)
+  const lead = d.course.cohorts?.find((k) => k.startsAt && k.startsAt === d.course.startsAt)
   const ld = [
     course(site, {
       slug: r.slug, title: plain(d.course.title), description: r.seoDescription || d.course.subtitle || '', image: d.course.cover ? `${site}${d.course.cover.url}` : undefined,
-      mode: r.mode, hours: r.hours, startsAt: r.startsAt, endsAt: r.endsAt, city: r.city, venue: r.venue,
-      price: d.tiers.length ? Math.min(...d.tiers.map((t) => t.price)) : d.course.pricing.amount, free: r.free, saleEndsAt: r.saleEndsAt,
+      mode: r.mode, hours: r.hours, startsAt: d.course.startsAt ?? null, endsAt: lead ? lead.endsAt ?? null : r.endsAt, city: d.course.city ?? '', venue: r.venue,
+      price: pv.free ? 0 : pv.current, free: pv.free, saleEndsAt: pv.endsAt ? pv.endsAt.toISOString() : null,
       available: d.course.status === 'open', instructors: d.instructors.map((p) => ({ name: p.name, slug: p.slug })),
       rating: d.reviews.count ? { avg: d.reviews.avg, count: d.reviews.count } : undefined, org: (await brandView()).name,
     }),

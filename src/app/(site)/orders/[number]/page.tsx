@@ -1,3 +1,5 @@
+import { eq } from 'drizzle-orm'
+import { db, schema as sc } from '@/server/db'
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { orderForBuyer } from '@/server/sales'
@@ -26,6 +28,11 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
   const { order, items, course, invoices } = o
   const paid = order.status === 'paid' || order.status === 'partially_refunded'
   const it = items[0]
+  /* بدفعة: موعدها ومدينتها ومقرّها (لا موعد الدورة الأساسي) */
+  const [k] = it?.cohortId ? await db.select().from(sc.cohorts).where(eq(sc.cohorts.id, it.cohortId)) : []
+  const startsAt = k ? k.startsAt : course?.startsAt ?? null
+  const city = k ? k.city || course?.city : course?.city
+  const venue = k?.venue.split('\n')[0] ?? ''
   const q = `?t=${t}`
 
   return (
@@ -50,8 +57,9 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
           {course && (
             <dl className={`num ${s.facts}`}>
               <div><dt>النمط</dt><dd>{modeLabel[course.mode]}</dd></div>
-              {course.startsAt && <div><dt>يبدأ</dt><dd>{formatDay(course.startsAt)} · {formatTime(course.startsAt)}<small>{formatHijri(course.startsAt)}</small></dd></div>}
-              {course.city && <div><dt>المكان</dt><dd>{course.city}</dd></div>}
+              {k && <div><dt>الدفعة</dt><dd>{k.title}</dd></div>}
+              {startsAt && <div><dt>يبدأ</dt><dd>{formatDay(startsAt)} · {formatTime(startsAt)}<small>{formatHijri(startsAt)}</small></dd></div>}
+              {(city || venue) && <div><dt>المكان</dt><dd>{city}{venue && <small>{venue}</small>}</dd></div>}
               {it && it.quantity > 1 && <div><dt>المقاعد</dt><dd>{it.quantity}{order.attendSelf ? <small>أحدها لك، والبقية تُخصَّص لفريقك</small> : <small>تُخصَّص لفريقك</small>}</dd></div>}
             </dl>
           )}
@@ -66,7 +74,7 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
             {invoices.map((inv) => (
               <a key={inv.id} className="btn ghost" href={`/orders/${order.number}/invoice/${inv.number}${q}`}>{inv.kind === 'invoice' ? 'الفاتورة الضريبية' : `إشعار دائن ${inv.number}`}</a>
             ))}
-            {paid && course?.startsAt && <a className="btn ghost" href={`/courses/${course.slug}/calendar`}>أضف إلى التقويم</a>}
+            {paid && course && startsAt && <a className="btn ghost" href={`/courses/${course.slug}/calendar${k ? `?cohort=${k.id}` : ''}`}>أضف إلى التقويم</a>}
             {course && <a className={s.link} href={`/courses/${course.slug}`}>صفحة الدورة ←</a>}
           </div>
         </section>

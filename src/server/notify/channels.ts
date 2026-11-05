@@ -69,7 +69,7 @@ export async function channelOpen(c: Channel) {
 type Message = { channel: Channel; to: string; subject?: string; text: string; html?: string; kind: string; secret?: string; headers?: Record<string, string>; attachments?: { filename: string; content: Uint8Array }[] }
 
 /** يرسل ويسجّل. السرّ (مثل رمز التحقق) يُخفى من السجل في الإنتاج. */
-export async function send(m: Message): Promise<{ ok: boolean; error?: string; id: string }> {
+export async function send(m: Message): Promise<{ ok: boolean; error?: string; id: string; suppressed?: boolean }> {
   const st = channelState(m.channel)
   const logBody = m.secret && !dev() ? m.text.replaceAll(m.secret, '••••••') : m.text
   const row = { id: randomUUID(), channel: m.channel, to: m.to, subject: m.subject ?? '', body: logBody, kind: m.kind, provider: st.provider ?? 'none' }
@@ -78,7 +78,7 @@ export async function send(m: Message): Promise<{ ok: boolean; error?: string; i
     const [sup] = await db.select().from(s.mailSuppressions).where(eq(s.mailSuppressions.email, m.to.trim().toLowerCase()))
     if (sup) {
       await db.insert(s.messageLog).values({ ...row, status: 'suppressed', error: sup.reason === 'bounce' ? 'ارتدّ البريد سابقاً' : 'شكوى سابقة' })
-      return { ok: false, error: 'العنوان مكتوم', id: row.id }
+      return { ok: false, error: 'العنوان مكتوم', id: row.id, suppressed: true }
     }
   }
   if (!st.configured) {

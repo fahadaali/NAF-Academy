@@ -35,7 +35,9 @@ export async function GET(req: Request, ctx: { params: Promise<{ slug: string }>
     : []
   const title = plain(c.title)
   const page = new URL(`/courses/${c.slug}`, req.url).toString()
-  const place = [c.city, c.venue.split('\n')[0]].filter(Boolean).join(' — ')
+  /* مكان الدفعة إن كان لها مكان، وإلا مكان الدورة */
+  const [kc] = cohortId ? await db.select({ city: s.cohorts.city, venue: s.cohorts.venue }).from(s.cohorts).where(eq(s.cohorts.id, cohortId)) : []
+  const place = [kc?.city || c.city, (kc?.venue || c.venue).split('\n')[0]].filter(Boolean).join(' — ')
   const event = (uid: string, start: Date, end: Date, summary: string, url: string, location: string, alarm: string) => [
     'BEGIN:VEVENT', `UID:${uid}@naf-academy`, `DTSTAMP:${fmt(new Date())}`, `DTSTART:${fmt(start)}`, `DTEND:${fmt(end)}`,
     `SUMMARY:${esc(summary)}`, `DESCRIPTION:${esc(`${c.subtitle ?? ''}\n${url}`)}`, location ? `LOCATION:${esc(location)}` : '',

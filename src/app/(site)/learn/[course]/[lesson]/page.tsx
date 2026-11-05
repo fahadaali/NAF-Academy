@@ -110,7 +110,7 @@ export default async function LessonPage({ params }: { params: Promise<{ course:
                 <section className={st.box}>
                   <h2>المكان والموعد</h2>
                   {l.startsAt && <p className="num"><strong>{formatDay(l.startsAt)}</strong> · {formatTime(l.startsAt)}{l.endsAt ? ` — ${formatTime(l.endsAt)}` : ''} · {formatHijri(l.startsAt)}</p>}
-                  <p>{l.location || [ctx.course.venue, ctx.course.city].filter(Boolean).join('، ')}</p>
+                  <p>{l.location || [ctx.cohort?.venue || ctx.course.venue, ctx.cohort?.city || ctx.course.city].filter(Boolean).join('، ')}</p>
                   {ctx.course.venueMapUrl && <a className="btn ghost" href={ctx.course.venueMapUrl} target="_blank" rel="noopener noreferrer">الاتجاهات على الخريطة</a>}
                 </section>
                 {ticketSvg && (

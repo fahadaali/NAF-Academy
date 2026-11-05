@@ -70,6 +70,7 @@ export async function requestCode(channel: Channel, raw: string): Promise<{ ok: 
     subject: channel === 'email' ? `رمز الدخول: ${code}` : undefined,
     html: channel === 'email' ? brandEmail({ site, brand, title: 'رمز الدخول', lead: `استخدم هذا الرمز لإكمال الدخول إلى ${brand.name}.`, code, note: 'صالح عشر دقائق. إن لم تطلبه فتجاهل هذه الرسالة.' }) : undefined,
   })
+  if (r.suppressed) return { ok: false, error: 'تعذّر إيصال البريد إلى هذا العنوان سابقاً — ادخل برقم الجوال أو تواصل معنا ليُعاد تفعيله' }
   return r.ok ? { ok: true, target } : { ok: false, error: r.error }
 }
 

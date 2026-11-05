@@ -23,12 +23,28 @@ import { resolveStatus } from '@/lib/course-meta'
 import { linkedinUrl } from '@/lib/certificate'
 import { REVIEW_MIN_PCT } from '@/lib/reviews'
 import { chunksOf, inList } from '@/server/db/limits'
-import { hasAccess, withSession } from '@/lib/cohorts'
-import { holdsSeat, sessionsOf } from '../cohorts'
+import { hasAccess, leadCohort, statusWithCohorts, withSession } from '@/lib/cohorts'
+import { cohortsOf, holdsSeat, sessionsOf } from '../cohorts'
 import { livePromotions, promosFor } from '../promotions'
 
 /** مفتوحة الآن؟ «المجدولة» تُفتح بنفسها عند موعد نشرها — كما تراها الواجهة */
 const openNow = (c: { status: typeof s.courses.$inferSelect['status']; publishAt: string | null }, now: Date) => resolveStatus(c.status, c.publishAt, now) === 'open'
+
+/** مفتوحة فعلاً للتسجيل الآن بالقاعدة نفسها في الواجهة: الحالة، ثم الدفعات (statusWithCohorts) أو سعة الدورة */
+async function sellableNow(c: typeof s.courses.$inferSelect, now: Date, memo: Map<string, boolean>) {
+  if (memo.has(c.id)) return memo.get(c.id)!
+  let ok = openNow(c, now)
+  if (ok) {
+    const ks = (await cohortsOf([c.id])).get(c.id) ?? []
+    if (ks.length) ok = statusWithCohorts('open', ks, now) === 'open'
+    else if (c.seatsTotal) {
+      const { seatsUsed } = await import('../sales')
+      ok = (await seatsUsed(c)) < c.seatsTotal
+    }
+  }
+  memo.set(c.id, ok)
+  return ok
+}
 
 type Row = typeof s.notifications.$inferInsert
 const iso = (d: Date) => d.toISOString()
@@ -221,14 +237,20 @@ async function sessionLessons(from: Date, to: Date) {
     .innerJoin(s.lessons, eq(s.lessons.id, s.cohortSessions.lessonId))
     .innerJoin(s.modules, eq(s.modules.id, s.lessons.moduleId)).innerJoin(s.courses, eq(s.courses.id, s.modules.courseId))
     .where(and(inArray(s.lessons.type, ['live', 'onsite']), isNotNull(s.cohortSessions.startsAt), gte(s.cohortSessions.startsAt, iso(from)), lte(s.cohortSessions.startsAt, iso(to)), isNull(s.courses.deletedAt), isNull(s.cohorts.deletedAt)))
+  /* الدفعات التي لها صفّ لكل درس من دروس موعدها الأصلي — من لا صفّ لدفعته يتبع موعد الدرس نفسه (كما في withSession) */
+  const ownIds = [...new Set(own.map((r) => r.l.id))]
+  const rowsOf = ownIds.length ? await db.select({ c: s.cohortSessions.cohortId, l: s.cohortSessions.lessonId }).from(s.cohortSessions).where(inList(s.cohortSessions.lessonId, ownIds)) : []
+  const covered = new Set(rowsOf.map((r) => `${r.c}:${r.l}`))
   return [
-    ...own.map((r) => ({ ...r, cohortId: null as string | null })),
-    ...per.map((r) => ({ l: withSession(r.l, new Map([[r.l.id, r.x]])), courseId: r.courseId, cohortId: r.x.cohortId as string | null })),
+    ...own.map((r) => ({ ...r, cohortId: null as string | null, covered })),
+    ...per.map((r) => ({ l: withSession(r.l, new Map([[r.l.id, r.x]])), courseId: r.courseId, cohortId: r.x.cohortId as string | null, covered })),
   ]
 }
-/** المسجّل يتبع مواعيد دفعته، ومن ليس في دفعة يتبع مواعيد الدروس */
-const inSession = (e: { courseId: string; cohortId: string | null; accessUntil: string | null; status: string }, courseId: string, cohortId: string | null) =>
-  e.courseId === courseId && (e.cohortId ?? null) === cohortId && hasAccess(e)
+/** المسجّل يتبع مواعيد دفعته لما له صفّ فيها، وموعد الدرس نفسه لغيره (ومن ليس في دفعة) — القاعدة نفسها في صفحات التعلّم */
+const inSession = (e: { courseId: string; cohortId: string | null; accessUntil: string | null; status: string }, x: { courseId: string; cohortId: string | null; l: { id: string }; covered: Set<string> }) =>
+  e.courseId === x.courseId && hasAccess(e) && (x.cohortId !== null
+    ? e.cohortId === x.cohortId
+    : !e.cohortId || !x.covered.has(`${e.cohortId}:${x.l.id}`))
 
 export async function planScan(now: Date, cfg: NotifySettings) {
   const rows: Omit<Row, 'id'>[] = []
@@ -241,7 +263,8 @@ export async function planScan(now: Date, cfg: NotifySettings) {
     const lessons = await sessionLessons(now, new Date(t + maxOff * MIN))
     const enr = await activeEnrollments([...new Set(lessons.map((x) => x.courseId))])
     const pushers = new Set((enr.length ? await db.selectDistinct({ id: s.pushSubscriptions.learnerId }).from(s.pushSubscriptions).where(inList(s.pushSubscriptions.learnerId, enr.map((x) => x.l.id))) : []).map((x) => x.id))
-    for (const { l, courseId, cohortId } of lessons) for (const { e, l: who } of enr.filter((x) => inSession(x.e, courseId, cohortId))) for (const o of cfg.sessionOffsets) {
+    for (const ses of lessons) for (const { e, l: who } of enr.filter((x) => inSession(x.e, ses))) for (const o of cfg.sessionOffsets) {
+      const { l, courseId } = ses
       const d = reminderDue(l.startsAt!, o.minutes, now, e.createdAt)
       if (!d.due) continue
       const base = { event: 'session_reminder', learnerId: who.id, courseId, ref: { lessonId: l.id, startsAt: l.startsAt, minutes: o.minutes }, sendAt: d.at }
@@ -257,11 +280,12 @@ export async function planScan(now: Date, cfg: NotifySettings) {
     /* الجلسة قد تنتهي بعد بدئها بساعات، والمهلة من اللوحة حتى أسبوع: النافذة تتسع لهما مع يوم السماح */
     const lessons = await sessionLessons(new Date(t - cfg.followupDelay * MIN - 2 * 864e5), now)
     const enr = await activeEnrollments([...new Set(lessons.map((x) => x.courseId))])
-    for (const { l, courseId, cohortId } of lessons) {
+    for (const ses of lessons) {
+      const { l, courseId } = ses
       const end = l.endsAt ? Date.parse(l.endsAt) : Date.parse(l.startsAt!) + 2 * 3600e3
       const due = end + cfg.followupDelay * MIN
       if (due > t || t - due > 864e5) continue
-      for (const { e, l: who } of enr.filter((x) => inSession(x.e, courseId, cohortId))) {
+      for (const { e, l: who } of enr.filter((x) => inSession(x.e, ses))) {
         if (Date.parse(e.createdAt) >= end) continue
         rows.push({ key: `fu:${l.id}:${l.startsAt}:${who.id}`, event: 'session_followup', channel: 'email', to: who.email, learnerId: who.id, courseId, ref: { lessonId: l.id }, sendAt: iso(new Date(due)) })
       }
@@ -315,16 +339,15 @@ export async function planScan(now: Date, cfg: NotifySettings) {
   if (on('registration_open')) {
     const list = await db.select({ i: s.interest, c: s.courses }).from(s.interest).innerJoin(s.courses, eq(s.courses.id, s.interest.courseId))
       .where(and(isNull(s.interest.notifiedAt), inArray(s.courses.status, ['open', 'scheduled']), isNull(s.courses.deletedAt)))
-    const { seatsUsed, salesOpen } = await import('../sales')
+    const { salesOpen } = await import('../sales')
     /* الدفع مقفل: «فُتح التسجيل» لدورة مدفوعة وعدٌ لا يتحقق — ننتظر فتحه */
     const sellable = await salesOpen()
     const tiered = new Set((await db.select({ id: s.priceTiers.courseId }).from(s.priceTiers).groupBy(s.priceTiers.courseId)).map((x) => x.id))
-    const room = new Map<string, boolean>()
+    /* المفتوحة فعلاً: بدفعات = دفعة مفتوحة فيها مقاعد (فطالب «الدفعة القادمة» يُبلَّغ حين تُفتح دفعة)، وإلا سعة الدورة */
+    const memo = new Map<string, boolean>()
     for (const { i, c } of list) {
-      if (!openNow(c, now)) continue
       if (!sellable && !c.free && (c.price > 0 || tiered.has(c.id))) continue
-      if (!room.has(c.id)) room.set(c.id, !c.seatsTotal || (await seatsUsed(c)) < c.seatsTotal)
-      if (!room.get(c.id)) continue
+      if (!(await sellableNow(c, now, memo))) continue
       const base = { event: 'registration_open', courseId: c.id, ref: { interestId: i.id, email: i.email }, sendAt: iso(now), learnerId: null }
       rows.push({ ...base, key: `open:${i.id}:email`, channel: 'email', to: i.email })
       if (i.phone) rows.push({ ...base, key: `open:${i.id}:sms`, channel: 'sms', to: i.phone })
@@ -337,8 +360,11 @@ export async function planScan(now: Date, cfg: NotifySettings) {
       .where(and(inArray(s.courses.status, ['open', 'scheduled']), isNull(s.courses.deletedAt), isNotNull(s.courses.saleEndsAt), gte(s.courses.saleEndsAt, iso(now)), lte(s.courses.saleEndsAt, iso(new Date(t + cfg.saleHours * 3600e3)))))
     /* العرض على السعر الأساسي أو على باقة — كلاهما ينتهي بموعد الدورة نفسه */
     const tierSale = new Set((await db.select({ id: s.priceTiers.courseId }).from(s.priceTiers).where(sql`${s.priceTiers.compareAt} > ${s.priceTiers.price}`)).map((x) => x.id))
+    const memo = new Map<string, boolean>()
     for (const c of courses) {
-      if (!openNow(c, now) || !((c.compareAt ?? 0) > c.price || tierSale.has(c.id))) continue
+      /* العرض بدأ فعلاً (saleStartsAt)، والدورة مفتوحة للتسجيل الآن (لا «سجّل بالسعر الحالي» لدورة ممتلئة) */
+      if (c.saleStartsAt && Date.parse(c.saleStartsAt) > t) continue
+      if (!((c.compareAt ?? 0) > c.price || tierSale.has(c.id)) || !(await sellableNow(c, now, memo))) continue
       const people = await db.select({ email: s.interest.email }).from(s.interest).where(eq(s.interest.courseId, c.id)).groupBy(s.interest.email)
       const enrolled = new Set((await db.select({ email: s.learners.email }).from(s.enrollments).innerJoin(s.learners, eq(s.learners.id, s.enrollments.learnerId))
         .where(and(eq(s.enrollments.courseId, c.id), eq(s.enrollments.status, 'active')))).map((x) => x.email))
@@ -351,7 +377,7 @@ export async function planScan(now: Date, cfg: NotifySettings) {
     if (promos.length) {
       const open = await db.select().from(s.courses).where(and(inArray(s.courses.status, ['open', 'scheduled']), isNull(s.courses.deletedAt), eq(s.courses.free, false)))
       for (const p of promos) for (const c of open) {
-        if (!openNow(c, now) || !promosFor(c, [p]).length) continue
+        if (!promosFor(c, [p]).length || !(await sellableNow(c, now, memo))) continue
         const people = await db.select({ email: s.interest.email }).from(s.interest).where(eq(s.interest.courseId, c.id)).groupBy(s.interest.email)
         const enrolled = new Set((await db.select({ email: s.learners.email }).from(s.enrollments).innerJoin(s.learners, eq(s.learners.id, s.enrollments.learnerId))
           .where(and(eq(s.enrollments.courseId, c.id), eq(s.enrollments.status, 'active')))).map((x) => x.email))
@@ -398,23 +424,34 @@ async function contextFor(n: typeof s.notifications.$inferSelect, site: string, 
   if (!course || course.deletedAt) return { ok: false, reason: 'الدورة غير موجودة' }
   const [learner] = n.learnerId ? await db.select().from(s.learners).where(eq(s.learners.id, n.learnerId)) : []
   const ev = n.event as EventKey
-  const pv = priceView({ amount: course.price, compareAt: course.compareAt ?? undefined, saleStartsAt: course.saleStartsAt ?? undefined, saleEndsAt: course.saleEndsAt ?? undefined, free: course.free, promos: promosFor(course, await livePromotions(now)) }, now)
+  /* السعر كما يراه المشتري (priceView بالعروض): الباقة الأرخص إن كانت للدورة باقات */
+  const promos = promosFor(course, await livePromotions(now))
+  const tiers = await db.select().from(s.priceTiers).where(eq(s.priceTiers.courseId, course.id))
+  const views = tiers.length
+    ? tiers.map((t) => priceView({ amount: t.price, compareAt: t.compareAt ?? undefined, saleStartsAt: course.saleStartsAt ?? undefined, saleEndsAt: course.saleEndsAt ?? undefined, promos }, now))
+    : [priceView({ amount: course.price, compareAt: course.compareAt ?? undefined, saleStartsAt: course.saleStartsAt ?? undefined, saleEndsAt: course.saleEndsAt ?? undefined, free: course.free, promos }, now)]
+  const pv = views.reduce((a, b) => (b.current < a.current ? b : a))
+  /* دفعة المتدرب (أو الدفعة الممثّلة للدورة لمن لم يسجّل): موعدها ومكانها ورابط تقويمها */
+  const [mine] = n.learnerId ? await db.select({ cohortId: s.enrollments.cohortId }).from(s.enrollments)
+    .where(and(eq(s.enrollments.learnerId, n.learnerId), eq(s.enrollments.courseId, course.id), eq(s.enrollments.status, 'active'))) : []
+  const ks = (await cohortsOf([course.id])).get(course.id) ?? []
+  const k = (mine?.cohortId ? ks.find((x) => x.id === mine.cohortId) : leadCohort(ks, now)) ?? null
+  const startsAt = k ? k.startsAt : course.startsAt
   const vars: Record<string, string> = {
     name: learner?.name?.split(/\s+/)[0] ?? '',
     course: course.title.replace(/~\d/g, ''),
     link: `${site}/learn/${course.slug}`,
-    calendar: `${site}/courses/${course.slug}/calendar`,
-    starts: course.startsAt ? when(course.startsAt) : '',
-    price: pv.free ? 'مجانية' : `${formatAmount(pv.current)} ر.س`,
+    calendar: `${site}/courses/${course.slug}/calendar${k ? `?cohort=${k.id}` : ''}`,
+    starts: startsAt ? when(startsAt) : '',
+    price: pv.free ? 'مجانية' : `${tiers.length > 1 ? 'من ' : ''}${formatAmount(pv.current)} ر.س`,
   }
+  const place = [k?.row.venue.split('\n')[0] || course.venue.split('\n')[0], k?.city || course.city].filter(Boolean).join('، ')
   /* الدرس بمواعيد دفعة المتدرب إن كان في دفعة */
   const lessonOf = async () => {
     const id = String(n.ref.lessonId ?? '')
     const [l] = id ? await db.select().from(s.lessons).where(eq(s.lessons.id, id)) : []
     if (!l) return null
-    const [e] = n.learnerId ? await db.select({ cohortId: s.enrollments.cohortId }).from(s.enrollments)
-      .where(and(eq(s.enrollments.learnerId, n.learnerId), eq(s.enrollments.courseId, course.id), eq(s.enrollments.status, 'active'))) : []
-    return withSession(l, await sessionsOf(e?.cohortId))
+    return withSession(l, await sessionsOf(mine?.cohortId))
   }
   const needEnrolled = ['enrolled', 'session_reminder', 'session_followup', 'drip_unlocked', 'inactive_nudge', 'halfway', 'completed', 'cohort_transfer', 'access_ending', 'recording_ready'].includes(ev)
   if (needEnrolled && !(await enrollmentActive(n.learnerId, n.courseId))) return { ok: false, reason: 'التسجيل لم يعد فعّالاً' }
@@ -431,7 +468,7 @@ async function contextFor(n: typeof s.notifications.$inferSelect, site: string, 
       if (now.getTime() >= Date.parse(l.startsAt!)) return { ok: false, reason: 'بدأت الجلسة' }
       Object.assign(vars, {
         lesson: l.title, when: when(l.startsAt!), left: leftLabel(Number(n.ref.minutes)), link: `${site}/learn/${course.slug}/${l.id}`,
-        location: l.type === 'onsite' ? (l.location || [course.venue, course.city].filter(Boolean).join('، ')) : 'عن بُعد — زر الانضمام في صفحة الجلسة',
+        location: l.type === 'onsite' ? (l.location || place) : 'عن بُعد — زر الانضمام في صفحة الجلسة',
       })
       break
     }
@@ -453,7 +490,7 @@ async function contextFor(n: typeof s.notifications.$inferSelect, site: string, 
     case 'registration_open': {
       const [i] = await db.select().from(s.interest).where(eq(s.interest.id, String(n.ref.interestId)))
       if (!i) return { ok: false, reason: 'أُزيل الاهتمام' }
-      if (!openNow(course, now)) return { ok: false, reason: 'أُغلق التسجيل' }
+      if (!(await sellableNow(course, now, new Map()))) return { ok: false, reason: 'أُغلق التسجيل أو اكتمل العدد' }
       vars.name = i.name.split(/\s+/)[0] ?? ''
       vars.link = `${site}/courses/${course.slug}`
       return { ok: true, vars, name: vars.name, after: async () => { await db.update(s.interest).set({ notifiedAt: new Date().toISOString() }).where(eq(s.interest.id, i.id)) } }
@@ -475,6 +512,8 @@ async function contextFor(n: typeof s.notifications.$inferSelect, site: string, 
       if (!o || (o.status !== 'pending' && o.status !== 'failed')) return { ok: false, reason: 'اكتمل الطلب أو أُلغي' }
       if (await enrollmentActive(n.learnerId, course.id)) return { ok: false, reason: 'سجّل في الدورة' }
       const coupon = n.ref.last && cfg.cartCoupon ? cfg.cartCoupon : ''
+      /* سعر السلة المتروكة: ما في الطلب نفسه (الباقة والعدد والكوبون) لا سعر الدورة الأساسي */
+      vars.price = `${formatAmount(o.total)} ر.س`
       Object.assign(vars, { name: o.buyer.name.split(/\s+/)[0] ?? '', coupon, link: `${site}/courses/${course.slug}/enroll${coupon ? `?coupon=${encodeURIComponent(coupon)}` : ''}` })
       break
     }
@@ -615,7 +654,11 @@ export async function dispatch(now: Date, opt: { limit?: number; keys?: string[]
     } else {
       r = await send({ channel: 'sms', to: n.to, text: fill(tpl.sms, v).slice(0, 480), kind: ev })
     }
-    if (r.ok) {
+    if (!r.ok && 'suppressed' in r && r.suppressed) {
+      /* عنوان مكتوم (ارتداد دائم أو شكوى): لا إعادة محاولة — يُتخطّى ويبقى في الإشعارات داخل المنصة */
+      await finish('skipped', { attempts: n.attempts + 1, error: 'العنوان مكتوم — ارتدّ البريد أو اشتكى صاحبه', messageId: r.id })
+      out.skipped++
+    } else if (r.ok) {
       await finish('sent', { sentAt: iso(new Date()), messageId: r.id, attempts: n.attempts + 1, error: '' })
       await ctx.after?.()
       out.sent++

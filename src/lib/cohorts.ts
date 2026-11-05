@@ -27,7 +27,7 @@ export function cohortState(c: CohortLite, now = new Date()): CohortState {
 const byStart = (a: CohortLite, b: CohortLite) => (a.startsAt ? Date.parse(a.startsAt) : Infinity) - (b.startsAt ? Date.parse(b.startsAt) : Infinity)
 
 /** الدفعة التي تمثّل الدورة في البطاقة: أقرب مفتوحة، ثم أقرب مكتملة، ثم القادمة */
-export function leadCohort(list: CohortLite[], now = new Date()): CohortLite | undefined {
+export function leadCohort<C extends CohortLite>(list: C[], now = new Date()): C | undefined {
   const sorted = [...list].sort(byStart)
   for (const want of ['open', 'full', 'soon'] as const) {
     const hit = sorted.find((c) => cohortState(c, now) === want)

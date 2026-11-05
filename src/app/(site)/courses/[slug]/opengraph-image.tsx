@@ -20,7 +20,7 @@ export default async function Image({ params }: { params: Promise<{ slug: string
   const d = await courseDetail((await params).slug)
   const brand = await ogBrand()
   const title = d ? plain(d.course.title) : brand.name
-  const meta = d ? [modeLabel[d.row.mode], d.row.startsAt ? formatDay(d.row.startsAt) : '', d.row.hours ? `${d.row.hours} ساعة` : ''].filter(Boolean).join('، ') : ''
+  const meta = d ? [modeLabel[d.row.mode], d.course.startsAt ? formatDay(d.course.startsAt) : '', d.row.hours ? `${d.row.hours} ساعة` : ''].filter(Boolean).join('، ') : ''
   /* الغلاف: JPEG/PNG كما هو، وWebP/AVIF بتوأمه JPEG — وإلا التصميم بلا غلاف */
   let cover: OgCover | null = null
   if (d?.row.coverId) {

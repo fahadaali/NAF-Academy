@@ -98,13 +98,18 @@ export async function issueCertificate(id: string, by: string) {
   /* الملف يُخزَّن بلا أن يوقف الإصدار: إن تعذّر الآن يُولَّد عند أول تنزيل — والسجل والرسالة يتمّان دائماً */
   try { await storePdf(row) } catch (e) { console.error('certificate pdf', e) }
   await audit(by, 'issue', 'certificate', id, `${code} · ${row.name}`)
+  /* الرسالة والإنجاز مستقلان: فشل أحدهما لا يمنع الآخر */
   try {
     const { onCertificate } = await import('../notify/engine')
     await onCertificate(row.id)
+  } catch (e) {
+    console.error('certificate notify', e)
+  }
+  try {
     const { evaluateAchievements } = await import('../achievements')
     await evaluateAchievements(row.learnerId)
   } catch (e) {
-    console.error('certificate notify', e)
+    console.error('certificate achievements', e)
   }
   return row
 }

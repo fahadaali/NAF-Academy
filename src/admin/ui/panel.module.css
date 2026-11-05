@@ -75,3 +75,12 @@
 .select { min-block-size: 34px; padding-inline: 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--text); font: inherit; font-size: 13px; max-inline-size: 180px; }
 .warn { color: var(--danger); font-weight: 600; }
 .card { padding: 16px 18px; border-radius: var(--radius-m); background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); }
+
+/* أدوات صفحات اللوحة — بدل الأنماط المضمّنة */
+.block { margin-block-end: 22px; }
+.h2 { font-size: 18px; margin-block-end: 10px; }
+.err { color: var(--danger); font-size: 13px; }
+.tiny { font-size: 12px; margin-block-start: 4px; }
+.pre { white-space: pre-line; }
+/* البريد والجوال والروابط: من اليسار، وتنكسر إن طالت */
+.ltr { direction: ltr; text-align: end; overflow-wrap: anywhere; }
