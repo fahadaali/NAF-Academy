@@ -2,6 +2,8 @@
 import { useActionState, useEffect, useState } from 'react'
 import { forgot, login, secondStep, type LoginState } from './actions'
 import { LogoMark } from '@/components/Logo'
+import { Glow } from '@/components/Glow'
+import { pick } from '@/lib/brand'
 import type { BrandView } from '@/lib/brand'
 import styles from './login.module.css'
 
@@ -19,7 +21,9 @@ export function LoginForm({ brand, initial = 'password', note }: { brand: BrandV
   return (
     <main id="main" className={styles.page}>
       <div className={styles.card}>
-        <LogoMark pair={brand.academy} alt={brand.name} height={56} className={styles.mark} />
+        <Glow size="sm" shape={pick(brand.academy, 'light')?.url} className={styles.mark}>
+          <LogoMark pair={brand.academy} alt={brand.name} height={56} />
+        </Glow>
         <h1 className={styles.title}>لوحة {brand.name}</h1>
 
         {view === 'password' && (

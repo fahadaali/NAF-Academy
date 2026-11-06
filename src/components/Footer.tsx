@@ -1,4 +1,6 @@
 import { LiveWordmark } from './LiveLogo'
+import { Glow } from './Glow'
+import { pick } from '@/lib/brand'
 import type { BrandView } from '@/lib/brand'
 import { Words } from './Words'
 import styles from './Footer.module.css'
@@ -11,7 +13,10 @@ export async function Footer({ title, cta, brand }: { title: string; cta: string
         <a href="/courses" className="btn reveal" style={{ ['--d' as string]: 1 }}>{cta}</a>
       </div>
       <div className={`wrap ${styles.bottom}`}>
-        <LiveWordmark brand={brand} className={`${styles.mark} reveal`} />
+        {/* اللمسة المتوهجة مرة عند تكشّف الشعار (تنتظر .reveal.in) */}
+        <Glow size="sm" shape={pick(brand.academy, 'light')?.url} className="reveal">
+          <LiveWordmark brand={brand} className={styles.mark} />
+        </Glow>
         <nav aria-label="روابط" className={styles.links}>
           <a href="/courses">الدورات</a>
           <a href="/tracks">المسارات</a>
