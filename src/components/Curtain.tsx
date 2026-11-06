@@ -10,7 +10,7 @@ export async function Curtain() {
   const full = hasLogo(brand.lockup)
   const logo = full || hasLogo(brand.academy)
   return (
-    <div className={styles.curtain} aria-hidden="true">
+    <div className={styles.curtain} data-curtain aria-hidden="true">
       <div className={styles.core}>
         <LiveLogo pair={full ? brand.lockup : brand.academy} alt="" height={full ? 120 : 92} />
         {(brand.showName || !logo) && <span className={styles.name}>{brand.name}</span>}

@@ -1,6 +1,6 @@
 /* عامل الخدمة — تصفّح الصفحات العامة دون اتصال، وإشعارات المتصفح.
    لا يُخزَّن أي محتوى خاص (حسابي، الدروس، اللوحة، الطلبات، الملفات) — يُطلب من الشبكة دائماً. */
-const VERSION = 'naf-v4'
+const VERSION = 'naf-v5'
 const STATIC = `${VERSION}-static`
 const PAGES = `${VERSION}-pages`
 const OFFLINE = '/offline'

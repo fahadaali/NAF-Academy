@@ -14,7 +14,8 @@ const VALUE = /^[\w\s.,#%()+-]*$/
 
 export type CleanSvg = { svg: string; w: number; h: number; label: string }
 
-/** يعيد بناء SVG نظيف، أو null إن لم يكن شعاراً صالحاً. `motion`: يضيف --n لكل عنصر رسم (ترتيب الحركة) */
+/** يعيد بناء SVG نظيف، أو null إن لم يكن شعاراً صالحاً. `motion`: يضيف لكل عنصر رسم ترتيبه (--n) ودوره في الحركة (data-lm):
+    stroke — خط بلا تعبئة يُرسم برسم الحدّ (pathLength=1 لا يغيّر الهندسة)؛ fill — شكل يُكتب بكشف من اليمين؛ seal — آخر عنصر (الختم) يحطّ أخيراً. */
 export function sanitizeSvg(input: string, opts: { motion?: boolean } = {}): CleanSvg | null {
   const text = input.replace(/^﻿/, '').replace(/<\?xml[^>]*\?>/g, '').replace(/<!--[\s\S]*?-->/g, '')
   if (/<!DOCTYPE|<!ENTITY|<script|<foreignObject|<style|javascript:/i.test(text)) return null
@@ -46,12 +47,21 @@ export function sanitizeSvg(input: string, opts: { motion?: boolean } = {}): Cle
       if (!VALUE.test(v) || /url\(/i.test(v)) return null
       kept.push(`${k}="${v}"`)
     }
-    if (opts.motion && DRAW.has(name)) kept.push(`style="--n:${n++}"`)
+    if (opts.motion && DRAW.has(name)) {
+      const fill = /\bfill="none"/.test(kept.join(' '))
+      const stroke = kept.some((x) => x.startsWith('stroke="') && x !== 'stroke="none"')
+      kept.push(`style="--n:${n++}"`, fill && stroke ? 'data-lm="stroke" pathLength="1"' : 'data-lm="fill"')
+    }
     if (name === 'g') { out += `<g ${kept.join(' ')}>`; if (!self) depth++; else out += '</g>' }
     else out += `<${name} ${kept.join(' ')}/>`
   }
   while (depth-- > 0) out += '</g>'
   if (!/<(path|rect|circle|ellipse|line|polyline|polygon)\b/.test(out)) return null
+  /* الختم: آخر عنصر رسم في الملف (في حزمة الهوية: معيّن الكتاب) يحطّ بعد اكتمال الكتابة */
+  if (opts.motion) {
+    const i = out.lastIndexOf('data-lm="fill"')
+    if (i >= 0 && out.lastIndexOf('data-lm="') === i) out = `${out.slice(0, i)}data-lm="seal"${out.slice(i + 'data-lm="fill"'.length)}`
+  }
   const aria = label ? ` role="img" aria-label="${label.replace(/["<>&]/g, '')}"` : ' aria-hidden="true"'
   return { svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${nums.join(' ')}"${aria}>${out}</svg>`, w: nums[2], h: nums[3], label }
 }

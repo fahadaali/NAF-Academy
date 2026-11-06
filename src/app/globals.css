@@ -135,11 +135,30 @@
      وملف PNG يُكشف بستارة من اليمين. داخل `.reveal` تنتظر دخول الشاشة. لا تغيير لهندسة الشعار ولا ألوانه — حركة فقط. — */
   @keyframes logo-part { from { opacity: 0; transform: translate3d(0, 35%, 0) scale(0.92); } }
   @keyframes logo-wipe { from { clip-path: inset(0 0 0 100%); } to { clip-path: inset(0); } }
+  /* الشعار المتجه في مواضع الحركة — ثلاثة أدوار يضعها المنقّي (src/server/svg.ts):
+     fill يُكتب بكشف من اليمين (اتجاه الكتابة) مع صعود خفيف، stroke يُرسم حدّه، seal (العنصر الأخير) يحطّ ختماً بعد الكتابة.
+     كلها transform/opacity/clip-path/stroke-dashoffset والهندسة النهائية كما في الملف حرفياً. */
+  @keyframes logo-ink {
+    from { clip-path: inset(-10% -10% -10% 110%); opacity: 0; transform: translate3d(0, 6%, 0); }
+    30% { opacity: 1; }
+    to { clip-path: inset(-10% -10% -10% -10%); opacity: 1; transform: none; }
+  }
+  @keyframes logo-stroke { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+  @keyframes logo-seal {
+    0% { opacity: 0; transform: translate3d(0, -70%, 0) scale(0.3) rotate(-45deg); }
+    70% { opacity: 1; transform: translate3d(0, 6%, 0) scale(1.12) rotate(4deg); }
+    100% { opacity: 1; transform: none; }
+  }
   .logo-motion > svg :is(path, rect, circle, ellipse, line, polyline, polygon) {
     transform-box: fill-box; transform-origin: center;
-    animation: logo-part calc(var(--t-gentle) * 2) var(--ease-glide) backwards;
-    animation-delay: calc(var(--logo-delay, 0ms) + min(var(--n, 0), 24) * var(--t-fast) / 5);
+    --lm-at: calc(var(--logo-delay, 0ms) + min(var(--n, 0), 24) * var(--stagger-step));
+    animation: logo-part calc(var(--t-gentle) * 2) var(--ease-glide) var(--lm-at) backwards;
   }
+  .logo-motion > svg [data-lm='fill'] { animation: logo-ink calc(var(--t-gentle) * 2.5) var(--ease-travel) var(--lm-at) backwards; }
+  .logo-motion > svg [data-lm='stroke'] { stroke-dasharray: 1; animation: logo-stroke calc(var(--t-gentle) * 2.5) var(--ease-travel) var(--lm-at) backwards; }
+  .logo-motion > svg [data-lm='seal'] { animation: logo-seal calc(var(--t-gentle) * 2) var(--ease-in) calc(var(--lm-at) + var(--t-gentle)) backwards; }
+  /* في الستار: تنتظر الحركة أول إطار مرسوم فعلاً (boot.js يضع curtain-go) — فلا تنقضي أثناء تحميل الصفحة قبل أن تُرى */
+  html.opening:not(.curtain-go) [data-curtain] :is(.logo-motion, .logo-motion *, .emblem-draw *) { animation-play-state: paused; }
   img.logo-motion { animation: logo-wipe calc(var(--t-gentle) * 3) var(--ease-travel) var(--logo-delay, 0ms) backwards; }
   @keyframes book-unfold { from { transform: scaleX(0); } }
   @keyframes book-pop { from { opacity: 0; transform: translate3d(0, -60%, 0) scale(0.4); } }

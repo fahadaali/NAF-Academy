@@ -15,6 +15,10 @@
   var home = location.pathname === '/'
   if (home && !calm && !location.hash && 'animate' in root) {
     root.classList.add('opening')
+    /* حركة الشعار في الستار تبدأ مع أول إطار مرسوم فعلاً — لا أثناء تحليل الصفحة فتنقضي قبل أن تُرى */
+    var go = function () { requestAnimationFrame(function () { requestAnimationFrame(function () { root.classList.add('curtain-go') }) }) }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', go, { once: true })
+    else go()
     /* سقف الستار: يُرفع ولو لم تصل شيفرته */
     setTimeout(function () { root.classList.remove('opening') }, CURTAIN_MAX + GENTLE)
   }

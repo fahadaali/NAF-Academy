@@ -37,3 +37,13 @@ test('التنقية تحذف الخصائص غير المسموحة وتُبق�
   assert.ok(!c.svg.includes('onclick') && !c.svg.includes('class='))
   assert.ok(c.svg.includes('d="M0 0L5 5"') && c.svg.includes('fill="#123456"'))
 })
+
+test('أدوار الحركة: خط بلا تعبئة يُرسم، والأشكال تُكتب، وآخر عنصر ختم', () => {
+  const src = '<svg viewBox="0 0 10 10"><path d="M0 0L5 5Z"/><g transform="scale(2)"><path d="M1 1L2 2" fill="none" stroke="#000"/><path d="M3 3L4 4Z" fill="#8a6a2c"/></g></svg>'
+  const r = sanitizeSvg(src, { motion: true })!
+  const roles = [...r.svg.matchAll(/data-lm="(\w+)"/g)].map((m) => m[1])
+  assert.deepEqual(roles, ['fill', 'stroke', 'seal'])
+  assert.match(r.svg, /data-lm="stroke" pathLength="1"/)
+  /* بلا motion: لا أدوار ولا ترتيب */
+  assert.doesNotMatch(sanitizeSvg(src)!.svg, /data-lm|--n/)
+})
