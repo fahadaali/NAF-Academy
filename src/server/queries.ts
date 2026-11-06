@@ -2,6 +2,7 @@ import 'server-only'
 /* طبقة القراءة للواجهة العامة — تحوّل صفوف القاعدة إلى نماذج العرض في content/types. */
 import { and, asc, count, desc, eq, inArray, isNull } from 'drizzle-orm'
 import { db, schema as s } from './db'
+import { getSetting } from './settings'
 import type { CohortView, Course, Instructor, MediaView, Pricing, Promo, Track } from '@/content/types'
 import { DEFAULT_HOME, DEFAULT_MENU, SCENES, type HomeContent } from '@/content/home-defaults'
 import { mergePages, type PagesContent } from '@/content/pages-defaults'
@@ -142,8 +143,7 @@ export async function homeContent(): Promise<HomeContent> {
 
 /** محتوى الصفحات العامة (الدورات، المسارات، الدخول، السياسات، وصف الموقع) — من اللوحة */
 export async function pagesContent(): Promise<PagesContent> {
-  const [row] = await db.select().from(s.settings).where(eq(s.settings.key, 'pages'))
-  return mergePages(row?.value as Partial<PagesContent> | undefined)
+  return mergePages(await getSetting<Partial<PagesContent> | undefined>('pages', undefined))
 }
 
 export type PublicTier = { id: string; name: string; description: string; price: number; compareAt: number | null; features: string[]; highlight: boolean }

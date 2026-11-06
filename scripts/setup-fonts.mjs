@@ -53,3 +53,6 @@ if (existsSync(riyal)) {
     if (existsSync(src) && (!existsSync(dst) || !readFileSync(src).equals(readFileSync(dst)))) copyFileSync(src, dst)
   }
 }
+
+/* الترحيلات المحزومة للتطبيق، وحزمة الهوية لـASSETS — في الخطوة نفسها (تسبق dev وbuild والأنواع والاختبارات) */
+await import('./bundle-migrations.mjs')

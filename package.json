@@ -24,7 +24,8 @@
     "db:seed:remote": "tsx scripts/export-seed.ts && wrangler d1 execute naf_academy --remote --file=.data/seed.sql",
     "db:seed:local-d1": "tsx scripts/export-seed.ts && wrangler d1 execute naf_academy --local --file=.data/seed.sql",
     "brand:kit": "tsx scripts/brand-kit.ts --force",
-    "media:r2": "node scripts/media-r2.mjs"
+    "media:r2": "node scripts/media-r2.mjs",
+    "pretest": "node scripts/setup-fonts.mjs"
   },
   "dependencies": {
     "@emran-alhaddad/saudi-riyal-font": "^1.1.0",

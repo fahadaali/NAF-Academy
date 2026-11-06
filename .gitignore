@@ -17,3 +17,5 @@ public/cert-fonts
 # اختبارات المتصفح
 /test-results/
 /playwright-report/
+/public/_kit/
+/src/server/setup/migrations.generated.ts

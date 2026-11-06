@@ -1,6 +1,6 @@
 # دليل النشر والتشغيل — أكاديمية ناف
 
-النطاق: **`academy.naflaw.sa`**. كل الخطوات من واجهات المواقع مباشرة؛ والطرفية لقاعدة البيانات وحدها (الخطوة ٥).
+النطاق: **`academy.naflaw.sa`**. كل الخطوات من واجهات المواقع مباشرة — بلا طرفية، حتى قاعدة البيانات (الخطوة ٥: صفحة `/setup`).
 كل قناة خارجية (الدفع، البريد، الجوال، الفيديو، Zoom، إشعارات المتصفح) **مبنية كاملة ومقفلة** حتى تُضاف مفاتيحها ثم تُفعَّل من اللوحة.
 
 ## ٠) قبل البدء
@@ -21,8 +21,7 @@
    - **Project name:** `naf-academy` (يطابق `name` في `wrangler.jsonc`).
    - **Production branch:** `main`.
    - **Build command:** `npm run cf:build`
-   - **Deploy command:** `npx wrangler d1 migrations apply naf_academy --remote && npx wrangler deploy`
-     (الترحيلات تُطبَّق تلقائياً قبل كل نشر — لا حاجة لتطبيقها يدوياً أبداً.)
+   - **Deploy command:** `npx wrangler deploy` (الافتراضي — اتركه كما هو)
    - **Build variables:** `SITE_URL` = `https://academy.naflaw.sa`، و`NODE_VERSION` = `22`.
 3. **Save and Deploy.** بعدها كل دمج في `main` ينشر وحده، وسجل كل نشر في تبويب **Deployments**.
 4. **naf-academy ← Settings ← Domains & Routes ← Add ← Custom domain:** `academy.naflaw.sa` ← Add domain (الشهادة تُصدر تلقائياً خلال دقائق).
@@ -46,25 +45,16 @@
    ورابط الخروج الخلفي `https://academy.naflaw.sa/auth/backchannel-logout`.
 2. انسخ سرّ المنصة ← `AUTH_CLIENT_SECRET` في الخطوة ٣.
 
-## ٥) قاعدة البيانات — الجزء الوحيد بالطرفية
-الترحيلات تُطبَّق تلقائياً مع النشر (الخطوة ٢). يبقى البذر الأول للمحتوى، مرة واحدة، من جهاز عليه Node 22 ونسخة من المستودع:
-```
-npm ci
-npx wrangler login
-npm run db:setup          # يبني المحتوى المبدئي وحزمة الهوية محلياً
-npm run db:seed:remote    # ينقله إلى D1 — مرة واحدة على قاعدة فارغة
-```
-**تنبيه:** البذر ينقل ما في القاعدة المحلية كما هو؛ للبدء نظيفاً `npm run db:reset` قبل `db:setup`.
+## ٥) قاعدة البيانات — من المتصفح
+بعد أول نشر وإضافة الأسرار (ومنها `ADMIN_PASSWORD`):
+1. افتح **`https://academy.naflaw.sa/setup`** — تعرض الحالة: ترحيلات القاعدة (0 من 13)، والمحتوى، وحزمة الهوية، والمالك.
+2. أدخل **كلمة مرور الإعداد** (قيمة `ADMIN_PASSWORD`) و**بريدك** (البريد الذي تدخل به عبر naf-id)، وأبقِ «بذر المحتوى المبدئي» مختاراً.
+3. اضغط **تهيئة المنصة** وانتظر حتى تظهر النتيجة:
+   تُطبَّق الترحيلات كلها، ويُبذر المحتوى المبدئي، وتُرفع حزمة الهوية إلى R2، وتصير **مالكاً** — كل خطوة لا تتكرر إن أُعيد الضغط.
+4. ادخل من `https://academy.naflaw.sa/admin` ببريدك.
 
-**الصور والشعارات إلى R2 (واجهة):** Cloudflare ← R2 ← `naf-academy-media` ← **Upload** ← اسحب كل ملفات المجلد `.data/media`
-(أسماؤها كما هي — `brand-…` وغيرها). أو `npm run media:r2` إن كانت الطرفية مفتوحة.
-
-**المالك الأول (واجهة):** الدخول الموحّد يعطّل كلمة المرور، والداخل أول مرة «بانتظار التفعيل».
-Cloudflare ← D1 ← `naf_academy` ← **Console** ← الصق ونفّذ (ببريدك):
-```sql
-INSERT INTO members (user_id, email, role, is_active, created_at) VALUES ('invite:you@naflaw.sa', 'you@naflaw.sa', 'owner', 1, strftime('%s','now'));
-```
-أول دخول ببريدك يربط الدعوة بحسابك بدور «مالك».
+**بعد كل تحديث لاحق:** الترحيلات الجديدة تُطبَّق **وحدها** خلال 5 دقائق من النشر (المشغّل الدوري)، وتنبّه نظرة اللوحة إن بقي شيء معلّق
+مع رابط إلى `/setup` لتطبيقه فوراً. لا أوامر ولا Console.
 
 ## ٦) الخدمات الخارجية (من مواقعها) — كلٌّ مستقل
 كل مفتاح يُضاف في **Variables and Secrets** (الخطوة ٣): السرّ بنوع Secret، والقيمة العامة (`MAIL_FROM`، `SMS_SENDER`، `VAPID_PUBLIC_KEY`، `VAPID_SUBJECT`) بنوع Text.
@@ -138,5 +128,4 @@ INSERT INTO members (user_id, email, role, is_active, created_at) VALUES ('invit
 | متابعة الرسائل الفاشلة والعناوين المكتومة | طابور الرسائل ← فشلت · سجل الرسائل ← العناوين المكتومة |
 | التحويل ونقاط التوقف | التحليلات |
 
-**النسخ الاحتياطي:** D1 Time Travel يحفظ 30 يوماً تلقائياً (`npx wrangler d1 time-travel restore naf_academy --timestamp=…`)،
-وللنسخ الدورية خارج Cloudflare: `npx wrangler d1 export naf_academy --remote --output=backup.sql`.
+**النسخ الاحتياطي:** D1 يحفظ 30 يوماً تلقائياً — Cloudflare ← D1 ← `naf_academy` ← **Time Travel** يسترجع القاعدة إلى أي لحظة فيها.

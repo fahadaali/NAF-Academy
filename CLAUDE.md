@@ -85,6 +85,11 @@
 - السياسات (`/policies`): الاسترداد من «إعدادات الدفع»، والشروط والخصوصية من اللوحة — لا نص قانوني افتراضي.
 - القاعدة: Drizzle + SQLite (libsql محلياً في `.data/`، وD1 في النشر — المخطط نفسه).
   المخطط في `src/server/db/schema.ts`؛ بعد أي تعديل: `npm run db:generate` لتوليد ترحيل في `migrations/`.
+- **التهيئة والترحيل في النشر بلا طرفية:** `scripts/bundle-migrations.mjs` (ضمن `setup-fonts`) يحزم `migrations/*.sql` في
+  `src/server/setup/migrations.generated.ts`، ويطبّقها التطبيق على D1 بسجل wrangler نفسه `d1_migrations` (`src/server/setup/migrate.ts`):
+  من صفحة `/setup` (بكلمة `ADMIN_PASSWORD`: الترحيلات ← البذرة ← حزمة الهوية إلى R2 من `public/_kit` ← المالك الأول)، وتلقائياً في المشغّل الدوري.
+  البذرة `seedContent()` وحزمة الهوية `applyBrandKit()` في `src/server/setup/` مشتركتان مع `db-setup` محلياً. ترحيل جديد يكفيه `db:generate` والنشر.
+  قبل التهيئة لا جداول: `getSetting()` يعيد الافتراضي (`notMigrated`) فتعمل الصفحة.
 - القراءة العامة من `src/server/queries.ts` فقط، والكتابة من `src/admin/actions.ts` فقط.
   كل إجراء كتابة: `requireAdmin()` ← تحقق zod (`src/admin/schemas.ts`) ← كتابة ← `audit()` ← `revalidatePath`.
 - الحذف ناعم دائماً (`deletedAt`) ويمرّ بسلة المحذوفات؛ الحذف النهائي من السلة فقط وبتأكيد مكتوب.

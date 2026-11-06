@@ -27,8 +27,17 @@ export const DEFAULT_PAYMENTS: PaymentSettings = {
   terms: 'بإتمام التسجيل توافق على شروط الأكاديمية وسياسة الاسترداد.',
 }
 
+/** قاعدة لم تُهيّأ بعد (قبل /setup): لا جداول — يُعاد الافتراضي فتعمل صفحة التهيئة وغلاف الموقع */
+export const notMigrated = (e: unknown) => /no such table/i.test(String((e as { cause?: unknown })?.cause ?? e) + String(e))
+
 export async function getSetting<T>(key: string, fallback: T): Promise<T> {
-  const [row] = await db.select().from(s.settings).where(eq(s.settings.key, key))
+  let row: typeof s.settings.$inferSelect | undefined
+  try {
+    ;[row] = await db.select().from(s.settings).where(eq(s.settings.key, key))
+  } catch (e) {
+    if (notMigrated(e)) return fallback
+    throw e
+  }
   if (!row) return fallback
   const v = row.value as Partial<T>
   return (typeof fallback === 'object' && fallback && !Array.isArray(fallback) ? { ...fallback, ...v } : v) as T

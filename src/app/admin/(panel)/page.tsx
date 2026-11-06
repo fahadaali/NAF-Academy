@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { adminLists, auditEntries, needsAttention } from '@/admin/data'
+import { setupStatus } from '@/server/setup'
 import { currentStaff, staffCan } from '@/server/auth'
 import { PageHead, Badge } from '@/admin/ui/kit'
 import { STATUS_LABEL } from '@/admin/courses/labels'
@@ -10,7 +11,7 @@ import p from '@/admin/ui/panel.module.css'
 export default async function Dashboard({ searchParams }: { searchParams: Promise<{ denied?: string }> }) {
   const { denied } = await searchParams
   const [canAudit, canWrite] = await Promise.all([staffCan('audit.read'), staffCan('content.write')])
-  const [{ courses, tracks, instructors, media }, log, attention] = await Promise.all([adminLists(), canAudit ? auditEntries(8) : Promise.resolve([]), needsAttention()])
+  const [{ courses, tracks, instructors, media }, log, attention, setup] = await Promise.all([adminLists(), canAudit ? auditEntries(8) : Promise.resolve([]), needsAttention(), setupStatus()])
   const me = await currentStaff()
   const now = new Date()
   const live = courses.filter((c) => ['open', 'soon', 'full'].includes(resolveStatus(c.status, c.publishAt, now)))
@@ -23,6 +24,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
       <PageHead title="نظرة عامة" sub="حال المحتوى المنشور الآن" actions={canWrite ? <Link className="btn" href="/admin/courses/new">+ دورة جديدة</Link> : null} />
       {denied && <p role="alert" className={p.alert}>لا تملك صلاحية هذه الصفحة أو العملية. اطلبها من مالك الحساب.</p>}
       {me?.role === 'instructor' && !me.instructorId && <p role="status" className={p.notice}>حسابك غير مربوط بملف مدرب بعد — لن تظهر لك دورات حتى يربطه مالك الحساب من «الفريق والصلاحيات».</p>}
+      {setup.migrations.pending.length > 0 && <p role="alert" className={p.alert}>للقاعدة <span className="num">{setup.migrations.pending.length}</span> ترحيل لم يُطبَّق بعد (تُطبَّق وحدها خلال 5 دقائق) — <a href="/setup">طبّقها الآن ←</a></p>}
       {attention > 0 && <p role="status" className={p.alert}><span className="num">{attention}</span> عملية تحتاج تدخّلاً في آخر أسبوعين (تسجيل لم يُنسخ، مشترٍ مسجّل من قبل…) — <a href="/admin/audit?action=needs_attention">راجعها ←</a></p>}
       <div className={p.stats}>
         <Link href="/admin/courses" className={p.stat}><strong data-count>{live.length}</strong><span>دورة ظاهرة للتسجيل</span></Link>
