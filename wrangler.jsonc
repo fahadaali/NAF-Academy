@@ -18,7 +18,7 @@
     "STAFF_AUTH": "naf-auth",
     "AUTH_ISSUER": "REPLACE_WITH_NAF_ID_ISSUER_URL",
     "PLATFORM_ID": "naf-academy",
-    "SITE_URL": "REPLACE_WITH_SITE_URL",
+    "SITE_URL": "https://academy.naflaw.sa",
     "AUTH_DB_BINDING": "DB",
     "AUTH_KV_BINDING": "AUTH_KV",
     "MEMBERS_TIME_FORMAT": "epoch",

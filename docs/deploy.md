@@ -1,129 +1,101 @@
 # دليل النشر والتشغيل — أكاديمية ناف
 
+النطاق: **`academy.naflaw.sa`**. كل الخطوات من واجهات المواقع مباشرة؛ والطرفية لقاعدة البيانات وحدها (الخطوة ٥).
 كل قناة خارجية (الدفع، البريد، الجوال، الفيديو، Zoom، إشعارات المتصفح) **مبنية كاملة ومقفلة** حتى تُضاف مفاتيحها ثم تُفعَّل من اللوحة.
-النشر لا يحتاج أي تعديل في الشيفرة. الخطوات بالترتيب؛ والمثال هنا النطاق `academy.naf.sa` — ضع نطاقك.
 
 ## ٠) قبل البدء
+1. **Cloudflare ← Manage Account ← Billing:** اشترك في **Workers Paid** (5$ شهرياً) — المجانية تحدّ وقت المعالج بـ10ms، والمنصة تتجاوزه.
+2. **Cloudflare ← Websites:** تأكد أن النطاق `naflaw.sa` مضاف ونشط (Active).
+3. **GitHub:** ادمج فرع العمل في `main` من صفحة طلب الدمج، وتأكد أن فحص **CI** أخضر.
 
-1. **Cloudflare بخطة Workers Paid** (5$ شهرياً): المجانية تحدّ وقت المعالج بـ10ms للطلب، وصفحات Next وتوليد PDF الشهادات والفواتير تتجاوزه.
-   D1 وR2 وKV تكفيها الحصص المجانية في البداية. والنطاق مُدار في Cloudflare.
-2. **انشر من `main`** بعد دمج الفرع، وتأكد أن فحص GitHub Actions (`CI`) أخضر على الالتزام.
-3. **جهاز النشر:** Node 22، ثم:
-   ```
-   git clone https://github.com/fahadaali/NAF-Academy.git && cd NAF-Academy
-   npm ci
-   npx wrangler login
-   ```
+## ١) موارد التخزين (لوحة Cloudflare)
+1. **Storage & Databases ← D1 SQL Database ← Create:** الاسم `naf_academy` ← Create. انسخ **Database ID** من صفحتها.
+2. **Storage & Databases ← KV ← Create a namespace:** الاسم `AUTH_KV` ← Add. انسخ **ID**.
+3. **R2 Object Storage ← Create bucket:** الاسم `naf-academy-media` ← Create bucket.
+4. **GitHub ← المستودع ← `wrangler.jsonc` ← ✏️ (تعديل):** ضع `REPLACE_WITH_D1_ID` ← معرّف D1، و`REPLACE_WITH_KV_ID` ← معرّف KV،
+   و`REPLACE_WITH_NAF_ID_ISSUER_URL` ← عنوان مركز naf-id ← **Commit changes** على `main`. (`SITE_URL` مضبوط على `https://academy.naflaw.sa`.)
 
-## ١) موارد Cloudflare (مرة واحدة)
+## ٢) ربط المستودع بالنشر التلقائي (Workers Builds)
+1. **Workers & Pages ← Create ← Import a repository ← GitHub:** اسمح لـCloudflare بالمستودع `fahadaali/NAF-Academy` واختره.
+2. الإعداد:
+   - **Project name:** `naf-academy` (يطابق `name` في `wrangler.jsonc`).
+   - **Production branch:** `main`.
+   - **Build command:** `npm run cf:build`
+   - **Deploy command:** `npx wrangler d1 migrations apply naf_academy --remote && npx wrangler deploy`
+     (الترحيلات تُطبَّق تلقائياً قبل كل نشر — لا حاجة لتطبيقها يدوياً أبداً.)
+   - **Build variables:** `SITE_URL` = `https://academy.naflaw.sa`، و`NODE_VERSION` = `22`.
+3. **Save and Deploy.** بعدها كل دمج في `main` ينشر وحده، وسجل كل نشر في تبويب **Deployments**.
+4. **naf-academy ← Settings ← Domains & Routes ← Add ← Custom domain:** `academy.naflaw.sa` ← Add domain (الشهادة تُصدر تلقائياً خلال دقائق).
+5. **Settings ← Trigger Events:** تأكد أن المشغّل `*/5 * * * *` ظاهر — منه تخرج الرسائل الآلية.
 
+## ٣) الأسرار (لوحة Cloudflare)
+**naf-academy ← Settings ← Variables and Secrets ← Add ← Type: Secret** لكل واحد، ثم **Deploy**.
+القيم العشوائية: ولّدها من مدير كلمات المرور (iCloud Passwords أو 1Password…) بطول 48 حرفاً على الأقل.
+
+| السرّ | القيمة | لماذا |
+|---|---|---|
+| `LEARNER_SECRET` | عشوائي 48 | جلسات المتدربين وتذاكر الحضور — **الموقع لا يعمل بدونه** |
+| `ADMIN_SECRET` | عشوائي 48 | جلسة دخول كلمة المرور |
+| `CRON_SECRET` | عشوائي 48 | يحمي المشغّل الدوري — بدونه لا رسائل آلية |
+| `ADMIN_PASSWORD` | كلمة مرور قوية | دخول الطوارئ للوحة حين يُعطَّل الدخول الموحّد |
+| `AUTH_CLIENT_SECRET` | من مركز naf-id (الخطوة ٤) | الدخول الموحّد لفريق ناف |
+| مفاتيح الخدمات | الخطوة ٦ | كل قناة مقفلة حتى يُضاف مفتاحها |
+
+## ٤) دخول فريق ناف (لوحة naf-id)
+1. أضف منصة بالمعرّف `naf-academy`، برابط العودة `https://academy.naflaw.sa/auth/callback`
+   ورابط الخروج الخلفي `https://academy.naflaw.sa/auth/backchannel-logout`.
+2. انسخ سرّ المنصة ← `AUTH_CLIENT_SECRET` في الخطوة ٣.
+
+## ٥) قاعدة البيانات — الجزء الوحيد بالطرفية
+الترحيلات تُطبَّق تلقائياً مع النشر (الخطوة ٢). يبقى البذر الأول للمحتوى، مرة واحدة، من جهاز عليه Node 22 ونسخة من المستودع:
 ```
-npx wrangler d1 create naf_academy
-npx wrangler kv namespace create AUTH_KV
-npx wrangler r2 bucket create naf-academy-media
+npm ci
+npx wrangler login
+npm run db:setup          # يبني المحتوى المبدئي وحزمة الهوية محلياً
+npm run db:seed:remote    # ينقله إلى D1 — مرة واحدة على قاعدة فارغة
 ```
+**تنبيه:** البذر ينقل ما في القاعدة المحلية كما هو؛ للبدء نظيفاً `npm run db:reset` قبل `db:setup`.
 
-ثم في `wrangler.jsonc` (معرّفات لا أسرار — تُلتزم في المستودع):
+**الصور والشعارات إلى R2 (واجهة):** Cloudflare ← R2 ← `naf-academy-media` ← **Upload** ← اسحب كل ملفات المجلد `.data/media`
+(أسماؤها كما هي — `brand-…` وغيرها). أو `npm run media:r2` إن كانت الطرفية مفتوحة.
 
-| استبدل | بـ |
-|---|---|
-| `REPLACE_WITH_D1_ID` | `database_id` العائد من الأمر الأول |
-| `REPLACE_WITH_KV_ID` | `id` العائد من الثاني |
-| `REPLACE_WITH_SITE_URL` | `https://academy.naf.sa` (بلا شرطة في آخره) |
-| `REPLACE_WITH_NAF_ID_ISSUER_URL` | عنوان مركز naf-id (مثل `https://id.naf.sa`) |
+**المالك الأول (واجهة):** الدخول الموحّد يعطّل كلمة المرور، والداخل أول مرة «بانتظار التفعيل».
+Cloudflare ← D1 ← `naf_academy` ← **Console** ← الصق ونفّذ (ببريدك):
+```sql
+INSERT INTO members (user_id, email, role, is_active, created_at) VALUES ('invite:you@naflaw.sa', 'you@naflaw.sa', 'owner', 1, strftime('%s','now'));
+```
+أول دخول ببريدك يربط الدعوة بحسابك بدور «مالك».
 
-## ٢) دخول فريق ناف (naf-id)
+## ٦) الخدمات الخارجية (من مواقعها) — كلٌّ مستقل
+كل مفتاح يُضاف في **Variables and Secrets** (الخطوة ٣): السرّ بنوع Secret، والقيمة العامة (`MAIL_FROM`، `SMS_SENDER`، `VAPID_PUBLIC_KEY`، `VAPID_SUBJECT`) بنوع Text.
 
-1. في مركز naf-id سجّل منصة بالمعرّف `naf-academy` (يطابق `PLATFORM_ID`)، برابط العودة
-   `https://academy.naf.sa/auth/callback` ورابط الخروج الخلفي `https://academy.naf.sa/auth/backchannel-logout`.
-2. سرّ المنصة الذي يصدره المركز ← `AUTH_CLIENT_SECRET` (الخطوة ٣).
-3. **المالك الأول:** مع `STAFF_AUTH=naf-auth` يتعطّل دخول كلمة المرور، ومن يدخل أول مرة «بانتظار التفعيل».
-   فأنشئ دعوتك مالكاً قبل أول دخول (بعد الترحيلات في الخطوة ٤):
-   ```
-   npx wrangler d1 execute naf_academy --remote --command "INSERT INTO members (user_id, email, role, is_active, created_at) VALUES ('invite:you@naf.sa', 'you@naf.sa', 'owner', 1, strftime('%s','now'))"
-   ```
-   أول دخول ببريدك نفسه يربط الدعوة بحسابك ويحتفظ بدور «مالك»، ثم تدعو الفريق من «الفريق والصلاحيات».
+**البريد — resend.com** (ابدأ به: رموز الدخول تعتمد عليه)
+1. **Domains ← Add Domain:** `naflaw.sa` ← انسخ سجلات DNS المعروضة إلى Cloudflare ← DNS ← Records ← Add record، حتى تصير Verified.
+   ومن صفحة النطاق فعّل **Open tracking** و**Click tracking**.
+2. **API Keys ← Create API Key** (Sending access) ← `RESEND_API_KEY`. و`MAIL_FROM` = `أكاديمية ناف <academy@naflaw.sa>`.
+3. **Webhooks ← Add Webhook:** `https://academy.naflaw.sa/api/mail/webhook` بالأحداث email.delivered وopened وclicked وbounced وcomplained
+   ← انسخ **Signing Secret** ← `RESEND_WEBHOOK_SECRET`.
 
-## ٣) المتغيرات والأسرار
+**الدفع — dashboard.moyasar.com**
+1. **Settings ← API Keys:** مفاتيح الاختبار أولاً ← `MOYASAR_PUBLISHABLE_KEY` (`pk_test_…`) و`MOYASAR_SECRET_KEY` (`sk_test_…`).
+2. **Settings ← Webhooks ← Add:** `https://academy.naflaw.sa/api/payments/webhook`، وفي **Secret Token** قيمة عشوائية ← ضع القيمة نفسها في `MOYASAR_WEBHOOK_SECRET`.
+3. بعد نجاح شراء تجريبي استبدل بمفاتيح الإنتاج (`pk_live_` · `sk_live_`). ميسر يطلب صفحة السياسات قبل تفعيل الإنتاج.
 
-القيم العامة في `wrangler.jsonc` ← `vars`، والأسرار بـ `npx wrangler secret put <الاسم>` (تسري فوراً بلا إعادة نشر).
-السرّ العشوائي: `openssl rand -base64 48`.
-
-| المتغير | النوع | لماذا | بدونه |
-|---|---|---|---|
-| `SITE_URL` | عام | الروابط المطلقة: البريد، الشهادات، الخريطة، صور المشاركة، المشغّل الدوري — **ويُمرَّر للبناء أيضاً** | تتوقف الرسائل الآلية، وروابط الشهادات نسبية |
-| `LEARNER_SECRET` | سرّ (32+) | توقيع جلسات المتدربين وتذاكر الحضور وروابط إلغاء الاشتراك | **الموقع لا يعمل في الإنتاج** |
-| `ADMIN_SECRET` | سرّ (32+) | توقيع جلسة دخول كلمة المرور للوحة | — |
-| `ADMIN_PASSWORD` | سرّ | دخول اللوحة بكلمة مرور حين لا يُفعَّل الدخول الموحّد (الطوارئ: أزل `STAFF_AUTH` مؤقتاً) | لا دخول بكلمة مرور |
-| `STAFF_AUTH` · `AUTH_ISSUER` · `PLATFORM_ID` | عام | الدخول الموحّد لفريق ناف (`naf-auth`) ومركزه ومعرّف المنصة | اللوحة تعرض رسالة إعداد (503) |
-| `AUTH_CLIENT_SECRET` | سرّ | سرّ المنصة لدى مركز naf-id | لا يكتمل الدخول الموحّد |
-| `CRON_SECRET` | سرّ (24+) | يحمي `/api/cron/notify` (المشغّل الدوري كل 5 دقائق) | لا رسائل آلية |
-| `MOYASAR_PUBLISHABLE_KEY` · `MOYASAR_SECRET_KEY` · `MOYASAR_WEBHOOK_SECRET` | أسرار | الدفع الإلكتروني | التسجيل المدفوع «يُفتح قريباً» ونموذج اهتمام |
-| `RESEND_API_KEY` · `MAIL_FROM` | سرّ · عام | البريد (رموز الدخول، الرسائل الآلية) | قناة البريد مقفلة |
-| `RESEND_WEBHOOK_SECRET` | سرّ | أحداث البريد (التسليم، الفتح، النقر، الارتداد، الشكوى) | لا تتبّع ولا كتم تلقائي |
-| `TAQNYAT_API_KEY` · `SMS_SENDER` | سرّ · عام | الرسائل النصية | قناة الجوال مقفلة |
-| `CF_ACCOUNT_ID` · `CF_STREAM_TOKEN` · `CF_STREAM_CUSTOMER` | أسرار | فيديو الدروس على Cloudflare Stream بروابط موقّعة، ونسخ تسجيلات Zoom، والترجمات | الفيديو برابط مباشر فقط |
-| `ZOOM_WEBHOOK_SECRET` | سرّ | إلحاق تسجيلات الجلسات تلقائياً (يحتاج Stream) | الإلحاق يدوي |
-| `VAPID_PUBLIC_KEY` · `VAPID_SUBJECT` · `VAPID_PRIVATE_KEY` | عام · عام · سرّ | إشعارات المتصفح — `node scripts/vapid.mjs` | قناة المتصفح مقفلة |
-
-الإلزامي للتشغيل: `SITE_URL` و`LEARNER_SECRET` و`CRON_SECRET`، ومعها `AUTH_CLIENT_SECRET` (أو كلمة المرور). البقية عند ربط كل خدمة.
-
-> `PAYMENTS_GATEWAY=mock` بوابة تجريبية للتطوير فقط، وممنوعة في الإنتاج برمجياً.
-
-## ٤) القاعدة والمحتوى والوسائط
-
-1. محلياً: `npm run db:setup` — يبني القاعدة المحلية بالبذرة وحزمة الهوية.
-   **تنبيه:** `db:seed:remote` يصدّر ما في القاعدة المحلية من محتوى كما هو (الدورات والدفعات والعروض والإعدادات…)،
-   فإن جرّبت محلياً فستنتقل تجاربك. للبدء نظيفاً: `npm run db:reset` (يمسح القاعدة المحلية).
-2. ```
-   npm run db:migrate:remote      # الترحيلات 0000 … 0012 على D1
-   npm run db:seed:remote         # المحتوى المبدئي وحزمة الهوية — مرة واحدة على قاعدة فارغة
-   npm run media:r2               # الصور والشعارات إلى R2 بالمفاتيح نفسها
-   ```
-
-**حزمة الهوية:** `src/content/brand-kit` (معتمدة، لا تُعدَّل ملفاتها) يطبّقها `db-setup` محلياً مرة لكل إصدار
-(`KIT_VERSION` في `scripts/brand-kit.ts`): ملفاتها كما هي في `.data/media` بمفاتيح ثابتة `brand-*`، وصفوفها في المكتبة،
-وإعداد «الهوية والشعارات». فينقلها `db:seed:remote` إلى D1 و`media:r2` إلى R2 دون أي رفع يدوي
-(`npm run media:r2 -- brand-` للشعارات وحدها). على قاعدة D1 قائمة لا يستبدل البذر إعداداً محفوظاً (INSERT OR IGNORE)،
-فتُختار الشعارات من اللوحة — وهي في المكتبة بعد البذر.
-
-## ٥) النشر والنطاق
-
-1. ```
-   SITE_URL=https://academy.naf.sa npm run cf:deploy
-   ```
-   `cf:deploy` يولّد قبل البناء إعداد OpenNext وغلاف الـWorker (`.cf/worker.mjs`) الذي يضيف معالج الجدولة الدورية،
-   ثم يحذف الإعداد بعده (قواعد المستودع ترفض رفعه).
-2. Cloudflare ← Workers & Pages ← `naf-academy` ← Settings ← Domains & Routes ← أضف النطاق المخصّص `academy.naf.sa`.
-3. تأكد أن Triggers تعرض المشغّل `*/5 * * * *` — منه تخرج الرسائل الآلية.
-4. التحديثات اللاحقة: `git pull` ← `npm ci` ← `npm run db:migrate:remote` (إن جاء ترحيل) ← `SITE_URL=… npm run cf:deploy`.
-
-## ٦) الخدمات الخارجية — كلٌّ مستقل
-
-**البريد — Resend** (ابدأ به: رموز الدخول تعتمد عليه)
-1. أضف نطاق الإرسال وسجلات DNS التي يطلبها (SPF وDKIM) حتى يصير Verified، وفعّل تتبّع الفتح والنقر من إعدادات النطاق.
-2. API Key ← `RESEND_API_KEY`، و`MAIL_FROM` مثل `أكاديمية ناف <academy@naf.sa>`.
-3. Webhooks ← `https://academy.naf.sa/api/mail/webhook` بالأحداث delivered وopened وclicked وbounced وcomplained
-   ← Signing Secret إلى `RESEND_WEBHOOK_SECRET`.
-
-**الدفع — ميسر**
-1. ابدأ بمفاتيح الاختبار (`pk_test_` · `sk_test_`) ← `MOYASAR_PUBLISHABLE_KEY` و`MOYASAR_SECRET_KEY`.
-2. Webhooks ← `https://academy.naf.sa/api/payments/webhook` برمز سرّي تختاره (secret token) ← `MOYASAR_WEBHOOK_SECRET` بالقيمة نفسها.
-3. بعد نجاح الشراء التجريبي بدّل إلى مفاتيح الإنتاج — ميسر يطلب صفحة السياسات قبل التفعيل.
-
-**الجوال — تقنيات:** اسم مرسل معتمد (يحتاج تسجيلاً، ويستغرق أياماً) ← `SMS_SENDER`، والمفتاح ← `TAQNYAT_API_KEY`.
+**الجوال — taqnyat.sa:** اسم مرسل معتمد (طلبه من حسابك — يستغرق أياماً) ← `SMS_SENDER`، و**API ← Bearer Token** ← `TAQNYAT_API_KEY`.
 
 **الفيديو — Cloudflare Stream**
-1. فعّل Stream، و`CF_ACCOUNT_ID` من لوحة الحساب.
-2. API Token بصلاحية Stream:Edit ← `CF_STREAM_TOKEN`، و`CF_STREAM_CUSTOMER` = الجزء بعد `customer-` في نطاق التشغيل.
+1. Cloudflare ← **Stream** ← فعّل الخدمة. `CF_ACCOUNT_ID` من صفحة الحساب (Account ID في الشريط الجانبي).
+2. **My Profile ← API Tokens ← Create Token ← Custom:** صلاحية Account ← Stream ← Edit ← `CF_STREAM_TOKEN`.
+3. `CF_STREAM_CUSTOMER` = الجزء بعد `customer-` في رابط أي فيديو في Stream (Embed).
 
-**تسجيلات Zoom التلقائية** (تحتاج Stream)
-1. فعّل Cloud Recording في حساب Zoom.
-2. Zoom Marketplace ← تطبيق بإشعارات (Event Subscriptions) ← حدث Recording Completed ← الرابط
-   `https://academy.naf.sa/api/zoom/webhook` ← Secret Token إلى `ZOOM_WEBHOOK_SECRET`.
-3. من اللوحة: «الجلسات والحضور» ← فعّل Zoom، وضع روابط `zoom.us/j/…` في الدروس أو جلسات الدفعات.
+**تسجيلات Zoom التلقائية — marketplace.zoom.us** (تحتاج Stream)
+1. zoom.us ← Settings ← Recording: فعّل **Cloud recording**.
+2. **Develop ← Build App ← General App ← Features ← Event Subscriptions ← Add:** الرابط `https://academy.naflaw.sa/api/zoom/webhook`،
+   الحدث **Recording ← All Recordings have completed** ← انسخ **Secret Token** ← `ZOOM_WEBHOOK_SECRET`.
+3. من لوحة المنصة: «الجلسات والحضور» ← فعّل Zoom، وضع روابط `zoom.us/j/…` في الدروس أو جلسات الدفعات.
 
-**إشعارات المتصفح:** `node scripts/vapid.mjs` ← `VAPID_PUBLIC_KEY` و`VAPID_PRIVATE_KEY`، و`VAPID_SUBJECT` = `mailto:academy@naf.sa`.
+**إشعارات المتصفح (اختيارية):** تحتاج زوج مفاتيح VAPID (`VAPID_PUBLIC_KEY` و`VAPID_PRIVATE_KEY`، و`VAPID_SUBJECT` = `mailto:academy@naflaw.sa`).
+يولّدها `node scripts/vapid.mjs` — أو اطلب زرّ توليدها من لوحة المنصة.
 
 ## ٧) بعد النشر — من اللوحة
 
