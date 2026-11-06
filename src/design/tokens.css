@@ -112,6 +112,9 @@
   --scene-mark: var(--gold-2);
   /* لون الجسيمات في مشهد الافتتاحية */
   --scene-particle: var(--gold-1);
+  /* هالة الحبّات والتوهّج خلف الشعار (الستار والجسيمات)، ومضاعف حجم الجسيم — على الرقّ يلزم أكبر وأوضح ليبدو متوهجاً */
+  --scene-glow: var(--gold-3);
+  --scene-particle-boost: 1.7;
   /* طبقة شفافة فوق المشهد (الشريط المصمت، أزرار فوق الغلاف) */
   --scene-veil: var(--ivory-0);
 
@@ -205,6 +208,10 @@
     --scene-accent: var(--gold-4);
     --scene-mark: var(--gold-3);
     --scene-particle: var(--gold-4);
+  --scene-glow: var(--gold-4);
+  --scene-particle-boost: 1.15;
+    --scene-glow: var(--gold-4);
+    --scene-particle-boost: 1.15;
     --scene-veil: var(--night-0);
     --shadow-1: 0 1px 2px rgb(0 0 0 / 0.3), 0 4px 16px rgb(0 0 0 / 0.25);
     --shadow-2: 0 2px 6px rgb(0 0 0 / 0.35), 0 18px 48px rgb(0 0 0 / 0.45);

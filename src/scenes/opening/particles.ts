@@ -239,26 +239,31 @@ export type Renderer = {
 
 const VS = `#version 300 es
 in vec2 a_pos; in float a_size; in float a_alpha;
-uniform vec2 u_res;
+uniform vec2 u_res; uniform float u_boost;
 out float v_alpha;
 void main(){
   vec2 clip = (a_pos / u_res) * 2.0 - 1.0;
   gl_Position = vec4(clip.x, -clip.y, 0.0, 1.0);
-  gl_PointSize = a_size;
+  gl_PointSize = a_size * u_boost;
   v_alpha = a_alpha;
 }`
 const FS = `#version 300 es
 precision mediump float;
-in float v_alpha; uniform vec3 u_color; out vec4 o;
+in float v_alpha; uniform vec3 u_color; uniform vec3 u_glow; out vec4 o;
 void main(){
+  /* حبّة متوهجة: نواة صلبة بلون الجسيم + هالة ناعمة بلون التوهّج — تتوهّج على الرقّ كما على الليل */
   float d = length(gl_PointCoord - 0.5);
-  float a = smoothstep(0.5, 0.05, d) * v_alpha;
-  o = vec4(u_color * a, a);
+  float core = smoothstep(0.2, 0.04, d);
+  float halo = smoothstep(0.5, 0.12, d) * 0.45;
+  float a = clamp(core + halo, 0.0, 1.0) * v_alpha;
+  vec3 c = mix(u_glow, u_color, core / max(core + halo, 0.0001));
+  o = vec4(c * a, a);
 }`
 
-/** لون الجسيمات من رموز الهوية (--scene-particle: ذهبي فاتح على الليل، وأغمق على الرقّ) — لا قيمة لون في الشيفرة */
-function particleColor(el: Element): [number, number, number] {
-  const hex = getComputedStyle(el).getPropertyValue('--scene-particle').trim().replace('#', '')
+/** ألوان الجسيمات من رموز الهوية: النواة --scene-particle والهالة --scene-glow، ومضاعف الحجم --scene-particle-boost — لا قيمة لون في الشيفرة */
+const boostOf = (el: Element) => { const v = parseFloat(getComputedStyle(el).getPropertyValue('--scene-particle-boost')); return Number.isFinite(v) && v > 0 ? v : 1 }
+function particleColor(el: Element, token = '--scene-particle'): [number, number, number] {
+  const hex = getComputedStyle(el).getPropertyValue(token).trim().replace('#', '')
   const full = hex.length === 3 ? hex.split('').map((c) => c + c).join('') : hex
   const n = parseInt(full, 16)
   return Number.isFinite(n) && full.length === 6 ? [(n >> 16) & 255, (n >> 8) & 255, n & 255] : [224, 188, 110]
@@ -266,6 +271,8 @@ function particleColor(el: Element): [number, number, number] {
 
 export function makeRenderer(canvas: HTMLCanvasElement): Renderer | null {
   let [cr, cg, cb] = particleColor(canvas)
+  let [hr, hg, hb] = particleColor(canvas, '--scene-glow')
+  let boost = boostOf(canvas)
   const gl = canvas.getContext('webgl2', { premultipliedAlpha: true, antialias: false, alpha: true })
   if (gl) {
     const sh = (type: number, src: string) => {
@@ -296,14 +303,23 @@ export function makeRenderer(canvas: HTMLCanvasElement): Renderer | null {
         attr('a_alpha', 1, 12)
         const uRes = gl.getUniformLocation(prog, 'u_res')
         const uColor = gl.getUniformLocation(prog, 'u_color')
-        gl.uniform3f(uColor, cr / 255, cg / 255, cb / 255)
+        const uGlow = gl.getUniformLocation(prog, 'u_glow')
+        const uBoost = gl.getUniformLocation(prog, 'u_boost')
+        const paint = () => {
+          gl.uniform3f(uColor, cr / 255, cg / 255, cb / 255)
+          gl.uniform3f(uGlow, hr / 255, hg / 255, hb / 255)
+          gl.uniform1f(uBoost, boost)
+        }
+        paint()
         gl.enable(gl.BLEND)
         gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA)
         return {
           kind: 'webgl2',
           recolor: () => {
             ;[cr, cg, cb] = particleColor(canvas)
-            gl.uniform3f(uColor, cr / 255, cg / 255, cb / 255)
+            ;[hr, hg, hb] = particleColor(canvas, '--scene-glow')
+            boost = boostOf(canvas)
+            paint()
           },
           resize: (w, h) => {
             gl.viewport(0, 0, w, h)

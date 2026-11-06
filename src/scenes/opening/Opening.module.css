@@ -8,7 +8,7 @@
 /* التوهّج الذهبي يشتدّ مع التمرير — طبقة ثابتة الرسم تتغيّر شفافيتها فقط (لا إعادة رسم في كل إطار) */
 .vignette::after {
   content: ''; position: absolute; inset: 0;
-  background: radial-gradient(40% 35% at 50% 55%, color-mix(in srgb, var(--gold-3) 14%, transparent), transparent 70%);
+  background: radial-gradient(40% 35% at 50% 55%, color-mix(in srgb, var(--scene-glow) 22%, transparent), transparent 70%);
   opacity: calc(0.29 + var(--p, 0) * 0.71);
   /* طبقة مستقلة: تغيّر الشفافية مع التمرير يُركَّب ولا يعيد رسم التدرّج */
   will-change: opacity;
