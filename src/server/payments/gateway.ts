@@ -1,4 +1,5 @@
 import 'server-only'
+import { envVar } from '../runtime'
 /* واجهة البوابة — ميسر في الإنتاج، وبوابة تجريبية محلية للاختبار فقط. */
 
 export type GatewayPayment = {
@@ -26,9 +27,9 @@ const mockAllowed = () => process.env.PAYMENTS_GATEWAY === 'mock' && process.env
 
 export function gatewayStatus(): GatewayStatus {
   if (mockAllowed()) return { configured: true, kind: 'mock', mode: 'mock' }
-  const sk = process.env.MOYASAR_SECRET_KEY ?? ''
-  const pk = process.env.MOYASAR_PUBLISHABLE_KEY ?? ''
-  const wh = process.env.MOYASAR_WEBHOOK_SECRET ?? ''
+  const sk = envVar('MOYASAR_SECRET_KEY') ?? ''
+  const pk = envVar('MOYASAR_PUBLISHABLE_KEY') ?? ''
+  const wh = envVar('MOYASAR_WEBHOOK_SECRET') ?? ''
   if (!sk || !pk) return { configured: false, kind: null, mode: null, problem: 'مفاتيح ميسر غير مضافة في البيئة' }
   if (!wh) return { configured: false, kind: 'moyasar', mode: null, problem: 'سرّ الـWebhook غير مضاف (MOYASAR_WEBHOOK_SECRET)' }
   const live = sk.startsWith('sk_live_')

@@ -8,6 +8,7 @@ import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { eq } from 'drizzle-orm'
 import { db, schema as s } from './db'
+import { envVar } from './runtime'
 import { can, isRole, type Perm, type Role } from '@/lib/permissions'
 import { readToken, signToken } from '@/lib/staff-crypto'
 
@@ -16,12 +17,17 @@ export const STEP_COOKIE = 'naf_academy_2fa'
 const TTL = 60 * 60 * 12 // 12 ساعة
 const STEP_TTL = 60 * 5 // خمس دقائق لإدخال رمز التحقق الثنائي
 
-/** سرّ التوقيع — ADMIN_SECRET (32 حرفاً على الأقل) في الإنتاج */
+/** سرّ التوقيع — ADMIN_SECRET (32 حرفاً على الأقل) من أسرار Cloudflare (envVar لا process.env وحده) */
 export function authSecret() {
-  const v = process.env.ADMIN_SECRET
+  const v = envVar('ADMIN_SECRET')
   if (v && v.length >= 32) return v
   if (process.env.NODE_ENV === 'production') throw new Error('ADMIN_SECRET missing')
   return 'dev-only-secret-dev-only-secret-0000'
+}
+
+/** هل الدخول مهيّأ؟ (لصفحة الدخول: رسالة واضحة بدل خطأ) */
+export function authReady(): boolean {
+  try { authSecret(); return true } catch { return false }
 }
 
 /** عضو الفريق في هذا الطلب */
@@ -46,6 +52,7 @@ export async function createStep(userId: string, version: number) {
 }
 
 export async function pendingStep(): Promise<{ userId: string; version: number } | null> {
+  if (!authReady()) return null
   const t = await readToken<StepToken>((await cookies()).get(STEP_COOKIE)?.value, authSecret(), 'staff-2fa')
   return t ? { userId: t.u, version: t.v } : null
 }
@@ -59,6 +66,7 @@ export async function destroySession() {
 const parsePerms = (x: string | null) => { try { const v = JSON.parse(x ?? 'null'); return v && typeof v === 'object' ? (v as Record<string, unknown>) : null } catch { return null } }
 
 export async function currentStaff(): Promise<Staff | null> {
+  if (!authReady()) return null
   const t = await readToken<SessionToken>((await cookies()).get(SESSION_COOKIE)?.value, authSecret(), 'staff')
   if (!t) return null
   const [m] = await db.select().from(s.members).where(eq(s.members.userId, t.u))

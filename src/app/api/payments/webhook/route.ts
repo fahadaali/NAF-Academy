@@ -1,5 +1,6 @@
 /* Webhook ميسر — يضمن الإتمام حتى لو أغلق المشتري المتصفح قبل العودة.
    نتحقق من السرّ بزمن ثابت، ثم نجلب الدفعة من ميسر ولا نعتمد على جسم الطلب. */
+import { envVar } from '@/server/runtime'
 import { timingSafeEqual } from 'node:crypto'
 import { confirmPayment } from '@/server/sales'
 import { audit } from '@/server/audit'
@@ -13,7 +14,7 @@ function sameSecret(a: string, b: string) {
 }
 
 export async function POST(req: Request) {
-  const secret = process.env.MOYASAR_WEBHOOK_SECRET ?? ''
+  const secret = envVar('MOYASAR_WEBHOOK_SECRET') ?? ''
   let body: { type?: string; secret_token?: string; data?: { id?: string; metadata?: { order_id?: string } } }
   try {
     body = await req.json()
