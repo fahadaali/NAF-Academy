@@ -1,10 +1,10 @@
 .shell { display: grid; grid-template-columns: 260px minmax(0, 1fr); min-block-size: 100svh; background: var(--bg); }
 .side {
   position: sticky; inset-block-start: 0; block-size: 100svh; display: flex; flex-direction: column; gap: 10px;
-  padding: 22px 16px; background: var(--night-1); color: var(--scene-text); overflow-y: auto;
+  padding: 22px 16px; background: var(--night-1); color: var(--night-ink); overflow-y: auto;
 }
-.brand { display: flex; align-items: center; gap: 10px; padding: 4px 8px 18px; color: var(--gold-3); border-block-end: 1px solid var(--scene-line); }
-.brand span { display: grid; line-height: 1.2; color: var(--scene-text); }
+.brand { display: flex; align-items: center; gap: 10px; padding: 4px 8px 18px; color: var(--gold-3); border-block-end: 1px solid var(--night-line); }
+.brand span { display: grid; line-height: 1.2; color: var(--night-ink); }
 .brand strong { font-size: 16px; }
 .brand small { font-size: 11.5px; opacity: 0.6; }
 .nav { display: grid; gap: 18px; padding-block: 10px; flex: 1; align-content: start; }
@@ -17,11 +17,11 @@
 .nav a:hover { opacity: 1; background: color-mix(in srgb, var(--white) 5%, transparent); }
 .nav a[aria-current='page'] { opacity: 1; background: color-mix(in srgb, var(--gold-3) 14%, transparent); color: var(--gold-4); }
 .icon { inline-size: 18px; text-align: center; color: var(--gold-3); font-size: 14px; }
-.foot { display: grid; gap: 6px; padding-block-start: 14px; border-block-start: 1px solid var(--scene-line); font-size: 14px; }
+.foot { display: grid; gap: 6px; padding-block-start: 14px; border-block-start: 1px solid var(--night-line); font-size: 14px; }
 .view { color: var(--gold-4); padding: 6px 12px; }
 .who { font-size: 12.5px; opacity: 0.6; padding-inline: 12px; }
-.out { text-align: start; color: var(--scene-muted); padding: 6px 12px; font-size: 13.5px; }
-.out:hover { color: var(--scene-text); }
+.out { text-align: start; color: var(--night-muted); padding: 6px 12px; font-size: 13.5px; }
+.out:hover { color: var(--night-ink); }
 .main { padding: clamp(20px, 3vw, 40px); min-inline-size: 0; }
 
 @media (max-width: 900px) {

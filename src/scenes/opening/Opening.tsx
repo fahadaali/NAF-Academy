@@ -5,7 +5,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Words } from '@/components/Words'
 import { Emblem } from '@/components/Emblem'
-import { pinProgress, subscribe } from '@/motion/scroll-bus'
+import { follower, pinProgress, subscribe } from '@/motion/scroll-bus'
 import { clamp01, duration, prefersCalm, timing } from '@/motion/tokens'
 import type { Pointer } from './particles'
 import styles from './Opening.module.css'
@@ -17,13 +17,19 @@ type Props = {
   cta: { label: string; href: string }
   /** شعار الأكاديمية المرفوع (نسخة الخلفيات الداكنة) — تتشكّل منه الجسيمات */
   logo?: { url: string; w: number; h: number } | null
+  /** نسخة الخلفيات الفاتحة — للعلامة الثابتة مع تقليل الحركة في الوضع الفاتح (الجسيمات تأخذ شكلها من أي نسخة) */
+  logoLight?: { url: string; w: number; h: number } | null
   logoAlt?: string
 }
 
-export function Opening({ eyebrow, lines, phases, cta, logo, logoAlt = '' }: Props) {
+export function Opening({ eyebrow, lines, phases, cta, logo, logoLight, logoAlt = '' }: Props) {
   const section = useRef<HTMLElement>(null)
   const canvas = useRef<HTMLCanvasElement>(null)
   const stage = useRef<HTMLDivElement>(null)
+  /* متغيرات التمرير تُكتب على العناصر التي تقرؤها وحدها — كتابتها على القسم تعيد حساب أنماط المشهد كله كل إطار */
+  const headRef = useRef<HTMLDivElement>(null)
+  const vignette = useRef<HTMLDivElement>(null)
+  const meter = useRef<HTMLDivElement>(null)
   const [phase, setPhase] = useState(-1)
   const [live, setLive] = useState(false)
 
@@ -89,24 +95,44 @@ export function Opening({ eyebrow, lines, phases, cta, logo, logoAlt = '' }: Pro
       im.src = logo.url
     }
     const ro = new ResizeObserver(size)
+    /* تبديل الوضع (من الزر أو من الجهاز): لون الجسيمات يُقرأ من الرموز من جديد، ويُعاد الرسم إن كان المشهد ساكناً */
+    const recolor = () => requestAnimationFrame(() => {
+      renderer?.recolor()
+      if (renderer && eng && field && (calm || !visible)) renderer.draw(field, cv.width, cv.height)
+    })
+    const scheme = matchMedia('(prefers-color-scheme: dark)')
+    document.addEventListener('academy:theme', recolor)
+    scheme.addEventListener('change', recolor)
 
+    /* raw: تقدّم التمرير كما هو؛ p: المتابِع الناعم الذي يقرؤه المشهد والجسيمات */
+    let raw = 0
     let p = 0
+    const fp = follower()
     let rect: DOMRect | null = null
     let lastPhase = -1
+    let lastP = ''
     const ptr: Pointer = { x: -9999, y: -9999, on: 0 }
     const target = { x: -9999, y: -9999, on: 0 }
 
     const off = subscribe({
       read: ({ vh }) => {
         rect = sec.getBoundingClientRect()
-        p = calm ? 1 : pinProgress(rect, vh)
+        raw = calm ? 1 : pinProgress(rect, vh)
       },
-      write: () => {
-        sec.style.setProperty('--p', p.toFixed(4))
-        sec.style.setProperty('--head', clamp01(1 - p / 0.1).toFixed(3))
+      write: ({ t }) => {
+        const moving = fp.to(raw, t)
+        p = fp.value
+        const pv = p.toFixed(4)
+        if (pv !== lastP) {
+          lastP = pv
+          vignette.current?.style.setProperty('--p', pv)
+          meter.current?.style.setProperty('--p', pv)
+          headRef.current?.style.setProperty('--head', clamp01(1 - p / 0.1).toFixed(3))
+        }
         let ph = -1
         phases.forEach((x, i) => { if (p >= x.at - 0.07) ph = i })
         if (ph !== lastPhase) { lastPhase = ph; setPhase(ph) }
+        return moving
       },
     })
 
@@ -122,10 +148,16 @@ export function Opening({ eyebrow, lines, phases, cta, logo, logoAlt = '' }: Pro
 
     let raf = 0
     let visible = true
+    let lastT = 0
     const loop = (t: number) => {
-      ptr.x += (target.x - ptr.x) * 0.12
-      ptr.y += (target.y - ptr.y) * 0.12
-      ptr.on += (target.on - ptr.on) * 0.08
+      /* المؤشر يُتابَع بزمن الإطار الفعلي — السرعة نفسها على 60 و120 هرتز */
+      const dt = lastT && t - lastT < 100 ? t - lastT : 1000 / 60
+      lastT = t
+      const kp = 1 - Math.exp(-dt / (timing.follow * 1.4))
+      const ko = 1 - Math.exp(-dt / (timing.follow * 2.2))
+      ptr.x += (target.x - ptr.x) * kp
+      ptr.y += (target.y - ptr.y) * kp
+      ptr.on += (target.on - ptr.on) * ko
       if (!renderer || !eng || !field) return
       eng.stepField(field, p, t, ptr, dpr)
       renderer.draw(field, cv.width, cv.height)
@@ -166,6 +198,8 @@ export function Opening({ eyebrow, lines, phases, cta, logo, logoAlt = '' }: Pro
       document.removeEventListener('academy:unveil', idle)
       ro.disconnect()
       io.disconnect()
+      document.removeEventListener('academy:theme', recolor)
+      scheme.removeEventListener('change', recolor)
       cancelAnimationFrame(raf)
       st.removeEventListener('pointermove', onMove)
       st.removeEventListener('pointerleave', onLeave)
@@ -176,9 +210,9 @@ export function Opening({ eyebrow, lines, phases, cta, logo, logoAlt = '' }: Pro
     <section ref={section} id="top" data-surface="night" className={styles.opening} aria-label="البداية">
       <div ref={stage} className={styles.stage}>
         <canvas ref={canvas} className={styles.canvas} aria-hidden="true" />
-        <div className={styles.vignette} aria-hidden="true" />
+        <div ref={vignette} className={styles.vignette} aria-hidden="true" />
 
-        <div className={`wrap ${styles.head}`}>
+        <div ref={headRef} className={`wrap ${styles.head}`}>
           <span className={`eyebrow ${styles.eyebrow}`} data-live={live ? '1' : '0'}>{eyebrow}</span>
           <Words as="h1" text={lines} manual className={`${styles.title} ${live ? 'in' : ''}`} />
           <div className={styles.hint} data-live={live ? '1' : '0'} aria-hidden="true">
@@ -199,8 +233,17 @@ export function Opening({ eyebrow, lines, phases, cta, logo, logoAlt = '' }: Pro
           <a href={cta.href} className="btn">{cta.label}</a>
         </div>
 
-        <div className={styles.calmMark} aria-hidden="true">{logo ? <img src={logo.url} alt={logoAlt} style={{ blockSize: 220, inlineSize: 'auto', maxInlineSize: '80vw', objectFit: 'contain' }} /> : <Emblem size={220} />}</div>
-        <div className={styles.meter} aria-hidden="true"><span /></div>
+        <div className={styles.calmMark} aria-hidden="true">
+          {logo ? (
+            logoLight && logoLight.url !== logo.url ? (
+              <>
+                <img src={logoLight.url} alt={logoAlt} className={`logo-on-light ${styles.calmImg}`} />
+                <img src={logo.url} alt={logoAlt} className={`logo-on-dark ${styles.calmImg}`} />
+              </>
+            ) : <img src={logo.url} alt={logoAlt} className={styles.calmImg} />
+          ) : <Emblem size={220} />}
+        </div>
+        <div ref={meter} className={styles.meter} aria-hidden="true"><span /></div>
       </div>
     </section>
   )

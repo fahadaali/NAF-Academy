@@ -3,7 +3,7 @@
    طول القسم يُحسب من عرض الرف، فيبقى التمرير أصلياً ونسبته صادقة. */
 import { useEffect, useRef, type ReactNode } from 'react'
 import { Words } from '@/components/Words'
-import { pinProgress, subscribe } from '@/motion/scroll-bus'
+import { follower, pinProgress, subscribe } from '@/motion/scroll-bus'
 import { prefersCalm } from '@/motion/tokens'
 import type { SectionHead } from '@/content/home-defaults'
 import styles from './Timeline.module.css'
@@ -11,6 +11,8 @@ import styles from './Timeline.module.css'
 export function Timeline({ children, count, head }: { children: ReactNode; count: number; head: SectionHead }) {
   const sec = useRef<HTMLElement>(null)
   const track = useRef<HTMLDivElement>(null)
+  /* شريط التقدّم وحده يقرأ --p — لا نكتبه على القسم فيُعاد حساب أنماطه كلها */
+  const bar = useRef<HTMLSpanElement>(null)
 
   useEffect(() => {
     const s = sec.current
@@ -27,12 +29,17 @@ export function Timeline({ children, count, head }: { children: ReactNode; count
     const ro = new ResizeObserver(size)
     ro.observe(t)
     let p = 0
+    const fp = follower()
     const off = subscribe({
       read: ({ vh }) => { p = dist ? pinProgress(s.getBoundingClientRect(), vh) : 0 },
-      write: () => {
+      write: ({ t: now }) => {
         if (!dist) return
-        t.style.transform = `translate3d(${(p * dist).toFixed(1)}px,0,0)`
-        s.style.setProperty('--p', p.toFixed(4))
+        /* المسار الأفقي يتبع التمرير بمتابِع ناعم — درجات العجلة لا تظهر قفزات */
+        const moving = fp.to(p, now)
+        const v = fp.value
+        t.style.transform = `translate3d(${(v * dist).toFixed(2)}px,0,0)`
+        bar.current?.style.setProperty('--p', v.toFixed(4))
+        return moving
       },
     })
     return () => { off(); ro.disconnect() }
@@ -47,7 +54,7 @@ export function Timeline({ children, count, head }: { children: ReactNode; count
           <a href="/courses" className={styles.all}>كل الدورات <span className="num">({count})</span></a>
         </div>
         <div className={styles.rail}>
-          <div className={styles.line} aria-hidden="true"><span /></div>
+          <div className={styles.line} aria-hidden="true"><span ref={bar} /></div>
           <div ref={track} className={styles.track}>{children}</div>
         </div>
       </div>

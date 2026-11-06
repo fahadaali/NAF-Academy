@@ -6,7 +6,7 @@
 .all { font-weight: 700; color: var(--accent); padding: 10px 0; border-block-end: 1.5px solid currentColor; }
 .rail { position: relative; min-inline-size: 0; }
 .line { position: absolute; inset-inline: 0; inset-block-start: -18px; block-size: 1px; background: var(--line-strong); }
-.line span { position: absolute; inset: 0; background: var(--gold-3); transform-origin: right; transform: scaleX(var(--p, 0)); }
+.line span { position: absolute; inset: 0; background: var(--gold-3); transform-origin: right; transform: scaleX(var(--p, 0)); will-change: transform; }
 .track {
   display: flex; gap: 24px; inline-size: max-content; align-items: stretch;
   padding-inline: max(var(--gutter), calc((100vw - var(--max)) / 2)); will-change: transform;

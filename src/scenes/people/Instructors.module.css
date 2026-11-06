@@ -7,7 +7,8 @@
   position: relative; display: grid; border-radius: var(--radius-l); overflow: hidden; block-size: 100%;
   background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow-1);
   transform: rotateX(var(--rx)) rotateY(var(--ry)); transform-style: preserve-3d;
-  transition: transform var(--t-gentle) var(--ease-glide), box-shadow var(--t-gentle) var(--ease-move);
+  /* الميل يُنعَّم في Tilt.tsx إطاراً إطاراً — الانتقال هنا للظل وحده */
+  transition: box-shadow var(--t-gentle) var(--ease-move);
 }
 .card::after {
   /* التوهّج يتبع المؤشر بالإزاحة (transform) لا بإعادة رسم التدرّج — دائرة ثابتة تُنقل إلى موضع المؤشر (فيزيائياً كإحداثياته) */

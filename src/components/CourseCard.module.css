@@ -60,10 +60,10 @@
 }
 .card[data-dim='1'] .status {
   z-index: 2; inset-block-start: 50%; inset-inline: 0; margin-inline: auto; inline-size: max-content; transform: translateY(-50%);
-  font-size: 15px; padding: 8px 18px; background: color-mix(in srgb, var(--night-0) 75%, transparent); color: var(--scene-text);
+  font-size: 15px; padding: 8px 18px; background: color-mix(in srgb, var(--night-0) 75%, transparent); color: var(--night-ink);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--white) 18%, transparent); backdrop-filter: blur(6px);
 }
-.card[data-dim='1'] .cta { position: relative; z-index: 2; color: var(--scene-text); }
+.card[data-dim='1'] .cta { position: relative; z-index: 2; color: var(--night-ink); }
 .card[data-dim='1']:hover { transform: none; }
 .photo { position: absolute; inset: 0; transition: transform calc(var(--t-gentle) * 3) var(--ease-glide); }
 .photo::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, color-mix(in srgb, var(--night-0) 35%, transparent), transparent 45%); }

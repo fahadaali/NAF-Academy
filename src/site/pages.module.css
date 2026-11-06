@@ -9,11 +9,11 @@
   -webkit-text-stroke: 1.2px color-mix(in srgb, var(--gold-3) 40%, transparent);
 }
 .inner { position: relative; display: grid; gap: 16px; justify-items: start; }
-.eyebrow { color: var(--gold-4); }
+.eyebrow { color: var(--scene-accent); }
 .lead { color: var(--scene-muted); font-size: var(--fs-statement); max-inline-size: 56ch; }
 
 .links { display: flex; gap: 14px; flex-wrap: wrap; }
-.links a { color: var(--gold-4); font-weight: 600; min-block-size: 40px; display: inline-flex; align-items: center; }
+.links a { color: var(--scene-accent); font-weight: 600; min-block-size: 40px; display: inline-flex; align-items: center; }
 .person { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr)); gap: clamp(28px, 5vw, 50px); padding-block: 60px 100px; align-items: start; }
 .portrait {
   position: relative; aspect-ratio: 4 / 4.6; border-radius: var(--radius-l); overflow: hidden; max-inline-size: 420px;

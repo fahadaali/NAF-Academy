@@ -21,14 +21,16 @@
 
 .card {
   --d: 0;
-  --tone-a: var(--night-2); --tone-b: var(--night-1); --tone-ink: var(--scene-text); --tone-glyph: var(--gold-3);
+  --tone-a: var(--night-2); --tone-b: var(--night-1); --tone-ink: var(--night-ink); --tone-glyph: var(--gold-3);
   position: relative; display: block; inline-size: clamp(260px, 26vw, 330px); aspect-ratio: 3 / 4.2;
   /* الكعب في البداية (يمين الكتاب العربي): الزوايا الكبيرة عنده */
   border-start-start-radius: 20px; border-end-start-radius: 20px; border-start-end-radius: 8px; border-end-end-radius: 8px;
   transform-style: preserve-3d; color: var(--tone-ink);
   --a: 0;
+  /* الدوران يتبع التمرير كل إطار بلا انتقال (الانتقال على قيمة تتغيّر كل إطار يُبطئها ويقطّعها)؛ رفعة التحويم بـ translate المستقلة */
   transform: rotateY(calc(var(--d) * -18deg)) translateZ(calc((1 - var(--a)) * 40px)) scale(calc(1 - var(--a) * 0.06));
-  transition: transform calc(var(--t-gentle) * 1.2) var(--ease-glide);
+  translate: 0 0 0;
+  transition: translate calc(var(--t-gentle) * 1.2) var(--ease-glide);
   user-select: none; -webkit-user-drag: none;
 }
 .card[data-tone='gold'] { --tone-a: var(--tone-gold-0); --tone-b: var(--tone-gold-1); --tone-glyph: var(--gold-4); }
@@ -55,7 +57,7 @@
 .glyph {
   align-self: center; justify-self: center; font-family: var(--font-display); font-size: clamp(120px, 12vw, 170px); font-weight: 900; line-height: 1;
   color: transparent; -webkit-text-stroke: 1.4px var(--tone-glyph);
-  transform: translateZ(30px) translateX(calc(var(--d) * 14px)); transition: color var(--t-gentle) var(--ease-move), transform var(--t-gentle) var(--ease-glide);
+  transform: translateZ(30px) translateX(calc(var(--d) * 14px)); transition: color var(--t-gentle) var(--ease-move);
   text-shadow: 0 0 40px color-mix(in srgb, var(--tone-glyph) 25%, transparent);
 }
 .bottom { display: grid; gap: 6px; }
@@ -74,7 +76,7 @@
   background: linear-gradient(105deg, transparent 30%, color-mix(in srgb, var(--white) 35%, transparent) 45%, transparent 60%);
   transform: translate3d(calc(-30% - var(--d, 0) * 36%), 0, 0);
 }
-.card:hover, .card:focus-visible { transform: rotateY(calc(var(--d) * -18deg)) translateY(-10px) translateZ(60px); }
+.card:hover, .card:focus-visible { translate: 0 -10px 20px; }
 .card:hover .glyph, .card:focus-visible .glyph { color: color-mix(in srgb, var(--tone-glyph) 22%, transparent); }
 .card:hover .go, .card:focus-visible .go { opacity: 1; transform: none; }
 
@@ -84,10 +86,10 @@
 }
 @media (prefers-reduced-motion: reduce) {
   /* البطاقة وكل ما يتحرك معها بالتمرير (الحرف، الصورة، البريق) ثابتة */
-  .card, .glyph, .photo img, .shine::before { transform: none !important; }
+  .card, .glyph, .photo img, .shine::before { transform: none !important; translate: none !important; scale: none !important; }
 }
 
 .photo { position: absolute; inset: 0; border-radius: inherit; overflow: hidden; }
-.photo img { transition: transform calc(var(--t-gentle) * 3) var(--ease-glide); transform: scale(1.06) translateX(calc(var(--d) * 12px)); }
-.face[data-photo='1'] { background: linear-gradient(180deg, color-mix(in srgb, var(--night-0) 15%, transparent) 20%, color-mix(in srgb, var(--night-0) 88%, transparent)); color: var(--scene-text); }
-.card:hover .photo img { transform: scale(1.12); }
+.photo img { transform: translateX(calc(var(--d) * 12px)); scale: 1.06; transition: scale calc(var(--t-gentle) * 3) var(--ease-glide); }
+.face[data-photo='1'] { background: linear-gradient(180deg, color-mix(in srgb, var(--night-0) 15%, transparent) 20%, color-mix(in srgb, var(--night-0) 88%, transparent)); color: var(--night-ink); }
+.card:hover .photo img { scale: 1.12; }
