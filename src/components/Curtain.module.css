@@ -1,19 +1,74 @@
 .curtain {
-  position: fixed; inset: 0; z-index: 90; display: none;
+  position: fixed; inset: 0; z-index: 90; display: none; overflow: hidden;
   place-items: center; background: var(--scene-bg); color: var(--scene-mark);
 }
 :global(html.opening) .curtain { display: grid; }
 :global(html.unveil) .curtain {
   animation: lift calc(var(--t-gentle) * 4) var(--ease-travel) forwards;
 }
-.core { display: grid; justify-items: center; gap: 18px; }
+.core { position: relative; display: grid; justify-items: center; gap: 18px; --logo-delay: var(--t-fast); }
 .name {
   font-size: 18px; font-weight: 700; letter-spacing: 0.04em; color: var(--scene-text);
   animation: fade calc(var(--t-gentle) * 2) var(--ease-glide) calc(var(--t-gentle) * 3) both;
 }
-.core { --logo-delay: var(--t-fast); }
 @keyframes fade { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 @keyframes lift {
   0% { clip-path: inset(0 0 0 0); }
   100% { clip-path: inset(0 0 100% 0); }
 }
+
+/* — الهالة: توهّج ذهبي ثابت الرسم خلف الشعار، يظهر مع الكتابة ويشتدّ لحظة الختم ثم يستقر — */
+.halo {
+  /* لا يتجاوز عرض الشاشة (الشاشات الضيقة): ضعف عرض الشعار بسقف الشاشة */
+  position: absolute; inset: 50% auto auto 50%; inline-size: min(640px, 100vw); block-size: min(400px, 62.5vw); translate: -50% -50%; z-index: 0;
+  border-radius: 50%; pointer-events: none;
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--scene-glow) 34%, transparent), color-mix(in srgb, var(--scene-glow) 10%, transparent) 55%, transparent);
+  animation: halo calc(var(--t-gentle) * 7) var(--ease-glide) var(--t-gentle) backwards;
+  will-change: opacity;
+}
+@keyframes halo {
+  0% { opacity: 0; }
+  45% { opacity: 0.6; }
+  62% { opacity: 1; }
+  100% { opacity: 0.75; }
+}
+
+/* — الحبّات: نقاط ذهبية بنواة وهالة (رسم ثابت) تتجمّع نحو الشعار أثناء كتابته وتخبو — */
+.grains { position: absolute; inset: 50% auto auto 50%; inline-size: 0; block-size: 0; z-index: 1; pointer-events: none; }
+.grains i {
+  --r: min(300px, 46vw);
+  position: absolute; inline-size: 14px; block-size: 14px; margin: -7px; border-radius: 50%;
+  background: radial-gradient(circle, var(--scene-particle) 0 18%, color-mix(in srgb, var(--scene-glow) 70%, transparent) 30%, color-mix(in srgb, var(--scene-glow) 0%, transparent) 70%);
+  transform: translate3d(calc(var(--gx) * var(--r) * 0.32), calc(var(--gy) * var(--r) * 0.32), 0) scale(calc(var(--gs) * 0.6));
+  opacity: 0; will-change: transform, opacity;
+  animation: grain calc(var(--t-gentle) * 4) var(--ease-glide) calc(var(--logo-delay) + var(--gi) * var(--stagger-row)) both;
+}
+@keyframes grain {
+  0% { opacity: 0; transform: translate3d(calc(var(--gx) * var(--r)), calc(var(--gy) * var(--r)), 0) scale(var(--gs)); }
+  25% { opacity: 1; }
+  70% { opacity: 0.9; transform: translate3d(calc(var(--gx) * var(--r) * 0.45), calc(var(--gy) * var(--r) * 0.45), 0) scale(calc(var(--gs) * 0.8)); }
+  100% { opacity: 0; transform: translate3d(calc(var(--gx) * var(--r) * 0.32), calc(var(--gy) * var(--r) * 0.32), 0) scale(calc(var(--gs) * 0.6)); }
+}
+
+/* — الشعاع: شريط ضوء مائل يعبر الشعار مرة بعد الختم — مقصوص على شكل الشعار نفسه (قناع)، والشريط يُحرَّك بـ transform وحده — */
+.stage { position: relative; z-index: 2; display: grid; }
+.beam {
+  position: absolute; inset: 0; overflow: hidden; pointer-events: none;
+  -webkit-mask: var(--shape) center / contain no-repeat; mask: var(--shape) center / contain no-repeat;
+}
+.beam span {
+  position: absolute; inset-block: -20%; right: 0; inline-size: 45%;
+  background: linear-gradient(105deg, transparent 0%, color-mix(in srgb, var(--gold-5) 0%, transparent) 20%, color-mix(in srgb, var(--gold-5) 95%, transparent) 50%, transparent 80%);
+  transform: translate3d(120%, 0, 0); will-change: transform;
+  animation: beam calc(var(--t-gentle) * 3) var(--ease-travel) calc(var(--t-gentle) * 5) both;
+}
+@keyframes beam {
+  /* من يمين الشعار إلى يساره — اتجاه الكتابة (الشريط مثبّت ببداية السطر) */
+  from { transform: translate3d(120%, 0, 0); opacity: 1; }
+  80% { opacity: 1; }
+  to { transform: translate3d(-260%, 0, 0); opacity: 0; }
+}
+
+/* تنتظر أول إطار مرسوم مثل كتابة الشعار */
+:global(html.opening:not(.curtain-go)) :is(.halo, .grains i, .beam span, .name) { animation-play-state: paused; }
+@media (prefers-reduced-motion: reduce) { .halo, .grains, .beam { display: none; } }
