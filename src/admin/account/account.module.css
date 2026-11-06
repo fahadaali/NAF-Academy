@@ -1,0 +1,9 @@
+.form { display: grid; gap: 14px; }
+.row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.ok { color: var(--success); font-size: 14px; font-weight: 600; }
+.err { color: var(--danger); font-size: 14px; font-weight: 600; }
+.steps { display: grid; gap: 6px; padding-inline-start: 20px; list-style: decimal; color: var(--text-soft); line-height: 1.8; }
+.secret { font-size: 15px; font-weight: 700; letter-spacing: 0.06em; word-break: break-all; }
+/* رمز QR على خلفية بيضاء دائماً — تطبيقات المسح تحتاج التباين في الوضعين */
+.qr { inline-size: 200px; padding: 10px; border-radius: var(--radius-m); background: var(--white); color: var(--black); }
+.qr :global(svg) { display: block; inline-size: 100%; block-size: auto; }

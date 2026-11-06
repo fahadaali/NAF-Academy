@@ -1,7 +1,7 @@
 /* تهيئة المنصة — بعد أول نشر، ثم كلما احتاجت ترحيلاً: الترحيلات والبذرة وحزمة الهوية والمالك الأول، من المتصفح. */
 import type { Metadata } from 'next'
 import { setupStatus } from '@/server/setup'
-import { SetupForm } from './SetupForm'
+import { OwnerForm, SetupForm } from './SetupForm'
 import st from './setup.module.css'
 
 export const dynamic = 'force-dynamic'
@@ -13,7 +13,7 @@ export default async function Setup() {
     ['ترحيلات القاعدة', !s.migrations.pending.length, s.d1 ? `${s.migrations.applied} من ${s.migrations.total}${s.migrations.pending.length ? ` — معلّق: ${s.migrations.pending.length}` : ''}` : 'محلياً: يطبّقها db-setup'],
     ['المحتوى المبدئي', s.seeded, s.seeded ? 'موجود' : 'لم يُبذر'],
     ['حزمة الهوية', s.brandKit, s.brandKit ? 'مطبّقة' : 'لم تُطبّق'],
-    ['المالك', s.owner, s.owner ? 'موجود' : 'لا مالك بعد'],
+    ['المالك', s.ownerReady, s.ownerReady ? 'موجود' : s.owner ? 'بلا كلمة مرور — عيّنها أدناه' : 'لا مالك بعد'],
   ]
   const done = rows.every(([, ok]) => ok)
   return (
@@ -27,7 +27,8 @@ export default async function Setup() {
           ))}
         </ul>
         <SetupForm needOwner={!s.owner} needSeed={!s.seeded} />
-        {s.owner && <p className={st.lead}><a href="/admin">إلى لوحة الإدارة ←</a></p>}
+        {s.owner && <OwnerForm open={!s.ownerReady} />}
+        {s.ownerReady && <p className={st.lead}><a href="/admin/login">إلى لوحة الإدارة ←</a></p>}
       </div>
     </main>
   )

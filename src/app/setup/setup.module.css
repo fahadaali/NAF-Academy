@@ -19,3 +19,6 @@
 .result { padding: 14px 16px; border-radius: var(--radius-m); background: color-mix(in srgb, var(--success) 12%, transparent); }
 .result[data-ok='0'] { background: color-mix(in srgb, var(--danger) 12%, transparent); color: var(--danger); }
 .result ul { display: grid; gap: 4px; padding-inline-start: 18px; list-style: disc; }
+.owner { display: grid; gap: 14px; padding: 14px 16px; border-radius: var(--radius-m); border: 1px solid var(--line); }
+.owner summary { cursor: pointer; font-weight: 700; min-block-size: 40px; display: flex; align-items: center; }
+.owner[open] summary { margin-block-end: 12px; }

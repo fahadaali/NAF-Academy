@@ -1,7 +1,9 @@
 import 'server-only'
 /* التهيئة في النشر: الترحيلات من التطبيق، والبذرة، وحزمة الهوية إلى R2، والمالك الأول — من صفحة /setup بلا طرفية.
    محلياً يطبّق db-setup الترحيلات (drizzle) فلا تُطبَّق هنا. */
-import { and, count, eq } from 'drizzle-orm'
+import { and, count, eq, isNotNull } from 'drizzle-orm'
+import { randomUUID } from 'node:crypto'
+import { hashPassword, passwordProblem } from '@/lib/staff-crypto'
 import { db, schema as s } from '../db'
 import { cfEnv } from '../runtime'
 import { putObject } from '../storage'
@@ -37,6 +39,8 @@ export type SetupStatus = {
   seeded: boolean
   brandKit: boolean
   owner: boolean
+  /** للمالك كلمة مرور (يستطيع الدخول) */
+  ownerReady: boolean
 }
 
 export async function setupStatus(): Promise<SetupStatus> {
@@ -44,7 +48,7 @@ export async function setupStatus(): Promise<SetupStatus> {
   const m = d1 ? await migrationStatus(runner()) : { applied: [] as string[], pending: [] as string[] }
   /* قبل الترحيلات لا جداول — كل ما بعدها «لم يتم» */
   const ready = !m.pending.length || m.applied.length > 0
-  let seeded = false, brandKit = false, owner = false
+  let seeded = false, brandKit = false, owner = false, ownerReady = false
   if (ready) {
     try {
       seeded = !(await isEmpty(db))
@@ -52,16 +56,22 @@ export async function setupStatus(): Promise<SetupStatus> {
       brandKit = (k?.value as { version?: string } | undefined)?.version === KIT_VERSION
       const [o] = await db.select({ n: count() }).from(s.members).where(and(eq(s.members.role, 'owner'), eq(s.members.isActive, 1)))
       owner = o.n > 0
+      const [r] = await db.select({ n: count() }).from(s.members).where(and(eq(s.members.role, 'owner'), eq(s.members.isActive, 1), isNotNull(s.members.passwordHash)))
+      ownerReady = r.n > 0
     } catch { /* جداول ناقصة: الترحيلات لم تكتمل */ }
   }
-  return { d1, migrations: { applied: d1 ? m.applied.length : MIGRATION_COUNT, pending: m.pending, total: MIGRATION_COUNT }, seeded, brandKit, owner }
+  return { d1, migrations: { applied: d1 ? m.applied.length : MIGRATION_COUNT, pending: m.pending, total: MIGRATION_COUNT }, seeded, brandKit, owner, ownerReady }
 }
 
 export type SetupResult = { ok: boolean; steps: string[]; error?: string }
 
 /** التهيئة كاملة — كل خطوة لا تتكرر إن تمّت (آمنة لإعادة الضغط) */
-export async function runSetup(o: { ownerEmail?: string; seed: boolean }): Promise<SetupResult> {
+export async function runSetup(o: { ownerEmail?: string; ownerPassword?: string; seed: boolean }): Promise<SetupResult> {
   const steps: string[] = []
+  if (o.ownerEmail) {
+    const problem = passwordProblem(o.ownerPassword ?? '', o.ownerEmail)
+    if (problem) return { ok: false, steps, error: problem }
+  }
   if (onD1()) {
     const r = await applyMigrations(runner())
     if (r.applied.length) steps.push(`طُبّق ${r.applied.length} ترحيل`)
@@ -80,13 +90,31 @@ export async function runSetup(o: { ownerEmail?: string; seed: boolean }): Promi
     else {
       const email = o.ownerEmail
       const [existing] = await db.select().from(s.members).where(eq(s.members.email, email))
-      /* دخل من قبل بالدخول الموحّد («بانتظار التفعيل»)؟ يُرقّى. وإلا دعوة تُربط بحسابه عند أول دخول */
-      if (existing) await db.update(s.members).set({ role: 'owner', isActive: 1 }).where(eq(s.members.userId, existing.userId))
-      else await db.insert(s.members).values({ userId: `invite:${email}`, email, role: 'owner', isActive: 1, createdAt: Math.floor(Date.now() / 1000) })
-      steps.push(`${email} مالكاً — ادخل ببريده من /admin`)
+      const t = Math.floor(Date.now() / 1000)
+      const pw = { passwordHash: await hashPassword(o.ownerPassword!), passwordSetAt: t, failedLogins: 0, lockedUntil: null }
+      if (existing) await db.update(s.members).set({ role: 'owner', isActive: 1, ...pw, sessionVersion: existing.sessionVersion + 1 }).where(eq(s.members.userId, existing.userId))
+      else await db.insert(s.members).values({ userId: randomUUID(), email, role: 'owner', isActive: 1, createdAt: t, ...pw })
+      steps.push(`${email} مالكاً — ادخل ببريده وكلمة مروره من /admin/login`)
     }
   }
   await db.insert(s.auditLog).values({ actor: 'setup', action: 'setup', entity: 'site', entityId: '-', summary: steps.join(' · ').slice(0, 500) })
+  return { ok: true, steps }
+}
+
+/** تعيين كلمة مرور المالك أو استعادة حسابه (بكلمة مرور الإعداد): لمالك قائم بلا كلمة مرور، أو فقد كلمة مروره أو جهاز التحقق الثنائي.
+    يرفع نسخة الحساب فتسقط كل جلساته وروابطه القديمة. */
+export async function setOwnerPassword(email: string, password: string, clearTwoStep: boolean): Promise<SetupResult> {
+  const [m] = await db.select().from(s.members).where(eq(s.members.email, email))
+  if (!m || m.role !== 'owner') return { ok: false, steps: [], error: 'لا مالك بهذا البريد' }
+  const problem = passwordProblem(password, email)
+  if (problem) return { ok: false, steps: [], error: problem }
+  const t = Math.floor(Date.now() / 1000)
+  await db.update(s.members).set({
+    passwordHash: await hashPassword(password), passwordSetAt: t, sessionVersion: m.sessionVersion + 1, isActive: 1, failedLogins: 0, lockedUntil: null,
+    ...(clearTwoStep ? { totpSecret: null, totpEnabledAt: null, totpLastStep: null } : {}),
+  }).where(eq(s.members.userId, m.userId))
+  const steps = [`عُيّنت كلمة مرور ${email}`, ...(clearTwoStep && m.totpEnabledAt ? ['أُلغي التحقق الثنائي — فعّله من «حسابي» بعد الدخول'] : [])]
+  await db.insert(s.auditLog).values({ actor: 'setup', action: 'owner-password', entity: 'member', entityId: email, summary: steps.join(' · ') })
   return { ok: true, steps }
 }
 

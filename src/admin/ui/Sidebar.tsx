@@ -47,7 +47,7 @@ const groups: { title: string; items: { href: string; label: string; icon: strin
   ] },
 ]
 
-export function Sidebar({ name, role, mode, perms, brand }: { name: string; role: string; mode: 'naf-auth' | 'password'; perms: Perm[]; brand: BrandView }) {
+export function Sidebar({ name, role, perms, brand }: { name: string; role: string; perms: Perm[]; brand: BrandView }) {
   const path = usePathname()
   const hit = (href: string) => (href === '/admin' ? path === '/admin' : path === href || path.startsWith(`${href}/`))
   /* أطول رابط مطابق هو النشط — فلا تُضاء «الواجبات» داخل «الجلسات» */
@@ -73,10 +73,8 @@ export function Sidebar({ name, role, mode, perms, brand }: { name: string; role
       </nav>
       <div className={styles.foot}>
         <a href="/" target="_blank" rel="noreferrer" className={styles.view}>عرض الموقع ↗</a>
-        <span className={styles.who}>{name} · {role}</span>
-        {mode === 'naf-auth'
-          ? <form action="/auth/logout" method="post"><button className={styles.out}>خروج</button></form>
-          : <form action={logout}><button className={styles.out}>خروج</button></form>}
+        <Link href="/admin/account" className={styles.who} aria-current={on('/admin/account') ? 'page' : undefined}>{name} · {role} — حسابي</Link>
+        <form action={logout}><button className={styles.out}>خروج</button></form>
       </div>
     </aside>
   )

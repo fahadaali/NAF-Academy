@@ -1,13 +1,16 @@
 import { expect, type Browser, type Page } from '@playwright/test'
 
 export const ADMIN_PASSWORD = 'e2e-pass-123'
+/** المالك التجريبي الذي ينشئه db-setup محلياً (ADMIN_EMAIL الافتراضي) */
+export const ADMIN_EMAIL = 'admin@academy.local'
 
-/** دخول الفريق بكلمة المرور (وضع التطوير) */
-export async function adminPage(browser: Browser): Promise<Page> {
+/** دخول الفريق ببريد المالك التجريبي وكلمة مروره */
+export async function adminPage(browser: Browser, email = ADMIN_EMAIL, password = ADMIN_PASSWORD): Promise<Page> {
   const p = await (await browser.newContext()).newPage()
   p.on('dialog', (d) => d.accept())
   await p.goto('/admin/login')
-  await p.fill('input[name=password]', ADMIN_PASSWORD)
+  await p.fill('input[name=email]', email)
+  await p.fill('input[name=password]', password)
   await p.click('button:has-text("دخول")')
   await p.waitForURL(/\/admin$/)
   return p

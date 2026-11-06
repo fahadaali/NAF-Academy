@@ -5,7 +5,6 @@ import { getCloudflareContext } from '@opennextjs/cloudflare'
 export type CfEnv = {
   DB?: unknown
   MEDIA?: { put(k: string, v: Uint8Array, o?: unknown): Promise<unknown>; get(k: string): Promise<{ arrayBuffer(): Promise<ArrayBuffer> } | null>; delete(k: string): Promise<void> }
-  AUTH_KV?: unknown
   [k: string]: unknown
 }
 

@@ -5,11 +5,12 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { envVar } from '@/server/runtime'
 import { limited } from '@/server/ratelimit'
-import { runSetup, type SetupResult } from '@/server/setup'
+import { runSetup, setOwnerPassword, type SetupResult } from '@/server/setup'
 
 const input = z.object({
   password: z.string().min(1).max(200),
   ownerEmail: z.union([z.literal(''), z.string().trim().toLowerCase().email('بريد غير صالح').max(160)]),
+  ownerPassword: z.string().max(200).default(''),
   seed: z.boolean(),
 })
 
@@ -27,11 +28,34 @@ export async function setupAction(raw: unknown): Promise<SetupResult> {
   if (!(envVar('ADMIN_PASSWORD') ?? '')) return { ok: false, steps: [], error: 'أضف ADMIN_PASSWORD في إعدادات المتغيرات والأسرار أولاً' }
   if (!passwordOk(p.data.password)) return { ok: false, steps: [], error: 'كلمة مرور الإعداد غير صحيحة' }
   try {
-    const r = await runSetup({ ownerEmail: p.data.ownerEmail || undefined, seed: p.data.seed })
+    const r = await runSetup({ ownerEmail: p.data.ownerEmail || undefined, ownerPassword: p.data.ownerPassword, seed: p.data.seed })
     revalidatePath('/', 'layout')
     return r
   } catch (e) {
     console.error('setup', e)
     return { ok: false, steps: [], error: `تعذّرت التهيئة — ${e instanceof Error ? e.message : 'خطأ غير معروف'}`.slice(0, 300) }
+  }
+}
+
+const ownerInput = z.object({
+  password: z.string().min(1).max(200),
+  email: z.string().trim().toLowerCase().email('بريد غير صالح').max(160),
+  newPassword: z.string().max(200),
+  confirm: z.string().max(200),
+  clearTwoStep: z.boolean(),
+})
+
+/** حساب المالك: تعيين كلمة المرور أو استعادته — بكلمة مرور الإعداد وحدها (مخرج الطوارئ إن نُسيت أو فُقد جهاز التحقق) */
+export async function ownerAction(raw: unknown): Promise<SetupResult> {
+  if (await limited('setup-owner', 6, 15 * 60e3)) return { ok: false, steps: [], error: 'محاولات كثيرة — انتظر ربع ساعة' }
+  const p = ownerInput.safeParse(raw)
+  if (!p.success) return { ok: false, steps: [], error: p.error.issues[0]?.message ?? 'بيانات غير صالحة' }
+  if (!passwordOk(p.data.password)) return { ok: false, steps: [], error: 'كلمة مرور الإعداد غير صحيحة' }
+  if (p.data.newPassword !== p.data.confirm) return { ok: false, steps: [], error: 'كلمتا المرور غير متطابقتين' }
+  try {
+    return await setOwnerPassword(p.data.email, p.data.newPassword, p.data.clearTwoStep)
+  } catch (e) {
+    console.error('setup-owner', e)
+    return { ok: false, steps: [], error: 'تعذّر الحفظ' }
   }
 }
