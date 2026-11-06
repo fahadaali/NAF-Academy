@@ -12,7 +12,7 @@ export async function Curtain() {
   return (
     <div className={styles.curtain} aria-hidden="true">
       <div className={styles.core}>
-        <LiveLogo pair={full ? brand.lockup : brand.academy} alt="" height={full ? 120 : 92} tone="dark" />
+        <LiveLogo pair={full ? brand.lockup : brand.academy} alt="" height={full ? 120 : 92} />
         {(brand.showName || !logo) && <span className={styles.name}>{brand.name}</span>}
       </div>
     </div>

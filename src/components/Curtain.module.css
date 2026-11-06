@@ -1,6 +1,6 @@
 .curtain {
   position: fixed; inset: 0; z-index: 90; display: none;
-  place-items: center; background: var(--night-0); color: var(--gold-3);
+  place-items: center; background: var(--scene-bg); color: var(--scene-mark);
 }
 :global(html.opening) .curtain { display: grid; }
 :global(html.unveil) .curtain {

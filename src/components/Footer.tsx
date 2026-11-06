@@ -11,7 +11,7 @@ export async function Footer({ title, cta, brand }: { title: string; cta: string
         <a href="/courses" className="btn reveal" style={{ ['--d' as string]: 1 }}>{cta}</a>
       </div>
       <div className={`wrap ${styles.bottom}`}>
-        <LiveWordmark brand={brand} className={`${styles.mark} reveal`} tone="dark" />
+        <LiveWordmark brand={brand} className={`${styles.mark} reveal`} />
         <nav aria-label="روابط" className={styles.links}>
           <a href="/courses">الدورات</a>
           <a href="/tracks">المسارات</a>

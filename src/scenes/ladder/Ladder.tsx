@@ -4,13 +4,15 @@ import { useEffect, useRef, useState } from 'react'
 import type { LadderStep } from '@/content/types'
 import { Words } from '@/components/Words'
 import { Kashida } from '@/components/Kashida'
-import { pinProgress, subscribe } from '@/motion/scroll-bus'
+import { follower, pinProgress, subscribe } from '@/motion/scroll-bus'
 import { prefersCalm } from '@/motion/tokens'
 import styles from './Ladder.module.css'
 
 export function Ladder({ title, steps, eyebrow = '' }: { title: string; steps: LadderStep[]; eyebrow?: string }) {
   const ref = useRef<HTMLElement>(null)
   const [step, setStep] = useState(0)
+  /* خط السُّلّم وحده يقرأ --p */
+  const draw = useRef<SVGPathElement>(null)
 
   useEffect(() => {
     const el = ref.current
@@ -18,12 +20,16 @@ export function Ladder({ title, steps, eyebrow = '' }: { title: string; steps: L
     const calm = prefersCalm()
     let p = 0
     let last = -1
+    const fp = follower()
     return subscribe({
       read: ({ vh }) => { p = calm ? 1 : pinProgress(el.getBoundingClientRect(), vh) },
-      write: () => {
-        el.style.setProperty('--p', p.toFixed(4))
+      write: ({ t }) => {
+        /* الخط يُرسم بالمتابِع الناعم، والدرجة تُختار من التقدّم الفعلي */
+        const moving = fp.to(p, t)
+        draw.current?.style.setProperty('--p', fp.value.toFixed(4))
         const s = Math.min(steps.length - 1, Math.floor(p * steps.length * 0.999 + 0.0001))
         if (s !== last) { last = s; setStep(s) }
+        return moving
       },
     })
   }, [steps.length])
@@ -40,7 +46,7 @@ export function Ladder({ title, steps, eyebrow = '' }: { title: string; steps: L
             <Words as="h2" id="ladder-title" text={title} className={`scene-title ${styles.title}`} />
             <svg viewBox="-10 20 320 240" className={styles.svg} aria-hidden="true">
               <path d={path} className={styles.track} />
-              <path d={path} className={styles.draw} pathLength={1} />
+              <path ref={draw} d={path} className={styles.draw} pathLength={1} />
               {[{ x: 250, y: 200 }, { x: 150, y: 120 }, { x: 50, y: 40 }].map((c, i) => (
                 <g key={i} className={styles.node} data-on={i <= step ? '1' : '0'}>
                   <circle cx={c.x} cy={c.y} r="9" />

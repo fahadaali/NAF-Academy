@@ -2,7 +2,7 @@
 /* الشريط العلوي: زجاجي عند التمرير، يختفي نزولاً ويعود صعوداً، مع مؤشّر تقدّم القراءة
    والقسم الحالي، ومبدّل الوضع بالدائرة. */
 import { useEffect, useRef, useState } from 'react'
-import { subscribe } from '@/motion/scroll-bus'
+import { follower, subscribe } from '@/motion/scroll-bus'
 import { currentTheme, switchTheme, type Theme } from '@/motion/theme'
 import { Wordmark } from './Logo'
 import type { BrandView } from '@/lib/brand'
@@ -30,6 +30,7 @@ export function Header({ nav, brand }: { nav: Item[]; brand: BrandView }) {
 
     let lastY = 0
     let night = false
+    const fp = follower()
     const nights = Array.from(document.querySelectorAll<HTMLElement>('[data-surface="night"]'))
     const off = subscribe({
       read: () => {
@@ -39,15 +40,18 @@ export function Header({ nav, brand }: { nav: Item[]; brand: BrandView }) {
           return r.top <= mid && r.bottom >= mid
         })
       },
-      write: ({ y, max }) => {
-        bar.current?.style.setProperty('--p', String(y / max))
+      write: ({ y, max, t }) => {
+        const moving = fp.to(y / max, t)
+        bar.current?.style.setProperty('--p', fp.value.toFixed(4))
         const h = head.current
-        if (!h) return
-        h.dataset.solid = y > 24 ? '1' : '0'
-        h.dataset.night = night ? '1' : '0'
-        const down = y > lastY && y > 320
-        h.dataset.hidden = down ? '1' : '0'
+        if (!h) return moving
+        /* الخصائص تُكتب عند تغيّرها فقط — كل كتابة تُبطل أنماط الشريط */
+        const set = (k: 'solid' | 'night' | 'hidden', v: string) => { if (h.dataset[k] !== v) h.dataset[k] = v }
+        set('solid', y > 24 ? '1' : '0')
+        set('night', night ? '1' : '0')
+        if (y !== lastY) set('hidden', y > lastY && y > 320 ? '1' : '0')
         lastY = y
+        return moving
       },
     })
 

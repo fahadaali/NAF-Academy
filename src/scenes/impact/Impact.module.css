@@ -2,7 +2,7 @@
 .impact::before { content: ''; position: absolute; inset: -40% 20%; background: radial-gradient(closest-side, color-mix(in srgb, var(--gold-3) 12%, transparent), transparent); pointer-events: none; }
 .grid { position: relative; display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
 .stat { display: grid; gap: 6px; padding-inline-start: 22px; border-inline-start: 1px solid var(--scene-line); }
-.value { font-size: clamp(44px, 6vw, 84px); font-weight: 900; line-height: 1; color: var(--gold-4); letter-spacing: -0.02em; }
+.value { font-size: clamp(44px, 6vw, 84px); font-weight: 900; line-height: 1; color: var(--scene-accent); letter-spacing: -0.02em; }
 .suffix { font-size: 0.55em; margin-inline-start: 4px; }
 .label { color: var(--scene-muted); font-size: 16px; }
 @media (max-width: 800px) { .grid { grid-template-columns: repeat(2, 1fr); row-gap: 40px; } }

@@ -229,7 +229,13 @@ export function stepField(f: Field, p: number, t: number, ptr: Pointer, dpr: num
 
 /* ───────── الرسم ───────── */
 
-export type Renderer = { draw: (f: Field, w: number, h: number) => void; resize: (w: number, h: number) => void; kind: 'webgl2' | '2d' }
+export type Renderer = {
+  draw: (f: Field, w: number, h: number) => void
+  resize: (w: number, h: number) => void
+  /** يعيد قراءة اللون من الرموز (بعد تبديل الوضع) */
+  recolor: () => void
+  kind: 'webgl2' | '2d'
+}
 
 const VS = `#version 300 es
 in vec2 a_pos; in float a_size; in float a_alpha;
@@ -250,16 +256,16 @@ void main(){
   o = vec4(u_color * a, a);
 }`
 
-/** لون الجسيمات من رموز الهوية (--gold-4) — لا قيمة لون في الشيفرة */
-function particleColor(): [number, number, number] {
-  const hex = getComputedStyle(document.documentElement).getPropertyValue('--gold-4').trim().replace('#', '')
+/** لون الجسيمات من رموز الهوية (--scene-particle: ذهبي فاتح على الليل، وأغمق على الرقّ) — لا قيمة لون في الشيفرة */
+function particleColor(el: Element): [number, number, number] {
+  const hex = getComputedStyle(el).getPropertyValue('--scene-particle').trim().replace('#', '')
   const full = hex.length === 3 ? hex.split('').map((c) => c + c).join('') : hex
   const n = parseInt(full, 16)
   return Number.isFinite(n) && full.length === 6 ? [(n >> 16) & 255, (n >> 8) & 255, n & 255] : [224, 188, 110]
 }
 
 export function makeRenderer(canvas: HTMLCanvasElement): Renderer | null {
-  const [cr, cg, cb] = particleColor()
+  let [cr, cg, cb] = particleColor(canvas)
   const gl = canvas.getContext('webgl2', { premultipliedAlpha: true, antialias: false, alpha: true })
   if (gl) {
     const sh = (type: number, src: string) => {
@@ -295,6 +301,10 @@ export function makeRenderer(canvas: HTMLCanvasElement): Renderer | null {
         gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA)
         return {
           kind: 'webgl2',
+          recolor: () => {
+            ;[cr, cg, cb] = particleColor(canvas)
+            gl.uniform3f(uColor, cr / 255, cg / 255, cb / 255)
+          },
           resize: (w, h) => {
             gl.viewport(0, 0, w, h)
             gl.uniform2f(uRes, w, h)
@@ -314,6 +324,7 @@ export function makeRenderer(canvas: HTMLCanvasElement): Renderer | null {
   return {
     kind: '2d',
     resize: () => {},
+    recolor: () => { [cr, cg, cb] = particleColor(canvas) },
     draw: (f, w, h) => {
       ctx.clearRect(0, 0, w, h)
       ctx.fillStyle = `rgb(${cr} ${cg} ${cb})`

@@ -95,11 +95,25 @@
   --scrim: rgb(7 14 22 / 0.62);
   --glass: rgb(253 251 246 / 0.84);
 
-  /* سطح المشاهد السردية — ليلي دائماً في الوضعين */
-  --scene-bg: var(--night-1);
-  --scene-text: var(--parchment);
-  --scene-muted: #a6adb4;
-  --scene-line: rgb(239 233 219 / 0.12);
+  /* أسطح ليلية ثابتة في الوضعين — أغلفة المسارات، لوحة الإدارة الجانبية، العدّ التنازلي، أزرار فوق الصور والفيديو */
+  --night-ink: var(--parchment);
+  --night-muted: #a6adb4;
+  --night-line: rgb(239 233 219 / 0.12);
+
+  /* سطح المشاهد السردية (الافتتاحية، الأثر، التذييل، رؤوس الصفحات، الستار) — يتبع الوضع المختار:
+     رقّي فاتح في الفاتح، ليلي في الداكن. كل لون داخل مشهد من هذه الأدوار لا من اللوحة الخام */
+  --scene-bg: var(--parchment);
+  --scene-text: var(--ink-1);
+  --scene-muted: var(--ink-3);
+  --scene-line: rgb(20 32 43 / 0.14);
+  /* نص مميّز (العناوين الملوّنة والروابط) — 4.5:1 على سطح المشهد */
+  --scene-accent: var(--accent);
+  /* علامات زخرفية (المؤشر، الكتاب، الخطوط) */
+  --scene-mark: var(--gold-2);
+  /* لون الجسيمات في مشهد الافتتاحية */
+  --scene-particle: var(--gold-1);
+  /* طبقة شفافة فوق المشهد (الشريط المصمت، أزرار فوق الغلاف) */
+  --scene-veil: var(--ivory-0);
 
   /* — الخط — */
   --font-fallback: system-ui, -apple-system, 'Segoe UI', 'Noto Sans Arabic', sans-serif;
@@ -185,6 +199,13 @@
     --danger: var(--ember-soft);
     --glass: rgb(11 21 32 / 0.82);
     --scene-bg: var(--night-0);
+    --scene-text: var(--night-ink);
+    --scene-muted: var(--night-muted);
+    --scene-line: var(--night-line);
+    --scene-accent: var(--gold-4);
+    --scene-mark: var(--gold-3);
+    --scene-particle: var(--gold-4);
+    --scene-veil: var(--night-0);
     --shadow-1: 0 1px 2px rgb(0 0 0 / 0.3), 0 4px 16px rgb(0 0 0 / 0.25);
     --shadow-2: 0 2px 6px rgb(0 0 0 / 0.35), 0 18px 48px rgb(0 0 0 / 0.45);
     color-scheme: dark;
@@ -212,6 +233,13 @@
   --danger: var(--ember-soft);
   --glass: rgb(11 21 32 / 0.82);
   --scene-bg: var(--night-0);
+  --scene-text: var(--night-ink);
+  --scene-muted: var(--night-muted);
+  --scene-line: var(--night-line);
+  --scene-accent: var(--gold-4);
+  --scene-mark: var(--gold-3);
+  --scene-particle: var(--gold-4);
+  --scene-veil: var(--night-0);
   --shadow-1: 0 1px 2px rgb(0 0 0 / 0.3), 0 4px 16px rgb(0 0 0 / 0.25);
   --shadow-2: 0 2px 6px rgb(0 0 0 / 0.35), 0 18px 48px rgb(0 0 0 / 0.45);
   color-scheme: dark;

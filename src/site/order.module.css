@@ -2,9 +2,9 @@
 .hero { position: relative; overflow: hidden; background: var(--scene-bg); color: var(--scene-text); padding-block: calc(var(--header-h) + clamp(50px, 10vh, 110px)) clamp(50px, 9vh, 90px); }
 .heroInner { position: relative; display: grid; gap: 18px; justify-items: start; }
 .title { display: block; font-family: var(--font-display); font-size: clamp(44px, 7vw, 96px); font-weight: 900; line-height: 1.2; --swsh: 1; font-feature-settings: 'swsh' 1; }
-.hero[data-state='paid'] .title :global(.w) > span { color: var(--gold-4); }
+.hero[data-state='paid'] .title :global(.w) > span { color: var(--scene-accent); }
 .lead { font-size: var(--fs-statement); color: var(--scene-muted); max-inline-size: 52ch; }
-.lead a { color: var(--gold-4); text-decoration: underline; }
+.lead a { color: var(--scene-accent); text-decoration: underline; }
 .burst { position: absolute; inset: 0; pointer-events: none; }
 .burst span {
   position: absolute; inset-block-start: 55%; inset-inline-start: 50%; inline-size: 7px; block-size: 7px; border-radius: 1px;
