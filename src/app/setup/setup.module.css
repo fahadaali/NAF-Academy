@@ -1,5 +1,5 @@
-.page { min-block-size: 100svh; display: grid; place-items: center; padding: 40px var(--gutter); background: var(--bg); color: var(--text); }
-.card { inline-size: min(100%, 560px); display: grid; gap: 20px; padding: clamp(22px, 5vw, 40px); border-radius: var(--radius-l); background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow-2); }
+.page { min-block-size: 100svh; display: grid; grid-template-columns: minmax(0, 560px); justify-content: center; align-content: center; padding: 40px var(--gutter); background: var(--bg); color: var(--text); }
+.card { inline-size: 100%; min-inline-size: 0; display: grid; gap: 20px; padding: clamp(22px, 5vw, 40px); border-radius: var(--radius-l); background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow-2); }
 .title { font-family: var(--font-display); font-size: clamp(28px, 5vw, 40px); font-weight: 900; }
 .lead { color: var(--text-soft); line-height: 1.7; }
 .lead a { color: var(--accent); font-weight: 700; }
@@ -11,7 +11,7 @@
 .form { display: grid; gap: 16px; }
 .field { display: grid; gap: 6px; }
 .field span { font-weight: 700; }
-.field input { min-block-size: 46px; padding-inline: 14px; border-radius: var(--radius-m); border: 1px solid var(--line-strong); background: var(--bg); color: var(--text); font: inherit; }
+.field input { inline-size: 100%; min-inline-size: 0; min-block-size: 46px; padding-inline: 14px; border-radius: var(--radius-m); border: 1px solid var(--line-strong); background: var(--bg); color: var(--text); font: inherit; }
 .field input:focus { outline: 2px solid var(--gold-3); outline-offset: 1px; }
 .field small { color: var(--muted); font-size: 13px; }
 .check { display: flex; gap: 10px; align-items: start; font-size: 14px; color: var(--text-soft); }

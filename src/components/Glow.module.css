@@ -3,7 +3,13 @@
   --glow-w: min(640px, 100vw); --glow-h: min(400px, 62.5vw); --r: min(300px, 46vw); --grain: 14px; --beam-at: calc(var(--t-gentle) * 5);
   position: relative; display: inline-grid; place-items: center; isolation: isolate;
 }
-.glow[data-glow='sm'] { --glow-w: min(300px, 80vw); --glow-h: 140px; --r: 120px; --grain: 9px; --beam-at: calc(var(--t-gentle) * 2.5); }
+/* sm (التذييل وصفحة الدخول): كل المقاسات من صندوق الشعار نفسه (--logo-h من Glow) لا أرقام ثابتة —
+   الهالة تمتدّ أفقياً بقدر هامش الصفحة وحده (فتبلغ حافة الشاشة على الأكثر ولا تُقصّ) وعمودياً بنحو 70% من ارتفاع الشعار
+   (فلا تعبر الفاصل فوقه)، والحبّات في محيط الشعار. */
+.glow[data-glow='sm'] { --r: calc(var(--logo-h, 34px) * 1.6); --grain: 9px; --beam-at: calc(var(--t-gentle) * 2.5); }
+.glow[data-glow='sm'] > .halo {
+  inset: calc(var(--logo-h, 34px) * -0.7) calc(var(--gutter) * -1); inline-size: auto; block-size: auto; translate: none;
+}
 
 /* — الهالة: توهّج ذهبي ثابت الرسم خلف الشعار، يظهر مع الكتابة ويشتدّ لحظة الختم ثم يستقر — */
 .halo {

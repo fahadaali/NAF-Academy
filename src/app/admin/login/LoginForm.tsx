@@ -21,7 +21,7 @@ export function LoginForm({ brand, initial = 'password', note }: { brand: BrandV
   return (
     <main id="main" className={styles.page}>
       <div className={styles.card}>
-        <Glow size="sm" shape={pick(brand.academy, 'light')?.url} className={styles.mark}>
+        <Glow size="sm" height={56} shape={pick(brand.academy, 'light')?.url} className={styles.mark}>
           <LogoMark pair={brand.academy} alt={brand.name} height={56} />
         </Glow>
         <h1 className={styles.title}>لوحة {brand.name}</h1>

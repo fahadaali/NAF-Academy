@@ -14,7 +14,7 @@ export async function Footer({ title, cta, brand }: { title: string; cta: string
       </div>
       <div className={`wrap ${styles.bottom}`}>
         {/* اللمسة المتوهجة مرة عند تكشّف الشعار (تنتظر .reveal.in) */}
-        <Glow size="sm" shape={pick(brand.academy, 'light')?.url} className="reveal">
+        <Glow size="sm" height={34} shape={pick(brand.academy, 'light')?.url} className="reveal">
           <LiveWordmark brand={brand} className={styles.mark} />
         </Glow>
         <nav aria-label="روابط" className={styles.links}>
