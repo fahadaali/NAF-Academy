@@ -1,5 +1,5 @@
 .curtain {
-  position: fixed; inset: 0; z-index: 90; display: none;
+  position: fixed; inset: 0; z-index: 90; display: none; overflow: hidden;
   place-items: center; background: var(--scene-bg); color: var(--scene-mark);
 }
 :global(html.opening) .curtain { display: grid; }
@@ -19,7 +19,8 @@
 
 /* — الهالة: توهّج ذهبي ثابت الرسم خلف الشعار، يظهر مع الكتابة ويشتدّ لحظة الختم ثم يستقر — */
 .halo {
-  position: absolute; inset: 50% auto auto 50%; inline-size: 640px; block-size: 400px; margin: -200px 0 0 -320px; z-index: 0;
+  /* لا يتجاوز عرض الشاشة (الشاشات الضيقة): ضعف عرض الشعار بسقف الشاشة */
+  position: absolute; inset: 50% auto auto 50%; inline-size: min(640px, 100vw); block-size: min(400px, 62.5vw); translate: -50% -50%; z-index: 0;
   border-radius: 50%; pointer-events: none;
   background: radial-gradient(closest-side, color-mix(in srgb, var(--scene-glow) 34%, transparent), color-mix(in srgb, var(--scene-glow) 10%, transparent) 55%, transparent);
   animation: halo calc(var(--t-gentle) * 7) var(--ease-glide) var(--t-gentle) backwards;
@@ -35,7 +36,7 @@
 /* — الحبّات: نقاط ذهبية بنواة وهالة (رسم ثابت) تتجمّع نحو الشعار أثناء كتابته وتخبو — */
 .grains { position: absolute; inset: 50% auto auto 50%; inline-size: 0; block-size: 0; z-index: 1; pointer-events: none; }
 .grains i {
-  --r: 300px;
+  --r: min(300px, 46vw);
   position: absolute; inline-size: 14px; block-size: 14px; margin: -7px; border-radius: 50%;
   background: radial-gradient(circle, var(--scene-particle) 0 18%, color-mix(in srgb, var(--scene-glow) 70%, transparent) 30%, color-mix(in srgb, var(--scene-glow) 0%, transparent) 70%);
   transform: translate3d(calc(var(--gx) * var(--r) * 0.32), calc(var(--gy) * var(--r) * 0.32), 0) scale(calc(var(--gs) * 0.6));
