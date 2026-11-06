@@ -6,7 +6,7 @@ import { revalidatePath } from 'next/cache'
 import { and, count, eq, ne } from 'drizzle-orm'
 import { z } from 'zod'
 import { db, schema as s } from '@/server/db'
-import { requirePermission, type Staff } from '@/server/auth'
+import { authReady, requirePermission, type Staff } from '@/server/auth'
 import { audit } from '@/server/audit'
 import { passwordLink, resetMemberTotp, revokeSessions, sendInviteEmail } from '@/server/staff-auth'
 import { PERMS, ROLES, roleDefaults, type Role } from '@/lib/permissions'
@@ -22,8 +22,11 @@ const guardOwner = (me: Staff, target: { role: string }) => target.role === 'own
 
 export type LinkResult = { ok: boolean; error?: string; link?: string; mailed?: boolean }
 
+const NOT_READY = 'الروابط الموقّعة تحتاج السرّ ADMIN_SECRET في Cloudflare ← Variables and Secrets — أضفه ثم أعد المحاولة'
+
 export async function inviteMember(raw: { email: string; name: string; role: string }): Promise<LinkResult> {
   const me = await requirePermission('team.manage')
+  if (!authReady()) return { ok: false, error: NOT_READY }
   const p = z.object({ email: z.string().trim().toLowerCase().email('بريد غير صالح').max(160), name: z.string().trim().max(120), role: z.enum(ROLES) }).safeParse(raw)
   if (!p.success) return { ok: false, error: p.error.issues[0]?.message }
   if (p.data.role === 'owner' && me.role !== 'owner') return { ok: false, error: 'دور المالك يمنحه مالك فقط' }
@@ -40,6 +43,7 @@ export async function inviteMember(raw: { email: string; name: string; role: str
 /** رابط تعيين كلمة المرور لعضو: دعوة إن لم يعيّنها بعد، وإعادة تعيين إن عيّنها (يُخرجه من أجهزته متى استُعمل) */
 export async function memberPasswordLink(userId: string): Promise<LinkResult> {
   const me = await requirePermission('team.manage')
+  if (!authReady()) return { ok: false, error: NOT_READY }
   if (typeof userId !== 'string') return { ok: false, error: 'بيانات غير صالحة' }
   const [m] = await db.select().from(s.members).where(eq(s.members.userId, userId))
   if (!m) return { ok: false, error: 'العضو غير موجود' }

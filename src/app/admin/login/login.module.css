@@ -1,11 +1,12 @@
-.page { min-block-size: 100svh; display: grid; place-items: center; padding: 24px; background: var(--bg); }
-.card { inline-size: min(100%, 420px); display: grid; gap: 14px; padding: 36px 30px; border-radius: var(--radius-l); background: var(--surface); box-shadow: var(--shadow-2); border: 1px solid var(--line); }
+/* عمود واحد لا يتجاوز المتاح (minmax 0): عرض الحقول الذاتي لا يمدّد البطاقة فتنزاح على الجوال */
+.page { min-block-size: 100svh; display: grid; grid-template-columns: minmax(0, 420px); justify-content: center; align-content: center; padding: 24px; background: var(--bg); }
+.card { inline-size: 100%; min-inline-size: 0; display: grid; gap: 14px; padding: 36px 30px; border-radius: var(--radius-l); background: var(--surface); box-shadow: var(--shadow-2); border: 1px solid var(--line); }
 .mark { color: var(--gold-3); justify-self: center; }
 .title { font-family: var(--font-display); font-size: 30px; text-align: center; }
 .form { display: grid; gap: 14px; }
 .sub { color: var(--muted); text-align: center; font-size: 15px; line-height: 1.7; }
 .field { display: grid; gap: 6px; font-size: 14px; color: var(--muted); }
-.field input { min-block-size: 50px; padding-inline: 14px; border-radius: var(--radius-m); border: 1px solid var(--line-strong); background: var(--bg); font-size: 16px; color: var(--text); transition: border-color var(--t-base) var(--ease-move), box-shadow var(--t-base) var(--ease-move); }
+.field input { inline-size: 100%; min-inline-size: 0; min-block-size: 50px; padding-inline: 14px; border-radius: var(--radius-m); border: 1px solid var(--line-strong); background: var(--bg); font-size: 16px; color: var(--text); transition: border-color var(--t-base) var(--ease-move), box-shadow var(--t-base) var(--ease-move); }
 .field input:focus { outline: none; border-color: var(--gold-3); box-shadow: 0 0 0 4px color-mix(in srgb, var(--gold-3) 18%, transparent); }
 .field input[readonly] { color: var(--muted); }
 .code { font-size: 26px !important; letter-spacing: 0.4em; text-align: center; font-variant-numeric: tabular-nums; }

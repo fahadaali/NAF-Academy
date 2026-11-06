@@ -3,7 +3,7 @@ import 'server-only'
    القفل بعد المحاولات الخاطئة في القاعدة (يصمد عبر نسخ العامل)، والحدّ لكل عنوان من limited(). */
 import { and, count, eq, isNotNull, sql } from 'drizzle-orm'
 import { db, schema as s } from './db'
-import { authSecret, createSession, createStep, pendingStep } from './auth'
+import { authReady, authSecret, createSession, createStep, pendingStep } from './auth'
 import { siteUrl } from './site'
 import { emailBrand } from './brand'
 import { channelOpen, send } from './notify/channels'
@@ -86,6 +86,7 @@ export async function passwordLink(m: Pick<MemberRow, 'userId' | 'sessionVersion
 }
 
 export async function linkTarget(token: string): Promise<{ member: MemberRow; purpose: 'invite' | 'reset' } | null> {
+  if (!authReady()) return null
   const t = await readToken<LinkToken>(token, authSecret(), 'staff-pw')
   if (!t) return null
   const [m] = await db.select().from(s.members).where(eq(s.members.userId, t.u))

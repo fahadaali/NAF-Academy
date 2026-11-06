@@ -11,9 +11,9 @@ const grains = (n: number) => Array.from({ length: n }, (_, i) => {
 })
 const SETS = { lg: grains(12), sm: grains(7) }
 
-export function Glow({ children, shape, size = 'lg', className = '' }: { children: ReactNode; shape?: string | null; size?: 'lg' | 'sm'; className?: string }) {
+export function Glow({ children, shape, size = 'lg', height, className = '' }: { children: ReactNode; shape?: string | null; size?: 'lg' | 'sm'; height?: number; className?: string }) {
   return (
-    <span className={`${styles.glow} ${className}`} data-glow={size}>
+    <span className={`${styles.glow} ${className}`} data-glow={size} style={height ? ({ '--logo-h': `${height}px` } as CSSProperties) : undefined}>
       <span className={styles.halo} aria-hidden="true" />
       <span className={styles.grains} aria-hidden="true">
         {SETS[size].map((g) => (

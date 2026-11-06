@@ -57,3 +57,58 @@ test('لا شيء خارج الشاشة على 390px — اللوحة', async ({
     expect(await a.evaluate(overflow), path).toEqual({ scroll: 0, bad: [] })
   }
 })
+
+/* اللمسة المتوهجة: هالتها وحبّاتها (في أبعد مواضعها، أول الحركة) داخل الشاشة — لا تُقصّ عند الحواف —
+   وهالة التذييل لا تعبر الفاصل فوق الشعار */
+const glowFits = () => {
+  const vw = document.documentElement.clientWidth
+  const bad: string[] = []
+  for (const a of document.getAnimations()) {
+    const el = (a.effect as KeyframeEffect | null)?.target as Element | null
+    if (el?.closest('[data-glow]')) { a.pause(); a.currentTime = 0 }
+  }
+  for (const g of document.querySelectorAll<HTMLElement>('[data-glow]')) {
+    if (!g.offsetParent && getComputedStyle(g).position !== 'fixed') continue
+    const layers = [...g.querySelectorAll<HTMLElement>('[class*="halo"], [class*="grains"] > i')]
+    for (const l of layers) {
+      const r = l.getBoundingClientRect()
+      if (!r.width) continue
+      if (r.left < -1 || r.right > vw + 1) bad.push(`${g.dataset.glow}:${String(l.className).slice(0, 24)} ${Math.round(r.left)}..${Math.round(r.right)}/${vw}`)
+    }
+    const line = g.closest('footer')?.querySelector('[class*="cta"]')
+    const halo = g.querySelector('[class*="halo"]')
+    if (line && halo && halo.getBoundingClientRect().top < line.getBoundingClientRect().bottom - 1) bad.push('footer halo crosses divider')
+  }
+  return [...new Set(bad)].slice(0, 6)
+}
+
+for (const width of [360, 390, 1366]) {
+  test(`اللمسة المتوهجة داخل الشاشة على ${width}px — التذييل وصفحة الدخول`, async ({ browser }) => {
+    const p = await (await browser.newContext({ viewport: { width, height: 800 } })).newPage()
+    await p.goto('/courses')
+    await p.waitForLoadState('networkidle')
+    await p.evaluate(() => scrollTo(0, document.body.scrollHeight))
+    await p.waitForTimeout(600)
+    expect(await p.evaluate(glowFits)).toEqual([])
+    await p.goto('/admin/login')
+    await p.waitForLoadState('networkidle')
+    expect(await p.evaluate(glowFits)).toEqual([])
+  })
+}
+
+test('صفحات البطاقة المفردة متمركزة على الجوال — الدخول وتعيين كلمة المرور والتهيئة', async ({ browser }) => {
+  for (const width of [360, 390]) {
+    const p = await (await browser.newContext({ viewport: { width, height: 760 } })).newPage()
+    for (const path of ['/admin/login', '/admin/set-password?t=invalid', '/setup']) {
+      const res = await p.goto(path)
+      expect(res?.status(), path).toBe(200)
+      const gaps = await p.evaluate(() => {
+        const card = document.querySelector('main')!.firstElementChild as HTMLElement
+        const r = card.getBoundingClientRect()
+        return { left: Math.round(r.left), right: Math.round(document.documentElement.clientWidth - r.right) }
+      })
+      expect(Math.abs(gaps.left - gaps.right), `${path} @${width} ${JSON.stringify(gaps)}`).toBeLessThanOrEqual(2)
+      expect(gaps.left, path).toBeGreaterThanOrEqual(8)
+    }
+  }
+})
