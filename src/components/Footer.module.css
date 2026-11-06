@@ -1,4 +1,4 @@
-.footer { background: var(--scene-bg); color: var(--scene-text); padding-block: clamp(90px, 16vh, 170px) 36px; }
+.footer { background: var(--scene-bg); color: var(--scene-text); padding-block: clamp(90px, 16vh, 170px) 36px; overflow: clip; }
 .cta { display: grid; justify-items: start; gap: 28px; padding-block-end: 90px; border-block-end: 1px solid var(--scene-line); }
 .big { display: block; font-family: var(--font-display); font-size: var(--fs-display); font-weight: 900; line-height: 1.15; max-inline-size: 16ch; --swsh: 1; font-feature-settings: 'swsh' 1; }
 .bottom { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 20px; padding-block-start: 30px; }
