@@ -1,9 +1,16 @@
-.page { min-block-size: 100svh; display: grid; place-items: center; padding: 24px; background: radial-gradient(60% 60% at 50% 40%, var(--night-2), var(--night-0)); }
-.card { inline-size: min(100%, 400px); display: grid; gap: 14px; padding: 36px 30px; border-radius: var(--radius-l); background: var(--surface); box-shadow: var(--shadow-2); border: 1px solid var(--line); }
+.page { min-block-size: 100svh; display: grid; place-items: center; padding: 24px; background: var(--bg); }
+.card { inline-size: min(100%, 420px); display: grid; gap: 14px; padding: 36px 30px; border-radius: var(--radius-l); background: var(--surface); box-shadow: var(--shadow-2); border: 1px solid var(--line); }
 .mark { color: var(--gold-3); justify-self: center; }
 .title { font-family: var(--font-display); font-size: 30px; text-align: center; }
-.sub { color: var(--muted); text-align: center; font-size: 15px; margin-block-end: 6px; }
+.form { display: grid; gap: 14px; }
+.sub { color: var(--muted); text-align: center; font-size: 15px; line-height: 1.7; }
 .field { display: grid; gap: 6px; font-size: 14px; color: var(--muted); }
-.field input { min-block-size: 50px; padding-inline: 14px; border-radius: var(--radius-m); border: 1px solid var(--line-strong); background: var(--bg); font-size: 16px; color: var(--text); }
+.field input { min-block-size: 50px; padding-inline: 14px; border-radius: var(--radius-m); border: 1px solid var(--line-strong); background: var(--bg); font-size: 16px; color: var(--text); transition: border-color var(--t-base) var(--ease-move), box-shadow var(--t-base) var(--ease-move); }
 .field input:focus { outline: none; border-color: var(--gold-3); box-shadow: 0 0 0 4px color-mix(in srgb, var(--gold-3) 18%, transparent); }
+.field input[readonly] { color: var(--muted); }
+.code { font-size: 26px !important; letter-spacing: 0.4em; text-align: center; font-variant-numeric: tabular-nums; }
 .error { color: var(--danger); font-size: 14px; font-weight: 600; }
+.ok { color: var(--success); font-size: 14px; font-weight: 600; }
+.link { justify-self: center; min-block-size: 40px; color: var(--accent-strong); font-size: 14px; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+.hint { color: var(--muted); font-size: 13px; line-height: 1.7; text-align: center; }
+.hint a { color: var(--accent-strong); text-decoration: underline; }

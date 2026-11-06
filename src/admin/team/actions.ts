@@ -1,39 +1,66 @@
 'use server'
-/* الفريق: دعوة بالبريد، وتغيير الدور، والإيقاف — مع تبليغ المركز عند الدخول الموحّد. */
+/* الفريق: دعوة بالبريد (رابط تعيين كلمة المرور)، وتغيير الدور، والإيقاف، وروابط إعادة التعيين، وإلغاء التحقق الثنائي.
+   الحسابات مستقلة في جدول members — لا هوية خارجية. ما يخصّ المالك (منح دور المالك، روابط حسابه، تحققه الثنائي) للمالك وحده. */
+import { randomUUID } from 'node:crypto'
 import { revalidatePath } from 'next/cache'
-import { brandView } from '@/server/brand'
 import { and, count, eq, ne } from 'drizzle-orm'
 import { z } from 'zod'
 import { db, schema as s } from '@/server/db'
-import { requirePermission, staffMode } from '@/server/auth'
+import { requirePermission, type Staff } from '@/server/auth'
 import { audit } from '@/server/audit'
-import { cfEnv } from '@/server/runtime'
+import { passwordLink, resetMemberTotp, revokeSessions, sendInviteEmail } from '@/server/staff-auth'
 import { PERMS, ROLES, roleDefaults, type Role } from '@/lib/permissions'
 import { channelState, saveChannelSettings, type ChannelSettings } from '@/server/notify/channels'
-
-async function report(email: string | null, state: 'granted' | 'revoked', reason: string, role?: string) {
-  if (staffMode() !== 'naf-auth' || !email) return
-  const env = cfEnv()
-  if (!env) return
-  const { reportAccessChange } = await import('naf-auth')
-  const { ssoConfig } = await import('@/server/sso')
-  await reportAccessChange(env, ssoConfig(env), { email, state, reason, ...(role ? { role } : {}) }).catch(() => {})
-}
 
 async function ownersLeft(exceptId: string) {
   const [r] = await db.select({ n: count() }).from(s.members).where(and(eq(s.members.role, 'owner'), eq(s.members.isActive, 1), ne(s.members.userId, exceptId)))
   return r.n
 }
 
-export async function inviteMember(raw: { email: string; name: string; role: string }): Promise<{ ok: boolean; error?: string }> {
+/** حساب المالك لا يمسّه إلا مالك (فلا يستولي عضو بصلاحية الفريق على حساب المالك) */
+const guardOwner = (me: Staff, target: { role: string }) => target.role === 'owner' && me.role !== 'owner'
+
+export type LinkResult = { ok: boolean; error?: string; link?: string; mailed?: boolean }
+
+export async function inviteMember(raw: { email: string; name: string; role: string }): Promise<LinkResult> {
   const me = await requirePermission('team.manage')
-  const p = z.object({ email: z.string().trim().toLowerCase().email('بريد غير صالح'), name: z.string().trim().max(120), role: z.enum(ROLES) }).safeParse(raw)
+  const p = z.object({ email: z.string().trim().toLowerCase().email('بريد غير صالح').max(160), name: z.string().trim().max(120), role: z.enum(ROLES) }).safeParse(raw)
   if (!p.success) return { ok: false, error: p.error.issues[0]?.message }
+  if (p.data.role === 'owner' && me.role !== 'owner') return { ok: false, error: 'دور المالك يمنحه مالك فقط' }
   const [dup] = await db.select().from(s.members).where(eq(s.members.email, p.data.email))
   if (dup) return { ok: false, error: 'هذا البريد في الفريق من قبل' }
-  await db.insert(s.members).values({ userId: `invite:${p.data.email}`, email: p.data.email, displayName: p.data.name || null, role: p.data.role, isActive: 1, createdAt: Math.floor(Date.now() / 1000) })
-  await report(p.data.email, 'granted', `دعوة إلى لوحة ${(await brandView()).name}`, p.data.role)
+  const [m] = await db.insert(s.members).values({ userId: randomUUID(), email: p.data.email, displayName: p.data.name || null, role: p.data.role, isActive: 1, createdAt: Math.floor(Date.now() / 1000) }).returning()
+  const link = await passwordLink(m, 'invite')
+  const mailed = await sendInviteEmail(m, link, me.name)
   await audit(me.name, 'invite', 'member', p.data.email, p.data.role)
+  revalidatePath('/admin/team')
+  return { ok: true, link, mailed }
+}
+
+/** رابط تعيين كلمة المرور لعضو: دعوة إن لم يعيّنها بعد، وإعادة تعيين إن عيّنها (يُخرجه من أجهزته متى استُعمل) */
+export async function memberPasswordLink(userId: string): Promise<LinkResult> {
+  const me = await requirePermission('team.manage')
+  if (typeof userId !== 'string') return { ok: false, error: 'بيانات غير صالحة' }
+  const [m] = await db.select().from(s.members).where(eq(s.members.userId, userId))
+  if (!m) return { ok: false, error: 'العضو غير موجود' }
+  if (!m.isActive) return { ok: false, error: 'فعّل العضو أولاً' }
+  if (guardOwner(me, m)) return { ok: false, error: 'حساب المالك يديره مالك فقط' }
+  const purpose = m.passwordHash ? 'reset' : 'invite'
+  const link = await passwordLink(m, purpose)
+  const mailed = purpose === 'invite' ? await sendInviteEmail(m, link, me.name) : false
+  await audit(me.name, purpose === 'invite' ? 'invite-link' : 'reset-link', 'member', m.email ?? userId, purpose === 'invite' ? 'رابط دعوة' : 'رابط إعادة تعيين كلمة المرور')
+  return { ok: true, link, mailed }
+}
+
+/** لعضو فقد جهاز المصادقة: يُلغى تحققه الثنائي وتسقط جلساته، فيدخل بكلمة المرور ثم يفعّله من جديد */
+export async function resetMemberTwoStep(userId: string): Promise<{ ok: boolean; error?: string }> {
+  const me = await requirePermission('team.manage')
+  if (typeof userId !== 'string') return { ok: false, error: 'بيانات غير صالحة' }
+  const [m] = await db.select().from(s.members).where(eq(s.members.userId, userId))
+  if (!m) return { ok: false, error: 'العضو غير موجود' }
+  if (guardOwner(me, m)) return { ok: false, error: 'حساب المالك يديره مالك فقط' }
+  await resetMemberTotp(userId)
+  await audit(me.name, '2fa-reset', 'member', m.email ?? userId, 'ألغى التحقق الثنائي للعضو')
   revalidatePath('/admin/team')
   return { ok: true }
 }
@@ -43,9 +70,9 @@ export async function setMemberRole(userId: string, role: Role): Promise<{ ok: b
   if (!ROLES.includes(role)) return { ok: false, error: 'دور غير معروف' }
   const [m] = await db.select().from(s.members).where(eq(s.members.userId, userId))
   if (!m) return { ok: false, error: 'العضو غير موجود' }
+  if ((role === 'owner' || m.role === 'owner') && me.role !== 'owner') return { ok: false, error: 'دور المالك يمنحه ويسحبه مالك فقط' }
   if (m.role === 'owner' && role !== 'owner' && (await ownersLeft(userId)) === 0) return { ok: false, error: 'لا بد من مالك نشط واحد على الأقل' }
   await db.update(s.members).set({ role }).where(eq(s.members.userId, userId))
-  await report(m.email, 'granted', 'تغيير الدور', role)
   await audit(me.name, 'role', 'member', m.email ?? userId, `${m.role} ← ${role}`)
   revalidatePath('/admin/team')
   return { ok: true }
@@ -57,21 +84,25 @@ export async function setMemberActive(userId: string, active: boolean): Promise<
   const [m] = await db.select().from(s.members).where(eq(s.members.userId, userId))
   if (!m) return { ok: false, error: 'العضو غير موجود' }
   if (!active && userId === me.id) return { ok: false, error: 'لا يمكنك إيقاف نفسك' }
+  if (guardOwner(me, m)) return { ok: false, error: 'حساب المالك يديره مالك فقط' }
   if (!active && m.role === 'owner' && (await ownersLeft(userId)) === 0) return { ok: false, error: 'لا بد من مالك نشط واحد على الأقل' }
   await db.update(s.members).set({ isActive: active ? 1 : 0 }).where(eq(s.members.userId, userId))
-  await report(m.email, active ? 'granted' : 'revoked', active ? 'أُعيد تفعيله من إعدادات الأكاديمية' : 'أُوقف من إعدادات الأكاديمية')
+  /* الإيقاف يُسقط كل جلساته وروابطه فوراً */
+  if (!active) await revokeSessions(userId)
   await audit(me.name, active ? 'enable' : 'disable', 'member', m.email ?? userId, active ? 'تفعيل' : 'إيقاف')
   revalidatePath('/admin/team')
   return { ok: true }
 }
 
-/** تخصيص صلاحيات عضو فوق دوره: منح ما ليس في الدور، أو حجب ما فيه. يُحفظ في جدول الأعضاء الذي يقرؤه الدخول الموحّد. */
+/** تخصيص صلاحيات عضو فوق دوره: منح ما ليس في الدور، أو حجب ما فيه. */
 export async function setMemberPerms(userId: string, raw: { add: string[]; remove: string[] }): Promise<{ ok: boolean; error?: string }> {
   const me = await requirePermission('team.manage')
   const p = z.object({ add: z.array(z.enum(PERMS)).max(PERMS.length), remove: z.array(z.enum(PERMS)).max(PERMS.length) }).safeParse(raw)
   if (!p.success || typeof userId !== 'string') return { ok: false, error: 'بيانات غير صالحة' }
   const [m] = await db.select().from(s.members).where(eq(s.members.userId, userId))
   if (!m) return { ok: false, error: 'العضو غير موجود' }
+  /* المالك صلاحياته كاملة دائماً — لا تخصيص يحجب عنه شيئاً (ولا عن نفسه بالخطأ) */
+  if (m.role === 'owner') return { ok: false, error: 'صلاحيات المالك كاملة ولا تُخصَّص — غيّر دوره أولاً إن لزم' }
   const base = roleDefaults(m.role)
   /* المنح لما ليس في الدور فقط، والحجب لما فيه فقط — فيبقى التخصيص صغيراً ومقروءاً */
   const add = [...new Set(p.data.add)].filter((x) => !base.includes(x))

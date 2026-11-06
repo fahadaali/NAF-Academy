@@ -15,3 +15,15 @@
 
 /* اللمس: أهداف 40px على الأقل */
 @media (pointer: coarse) { .permsBtn, .perm select { min-block-size: 40px; } }
+
+/* الفريق */
+.start { justify-self: start; }
+.err { color: var(--danger); font-weight: 600; margin-block-end: 12px; }
+.warn { color: var(--danger); font-size: 12.5px; margin-block-start: 4px; }
+.role { min-inline-size: 0; min-block-size: 36px; }
+.instructor { margin-block-start: 6px; display: block; }
+.tools { display: flex; flex-wrap: wrap; gap: 4px; margin-block-end: 4px; }
+.link { display: grid; gap: 6px; margin-block-end: 16px; padding: 14px 16px; border-radius: var(--radius-m); background: color-mix(in srgb, var(--gold-3) 12%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gold-3) 35%, transparent); }
+.linkRow { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.linkInput { flex: 1 1 260px; min-inline-size: 0; }
+@media (pointer: coarse) { .role { min-block-size: 40px; } }

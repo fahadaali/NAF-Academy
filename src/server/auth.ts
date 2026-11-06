@@ -1,112 +1,72 @@
 import 'server-only'
-/* دخول اللوحة المؤقت — كلمة مرور من البيئة وجلسة موقّعة HMAC في كوكي httpOnly.
-   يُستبدل بـ naf-auth (الهوية المركزية) في مرحلة الدخول؛ الواجهة requireAdmin() تبقى كما هي. */
-import { cookies, headers } from 'next/headers'
+/* دخول فريق اللوحة — مستقل تماماً عن أي هوية خارجية.
+   لكل عضو حسابه في جدول members: بريد + كلمة مرور (PBKDF2) + تحقق ثنائي اختياري (TOTP).
+   الجلسة رمز موقّع HMAC في كوكي httpOnly يحمل رقم نسخة الحساب (sessionVersion):
+   تغيير كلمة المرور أو الإيقاف أو إعادة التعيين يرفع الرقم فتسقط كل الجلسات والروابط القديمة.
+   المنطق المشفّر في src/lib/staff-crypto.ts، والإجراءات (الدخول، الدعوة، إعادة التعيين) في src/server/staff-auth.ts. */
+import { cookies } from 'next/headers'
+import { redirect } from 'next/navigation'
 import { eq } from 'drizzle-orm'
 import { db, schema as s } from './db'
-import { envVar } from './runtime'
 import { can, isRole, type Perm, type Role } from '@/lib/permissions'
-import { redirect } from 'next/navigation'
+import { readToken, signToken } from '@/lib/staff-crypto'
 
-const COOKIE = 'naf_academy_admin'
+export const SESSION_COOKIE = 'naf_academy_admin'
+export const STEP_COOKIE = 'naf_academy_2fa'
 const TTL = 60 * 60 * 12 // 12 ساعة
-const enc = new TextEncoder()
+const STEP_TTL = 60 * 5 // خمس دقائق لإدخال رمز التحقق الثنائي
 
-function secret() {
-  const s = process.env.ADMIN_SECRET
-  if (s && s.length >= 32) return s
+/** سرّ التوقيع — ADMIN_SECRET (32 حرفاً على الأقل) في الإنتاج */
+export function authSecret() {
+  const v = process.env.ADMIN_SECRET
+  if (v && v.length >= 32) return v
   if (process.env.NODE_ENV === 'production') throw new Error('ADMIN_SECRET missing')
   return 'dev-only-secret-dev-only-secret-0000'
 }
 
-export function adminPassword(): string | null {
-  const p = process.env.ADMIN_PASSWORD
-  if (p) return p
-  return process.env.NODE_ENV === 'production' ? null : 'naf-dev'
-}
-
-const b64 = (b: ArrayBuffer | Uint8Array) => Buffer.from(b instanceof Uint8Array ? b : new Uint8Array(b)).toString('base64url')
-
-async function sign(data: string) {
-  const key = await crypto.subtle.importKey('raw', enc.encode(secret()), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'])
-  return b64(await crypto.subtle.sign('HMAC', key, enc.encode(data)))
-}
-
-/** مقارنة بزمن ثابت */
-export function safeEqual(a: string, b: string) {
-  const x = enc.encode(a)
-  const y = enc.encode(b)
-  let diff = x.length ^ y.length
-  for (let i = 0; i < Math.max(x.length, y.length); i++) diff |= (x[i] ?? 0) ^ (y[i] ?? 0)
-  return diff === 0
-}
-
-export type Admin = { name: string; exp: number }
-
 /** عضو الفريق في هذا الطلب */
-export type Staff = { id: string; name: string; email: string; role: Role; perms: Record<string, unknown> | null; mode: StaffMode; instructorId: string | null }
-export type StaffMode = 'naf-auth' | 'password'
+export type Staff = { id: string; name: string; email: string; role: Role; perms: Record<string, unknown> | null; instructorId: string | null; totp: boolean }
 
-/** naf-auth متى ضُبط في البيئة؛ وإلا دخول كلمة المرور (التطوير، أو مخرج طوارئ صريح) */
-export function staffMode(): StaffMode {
-  return envVar('STAFF_AUTH') === 'naf-auth' ? 'naf-auth' : 'password'
+type SessionToken = { k: 'staff'; u: string; v: number; exp: number }
+type StepToken = { k: 'staff-2fa'; u: string; v: number; exp: number }
+
+const cookieOpts = (maxAge: number) => ({ httpOnly: true, sameSite: 'lax' as const, secure: process.env.NODE_ENV === 'production', path: '/', maxAge })
+
+export async function createSession(userId: string, version: number) {
+  const token = await signToken({ k: 'staff', u: userId, v: version, exp: Math.floor(Date.now() / 1000) + TTL }, authSecret())
+  const jar = await cookies()
+  jar.set(SESSION_COOKIE, token, cookieOpts(TTL))
+  jar.delete(STEP_COOKIE)
 }
 
-/* ترويسات الهوية يحقنها الوسيط بعد التحقق، ويمسح ما انتحله المتصفح منها */
-const H_SUB = 'x-naf-sub'
-const H_ROLE = 'x-naf-role'
-const H_PERMS = 'x-naf-perms'
+/** بعد كلمة مرور صحيحة لحساب مفعّل فيه التحقق الثنائي: خطوة معلّقة قصيرة العمر */
+export async function createStep(userId: string, version: number) {
+  const token = await signToken({ k: 'staff-2fa', u: userId, v: version, exp: Math.floor(Date.now() / 1000) + STEP_TTL }, authSecret())
+  ;(await cookies()).set(STEP_COOKIE, token, { ...cookieOpts(STEP_TTL), path: '/admin' })
+}
 
-export async function createSession(name: string) {
-  const payload = b64(enc.encode(JSON.stringify({ name, exp: Math.floor(Date.now() / 1000) + TTL } satisfies Admin)))
-  const value = `${payload}.${await sign(payload)}`
-  ;(await cookies()).set(COOKIE, value, {
-    httpOnly: true, sameSite: 'lax', secure: process.env.NODE_ENV === 'production', path: '/', maxAge: TTL,
-  })
+export async function pendingStep(): Promise<{ userId: string; version: number } | null> {
+  const t = await readToken<StepToken>((await cookies()).get(STEP_COOKIE)?.value, authSecret(), 'staff-2fa')
+  return t ? { userId: t.u, version: t.v } : null
 }
 
 export async function destroySession() {
-  ;(await cookies()).delete(COOKIE)
-}
-
-async function passwordSession(): Promise<Admin | null> {
-  const raw = (await cookies()).get(COOKIE)?.value
-  if (!raw) return null
-  const [payload, mac] = raw.split('.')
-  if (!payload || !mac || !safeEqual(mac, await sign(payload))) return null
-  try {
-    const a = JSON.parse(Buffer.from(payload, 'base64url').toString()) as Admin
-    return a.exp > Date.now() / 1000 ? a : null
-  } catch {
-    return null
-  }
-}
-
-export async function currentStaff(): Promise<Staff | null> {
-  if (staffMode() === 'naf-auth') {
-    const h = await headers()
-    const sub = h.get(H_SUB)
-    const role = h.get(H_ROLE) ?? ''
-    if (!sub || !isRole(role)) return null
-    let perms: Record<string, unknown> | null = null
-    try { perms = JSON.parse(h.get(H_PERMS) ?? 'null') } catch {}
-    const [m] = await db.select().from(s.members).where(eq(s.members.userId, sub))
-    if (!m || !m.isActive) return null
-    /* الصلاحيات من جدول الأعضاء في الأكاديمية (يقرؤه naf-auth نفسه)؛ وما يصل في الترويسة يُنقص فقط */
-    const local = parsePerms(m.perms)
-    return { id: sub, name: m.displayName || m.email || 'عضو', email: m.email ?? '', role, perms: mergePerms(local, perms), mode: 'naf-auth', instructorId: m.instructorId ?? null }
-  }
-  const a = await passwordSession()
-  return a ? { id: `local:${a.name}`, name: a.name, email: '', role: 'owner', perms: null, mode: 'password', instructorId: null } : null
+  const jar = await cookies()
+  jar.delete(SESSION_COOKIE)
+  jar.delete({ name: STEP_COOKIE, path: '/admin' })
 }
 
 const parsePerms = (x: string | null) => { try { const v = JSON.parse(x ?? 'null'); return v && typeof v === 'object' ? (v as Record<string, unknown>) : null } catch { return null } }
-/** الإضافة من الأكاديمية وحدها؛ والحجب من الاثنين */
-function mergePerms(local: Record<string, unknown> | null, sent: Record<string, unknown> | null): Record<string, unknown> | null {
-  const list = (o: Record<string, unknown> | null, k: string) => (Array.isArray(o?.[k]) ? (o![k] as string[]) : [])
-  const add = list(local, '+')
-  const del = [...new Set([...list(local, '-'), ...list(sent, '-')])]
-  return add.length || del.length ? { '+': add, '-': del } : null
+
+export async function currentStaff(): Promise<Staff | null> {
+  const t = await readToken<SessionToken>((await cookies()).get(SESSION_COOKIE)?.value, authSecret(), 'staff')
+  if (!t) return null
+  const [m] = await db.select().from(s.members).where(eq(s.members.userId, t.u))
+  /* الحساب موقوف، أو بلا كلمة مرور، أو تغيّرت نسخته (كلمة مرور جديدة/إعادة تعيين) — الجلسة ساقطة */
+  if (!m || !m.isActive || !m.passwordHash || m.sessionVersion !== t.v || !isRole(m.role)) return null
+  const now = Math.floor(Date.now() / 1000)
+  if (!m.lastSeenAt || now - m.lastSeenAt > 600) await db.update(s.members).set({ lastSeenAt: now }).where(eq(s.members.userId, m.userId)).catch(() => {})
+  return { id: m.userId, name: m.displayName || m.email || 'عضو', email: m.email ?? '', role: m.role, perms: m.role === 'owner' ? null : parsePerms(m.perms), instructorId: m.instructorId ?? null, totp: !!m.totpEnabledAt }
 }
 
 /** نطاق دورات العضو: المدرب يرى دوراته وحدها (الدورات المسنَدة إلى ملفه)، وغيره كل الدورات (null) */
@@ -121,11 +81,7 @@ export const inScope = (scope: string[] | null, courseId: string) => scope === n
 /** للوحة: عضو فريق بأي دور — وإلا إلى الدخول */
 export async function requireAdmin(): Promise<Staff> {
   const st = await currentStaff()
-  if (!st) {
-    /* داخلٌ موثَّق بلا دور صالح أو موقوف: صفحة رفض واضحة — لا إعادة توجيه إلى /admin تدور بلا نهاية */
-    if (staffMode() === 'naf-auth') redirect((await headers()).get(H_SUB) ? '/denied?r=pending' : '/admin')
-    redirect('/admin/login')
-  }
+  if (!st) redirect('/admin/login')
   return st
 }
 

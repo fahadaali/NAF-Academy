@@ -19,7 +19,8 @@
 .icon { inline-size: 18px; text-align: center; color: var(--gold-3); font-size: 14px; }
 .foot { display: grid; gap: 6px; padding-block-start: 14px; border-block-start: 1px solid var(--night-line); font-size: 14px; }
 .view { color: var(--gold-4); padding: 6px 12px; }
-.who { font-size: 12.5px; opacity: 0.6; padding-inline: 12px; }
+.who { font-size: 12.5px; opacity: 0.7; padding: 6px 12px; border-radius: 8px; min-block-size: 32px; display: flex; align-items: center; transition: opacity var(--t-base) var(--ease-move), background var(--t-base) var(--ease-move); }
+.who:hover, .who[aria-current="page"] { opacity: 1; background: color-mix(in srgb, var(--night-ink) 8%, transparent); }
 .out { text-align: start; color: var(--night-muted); padding: 6px 12px; font-size: 13.5px; }
 .out:hover { color: var(--night-ink); }
 .main { padding: clamp(20px, 3vw, 40px); min-inline-size: 0; }

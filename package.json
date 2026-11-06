@@ -34,7 +34,6 @@
     "@pdf-lib/fontkit": "^1.1.1",
     "drizzle-orm": "^0.45.4",
     "image-size": "^2.0.4",
-    "naf-auth": "github:fahadaali/naf-auth#v3.4.0",
     "next": "^16.4.5",
     "pdf-lib": "^1.17.1",
     "qrcode": "^1.5.4",

@@ -509,7 +509,7 @@ export type LearnerRow = typeof learners.$inferSelect
 
 /* ═══════════════════ الدخول ═══════════════════ */
 
-/** فريق ناف — بمخطط naf-auth حرفياً (migrations/members.sql) كي تقرأه الحزمة كما هو.
+/** فريق اللوحة — حسابات مستقلة (src/server/auth.ts و staff-auth.ts).
     الدور: owner | content | finance | instructor | support */
 export const members = sqliteTable(
   'members',
@@ -524,6 +524,19 @@ export const members = sqliteTable(
     instructorId: text('instructor_id'),
     lastSeenAt: integer('last_seen_at'),
     createdAt: integer('created_at').notNull(),
+    /* — دخول الفريق المستقل (src/server/staff-auth.ts) — */
+    /** pbkdf2$<تكرارات>$<ملح>$<تجزيء> — فارغ: مدعو لم يعيّن كلمة مروره بعد */
+    passwordHash: text('password_hash'),
+    /** يزيد مع كل تغيير لكلمة المرور أو إيقاف أو إعادة تعيين — يُبطل الجلسات والروابط القديمة */
+    sessionVersion: integer('session_version').notNull().default(0),
+    /** التحقق الثنائي (TOTP): السرّ Base32، ومتى فُعّل، وآخر خطوة زمنية قُبلت (لا يُعاد استعمال رمز) */
+    totpSecret: text('totp_secret'),
+    totpEnabledAt: integer('totp_enabled_at'),
+    totpLastStep: integer('totp_last_step'),
+    /** محاولات خاطئة متتالية، وقفل مؤقت بعدها (في القاعدة — يصمد عبر نسخ العامل) */
+    failedLogins: integer('failed_logins').notNull().default(0),
+    lockedUntil: integer('locked_until'),
+    passwordSetAt: integer('password_set_at'),
   },
   (t) => [index('idx_members_email').on(t.email)],
 )
