@@ -13,9 +13,11 @@ next-env.d.ts
 public/email-fonts
 .cf
 public/cert-fonts
+public/pdfjs
 
 # اختبارات المتصفح
 /test-results/
 /playwright-report/
 /public/_kit/
 /src/server/setup/migrations.generated.ts
+/src/site/learn/pdfjs.generated.ts

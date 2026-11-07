@@ -18,7 +18,8 @@ export async function quoteAction(slug: string, o: { tierId?: string | null; qua
     return base ? { ...base.q, couponError: 'محاولات كثيرة — انتظر قليلاً', tierId: base.tier?.id ?? null } : null
   }
   const p = await priceFor(slug, { tierId: o.tierId, quantity: o.quantity, code: o.code, email: o.email?.trim().toLowerCase() })
-  if (!p) return null
+  /* البرنامج الخاص لا يُسعَّر للزائر — لا يُشترى */
+  if (!p || p.course.visibility === 'private') return null
   return { ...p.q, couponCode: p.q.couponApplied ? p.coupon!.code : undefined, couponLabel: p.coupon?.label || undefined, tierId: p.tier?.id ?? null }
 }
 
@@ -74,7 +75,7 @@ export async function interestAction(slug: string, raw: unknown): Promise<{ ok: 
   const p = interestInput.safeParse(raw)
   if (!p.success) return { ok: false, error: p.error.issues[0]?.message }
   const { eq, and, isNull } = await import('drizzle-orm')
-  const [course] = await db.select({ id: s.courses.id }).from(s.courses).where(and(eq(s.courses.slug, slug), isNull(s.courses.deletedAt)))
+  const [course] = await db.select({ id: s.courses.id }).from(s.courses).where(and(eq(s.courses.slug, slug), isNull(s.courses.deletedAt), eq(s.courses.visibility, 'public')))
   if (!course) return { ok: false, error: 'الدورة غير موجودة' }
   const email = p.data.email.toLowerCase()
   const [dup] = await db.select({ id: s.interest.id }).from(s.interest).where(and(eq(s.interest.courseId, course.id), eq(s.interest.email, email), eq(s.interest.kind, p.data.kind)))

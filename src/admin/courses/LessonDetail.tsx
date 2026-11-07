@@ -1,15 +1,15 @@
 'use client'
 /* تفاصيل الدرس داخل محرّر المنهج — تتبدّل الحقول بنوع الدرس:
-   فيديو (Stream أو رابط + فصول)، مقال، ملف، اختبار (منشئ أسئلة)، واجب، جلسة مباشرة، جلسة حضورية.
+   فيديو (Stream أو رابط + فصول)، مقال، ملف، سلايدات (PDF يُعرض شريحةً شريحة)، اختبار (منشئ أسئلة)، واجب، جلسة مباشرة، جلسة حضورية.
    ومشترك للكل: الفتح المتدرّج، والنص، والمرفقات. */
 import { useEffect, useRef, useState } from 'react'
 import type { CourseInput } from '@/admin/schemas'
 import type { Chapter, Quiz, QuizQuestion } from '@/lib/learning-types'
 import { EMPTY_ASSIGNMENT, EMPTY_QUIZ } from '@/lib/learning-types'
 import { DateTime, Field, Grid, Input, RowTools, Segmented, Switch, Textarea } from '@/admin/ui/kit'
-import { streamCaptionAdd, streamCaptionAuto, streamCaptionsOf, streamStatus, streamUpload, uploadCaption, uploadLessonFile } from '@/admin/learning/actions'
+import { streamCaptionAdd, streamCaptionAuto, streamCaptionsOf, streamStatus, streamUpload, uploadCaption, uploadLessonFile, uploadSlides } from '@/admin/learning/actions'
 import { CAPTION_LANGS } from '@/lib/captions'
-import type { Caption } from '@/lib/learning-types'
+import type { Caption, Slides } from '@/lib/learning-types'
 import d from './lesson.module.css'
 import { fileSize } from '@/lib/files'
 
@@ -53,6 +53,8 @@ export function LessonDetail({ value: l, onChange, err, cohorts = 0 }: { value: 
       {l.type === 'live' && (
         <VideoField label="تسجيل الجلسة" hint="يظهر للمسجّلين تحت الجلسة بعد انتهائها" value={l.recording ?? { provider: 'none' }} onChange={(recording) => onChange({ recording: recording.provider === 'none' ? null : recording })} />
       )}
+
+      {l.type === 'slides' && <SlidesField value={(l.slides as Slides | null | undefined) ?? null} onChange={(slides) => onChange({ slides })} error={err('slides')} />}
 
       {l.type === 'quiz' && <QuizBuilder value={(l.quiz as Quiz | null | undefined) ?? EMPTY_QUIZ} onChange={(quiz) => onChange({ quiz })} err={err} />}
 
@@ -214,6 +216,37 @@ function Chapters({ value, onChange }: { value: Chapter[]; onChange: (v: Chapter
         ))}
         <button type="button" className={d.add} onClick={() => onChange([...value, { at: value.length ? value[value.length - 1].at + 60 : 0, title: '' }])}>+ فصل</button>
       </div>
+    </Field>
+  )
+}
+
+/** ملف السلايدات: PDF واحد يُحسب عدد صفحاته عند الرفع — والدرس يكتمل حين يبلغ المتدرب آخر شريحة */
+function SlidesField({ value, onChange, error }: { value: Slides | null; onChange: (v: Slides | null) => void; error?: string }) {
+  const [msg, setMsg] = useState('')
+  const input = useRef<HTMLInputElement>(null)
+  const pick = async (f: File) => {
+    setMsg(`جارٍ رفع ${f.name}…`)
+    const fd = new FormData()
+    fd.append('file', f)
+    const r = await uploadSlides(fd)
+    if (!r.ok) { setMsg(r.error); return }
+    onChange({ ...r.slides, download: value?.download ?? false })
+    setMsg('')
+  }
+  return (
+    <Field label="ملف السلايدات" hint="PDF واحد (من PowerPoint: حفظ باسم ← PDF) حتى 25 ميغابايت — يتصفّحه المتدرب شريحةً شريحة، ويكتمل الدرس عند آخر شريحة" error={error}>
+      <div className={d.list}>
+        {value && (
+          <div className={d.file}>
+            <a href={`/admin/files/${value.assetId}?inline`} target="_blank" rel="noopener">▤ {value.name}</a>
+            <small className="num">{value.pages} شريحة · {fileSize(value.size)}</small>
+          </div>
+        )}
+        <input ref={input} type="file" accept="application/pdf,.pdf" hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) pick(f) }} />
+        <button type="button" className={d.add} onClick={() => input.current?.click()}>{value ? 'استبدال الملف' : '+ رفع PDF'}</button>
+        {msg && <span className={d.note} role="status">{msg}</span>}
+      </div>
+      {value && <Switch checked={value.download} onChange={(download) => onChange({ ...value, download })} label="السماح للمتدرب بتنزيل الملف" />}
     </Field>
   )
 }

@@ -81,6 +81,7 @@ export const lessonInput = z.object({
   attachments: z.array(z.object({ assetId: z.string(), name: z.string().max(200), size: z.number().int() })).max(30).default([]),
   quiz: quizInput.nullable().default(null),
   assignment: assignmentInput.nullable().default(null),
+  slides: z.object({ assetId: z.string().uuid(), name: z.string().max(200), size: z.number().int().min(0), pages: z.number().int().min(1).max(2000), download: z.boolean() }).nullable().default(null),
   drip: z.object({ mode: z.enum(['none', 'date', 'days']), date: iso, days: z.number().int().min(0).max(3650).nullable() }).default({ mode: 'none', date: null, days: null }),
   startsAt: iso.default(null),
   endsAt: iso.default(null),
@@ -142,6 +143,7 @@ export const courseInput = z
     requirements: lines,
     faq: z.array(z.object({ q: text(300), a: text(2000) })).transform((a) => a.filter((f) => f.q && f.a)),
     featured: z.boolean(),
+    visibility: z.enum(['public', 'private']).default('public'),
     sequential: z.boolean().default(false),
     completeAt: z.number().int().min(50).max(100).default(90),
     certificate: certRulesInput.default(DEFAULT_RULES),
@@ -168,6 +170,10 @@ export const courseInput = z
       ctx.addIssue({ code: 'custom', path: ['groupRules'], message: 'لا تكرّر عدد المقاعد في قاعدتين' })
     if (v.seatsTotal !== null && v.seatsTaken > v.seatsTotal)
       ctx.addIssue({ code: 'custom', path: ['seatsTaken'], message: 'المحجوز أكثر من السعة' })
+    v.curriculum.forEach((m, mi) => m.lessons.forEach((l, li) => {
+      if (l.type === 'slides' && !l.slides)
+        ctx.addIssue({ code: 'custom', path: ['curriculum', mi, 'lessons', li, 'slides'], message: `ارفع ملف السلايدات (PDF) لدرس «${l.title}»` })
+    }))
   })
 export type CourseInput = z.input<typeof courseInput>
 

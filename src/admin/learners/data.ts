@@ -2,7 +2,8 @@ import 'server-only'
 /* دليل المتدربين وملف كل متدرب — قراءة فقط. المدفوعات والرسائل تُعرض بصلاحيتها (الصفحة تقرر). */
 import { and, count, desc, eq, like, or, sql } from 'drizzle-orm'
 import { db, schema as s } from '@/server/db'
-import { courseScope, requirePermission } from '@/server/auth'
+import { courseScope, inScope, requirePermission } from '@/server/auth'
+import { invitesOf } from '@/server/invites'
 import { inList } from '@/server/db/limits'
 import { progressOf } from '@/server/notify/engine'
 
@@ -64,4 +65,11 @@ export async function learnerProfile(id: string) {
     interest: interest.filter((x) => mine(x.i.courseId)).map((x) => ({ ...x, title: x.title.replace(/~\d?/g, '') })),
     reviews: reviews.filter((x) => mine(x.r.courseId)).map((x) => ({ ...x, title: x.title.replace(/~\d?/g, '') })), messages: scope === null ? messages : [],
   }
+}
+
+/** دعوات الدورة — لمن يقرأ متدربيها وفي نطاقه (بلا nonce: الرابط يُطلب بإجرائه وصلاحيته) */
+export async function courseInvites(courseId: string) {
+  const scope = await courseScope(await requirePermission('learners.read'))
+  if (!inScope(scope, courseId)) return []
+  return (await invitesOf(courseId)).map(({ nonce: _n, ...r }) => r)
 }

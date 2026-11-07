@@ -14,7 +14,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
   const [{ courses, tracks, instructors, media }, log, attention, setup] = await Promise.all([adminLists(), canAudit ? auditEntries(8) : Promise.resolve([]), needsAttention(), setupStatus()])
   const me = await currentStaff()
   const now = new Date()
-  const live = courses.filter((c) => ['open', 'soon', 'full'].includes(resolveStatus(c.status, c.publishAt, now)))
+  const live = courses.filter((c) => c.visibility !== 'private' && ['open', 'soon', 'full'].includes(resolveStatus(c.status, c.publishAt, now)))
   const drafts = courses.filter((c) => c.status === 'draft')
   /* عرض ساري الآن: في نافذته من البداية إلى النهاية (العروض العامة في صفحتها) */
   const sales = courses.filter((c) => c.compareAt && c.compareAt > c.price && (!c.saleStartsAt || new Date(c.saleStartsAt) <= now) && (!c.saleEndsAt || new Date(c.saleEndsAt) > now))

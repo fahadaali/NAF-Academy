@@ -13,7 +13,7 @@ import { downloadCsv } from '@/admin/ui/csv'
 type Enroll = { e: { id: string; status: 'active' | 'canceled'; source: string; createdAt: string; orderId: string | null; cohortId: string | null; accessUntil: string | null }; l: { id: string; name: string; email: string; phone: string; org: string }; number: string | null; tier: string | null }
 type Interest = { id: string; kind: string; name: string; email: string; phone: string; createdAt: string }
 
-const SOURCE: Record<string, string> = { purchase: 'شراء', free: 'مجاني', grant: 'منحة', manual: 'يدوي', seat: 'مقعد مؤسسة' }
+const SOURCE: Record<string, string> = { purchase: 'شراء', free: 'مجاني', grant: 'منحة', manual: 'يدوي', seat: 'مقعد مؤسسة', invite: 'دعوة' }
 const KIND: Record<string, string> = { notify_open: 'أبلغني عند الفتح', waitlist: 'قائمة الانتظار', next_cohort: 'الدفعة القادمة', register: 'اهتمام بالتسجيل' }
 
 
@@ -29,7 +29,8 @@ export function LearnersBoard({ courseId, title, enrolls, interest, cohorts = []
       <PageHead title="المسجّلون" sub={`${title.replace(/~\d?/g, '')} · ${active} تسجيل نشط · ${interest.length} مهتم`}
         actions={<>
           <button className="btn ghost" onClick={() => downloadCsv('learners.csv', [['الاسم', 'البريد', 'الجوال', 'الجهة', 'المصدر', 'الباقة', 'الطلب', 'الحالة', 'التاريخ'], ...list.map((x) => [x.l.name, x.l.email, x.l.phone, x.l.org, SOURCE[x.e.source], x.tier ?? '', x.number ?? '', x.e.status === 'active' ? 'نشط' : 'ملغى', x.e.createdAt])])}>تصدير المسجّلين</button>
-          {orders && <Link className="btn" href="/admin/orders/new">+ تسجيل يدوي</Link>}
+          {orders && <Link className="btn" href={`/admin/courses/${courseId}/learners/add`}>+ إضافة مشاركين</Link>}
+          {orders && <Link className="btn ghost" href="/admin/orders/new">طلب يدوي</Link>}
           <Link className="btn ghost" href={`/admin/courses/${courseId}`}>العودة للدورة</Link>
         </>} />
       {list.length === 0 ? <div className={p.empty}>لا تسجيلات بعد.</div> : (

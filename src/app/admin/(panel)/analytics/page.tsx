@@ -9,7 +9,7 @@ import a from '@/admin/analytics/analytics.module.css'
 const RANGES = [[30, '30 يوماً'], [90, '90 يوماً'], [365, 'سنة']] as const
 const pctOf = (x: number, n: number) => (n ? `${Math.round((x / n) * 100)}%` : '—')
 const dayLabel = (d: string) => new Intl.DateTimeFormat('ar-SA-u-nu-latn-ca-gregory', { day: 'numeric', month: 'short', timeZone: 'UTC' }).format(new Date(`${d}T00:00:00Z`))
-const LESSON: Record<string, string> = { video: 'فيديو', article: 'مقال', file: 'ملف', quiz: 'اختبار', live: 'مباشر', onsite: 'حضوري', assignment: 'واجب' }
+const LESSON: Record<string, string> = { video: 'فيديو', article: 'مقال', file: 'ملف', quiz: 'اختبار', live: 'مباشر', onsite: 'حضوري', assignment: 'واجب', slides: 'سلايدات' }
 
 export default async function Analytics({ searchParams }: { searchParams: Promise<{ r?: string; c?: string }> }) {
   await requirePermission('analytics.read')

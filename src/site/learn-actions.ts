@@ -7,7 +7,7 @@ import { z } from 'zod'
 import { db, schema as s } from '@/server/db'
 import { currentLearner } from '@/server/learner-auth'
 import { learnerCourse } from '@/server/learning'
-import { gradeQuiz, publicQuiz } from '@/lib/learning'
+import { gradeQuiz, publicQuiz, slideReach } from '@/lib/learning'
 import { putObject } from '@/server/storage'
 import { limited } from '@/server/ratelimit'
 import { EXT_MIME } from '@/lib/files'
@@ -59,6 +59,27 @@ export async function saveProgress(slug: string, lessonId: string, position: num
     return { done: true }
   }
   return { done: !!row.completedAt }
+}
+
+/** تقليب السلايدات: يُحفظ أبعد ما بلغه المتدرب (positionSec = رقم الشريحة)، ويكتمل الدرس عند آخر شريحة.
+   عدد الشرائح من الدرس المخزّن على الخادم، والتقدّم شريحةً شريحة (slideReach) — فلا يُختصر الإكمال بطلب واحد. */
+export async function saveSlide(slug: string, lessonId: string, page: number): Promise<{ furthest: number; done: boolean }> {
+  const { me, ctx, lesson } = await gate(slug, lessonId)
+  if (lesson.type !== 'slides' || !lesson.slides) return { furthest: 0, done: false }
+  const [prog] = await db.select().from(s.lessonProgress).where(and(eq(s.lessonProgress.learnerId, me.id), eq(s.lessonProgress.lessonId, lessonId)))
+  if (prog?.completedAt) return { furthest: lesson.slides.pages, done: true }
+  const r = slideReach(prog?.positionSec ?? 0, page, lesson.slides.pages)
+  if (!prog || r.furthest > prog.positionSec) {
+    const now = new Date().toISOString()
+    /* max في الكتابة نفسها: طلبان متوازيان لا يُرجعان الموضع إلى الخلف */
+    await db.insert(s.lessonProgress).values({ learnerId: me.id, lessonId, courseId: ctx.course.id, positionSec: r.furthest })
+      .onConflictDoUpdate({ target: [s.lessonProgress.learnerId, s.lessonProgress.lessonId], set: { positionSec: sql`max(${s.lessonProgress.positionSec}, ${r.furthest})`, updatedAt: now } })
+  }
+  if (r.done) {
+    await complete(me.id, lessonId, ctx.course.id)
+    revalidatePath(`/learn/${slug}`, 'layout')
+  }
+  return r
 }
 
 /** إكمال يدوي — للمقالات والملفات فقط؛ الفيديو بالمشاهدة، والاختبار بالنجاح، والواجب بالقبول */

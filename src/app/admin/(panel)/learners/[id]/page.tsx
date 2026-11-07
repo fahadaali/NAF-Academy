@@ -7,7 +7,7 @@ import { Badge, PageHead, Section } from '@/admin/ui/kit'
 import { ORDER_LABEL, ORDER_TONE, sar, when } from '@/admin/sales/labels'
 import p from '@/admin/ui/panel.module.css'
 
-const SOURCE: Record<string, string> = { purchase: 'شراء', free: 'مجاني', grant: 'منحة', manual: 'يدوي', seat: 'مقعد مؤسسة' }
+const SOURCE: Record<string, string> = { purchase: 'شراء', free: 'مجاني', grant: 'منحة', manual: 'يدوي', seat: 'مقعد مؤسسة', invite: 'دعوة' }
 const CERT: Record<string, string> = { pending: 'بانتظار المراجعة', issued: 'صادرة', rejected: 'مرفوضة', revoked: 'ملغاة' }
 const KIND: Record<string, string> = { notify_open: 'أبلغني عند الفتح', waitlist: 'قائمة الانتظار', next_cohort: 'الدفعة القادمة', register: 'اهتمام بالتسجيل' }
 
