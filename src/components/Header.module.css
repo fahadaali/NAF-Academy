@@ -25,7 +25,7 @@
 
 .nav ol { display: flex; gap: 6px; }
 .nav a {
-  position: relative; display: inline-flex; align-items: baseline; gap: 6px;
+  position: relative; display: inline-flex; align-items: center; gap: 7px;
   padding: 8px 12px; border-radius: 999px; font-size: 15px; font-weight: 500; opacity: 0.88;
   transition: opacity var(--t-base) var(--ease-move), background var(--t-base) var(--ease-move);
 }
@@ -36,8 +36,12 @@
   background: var(--gold-3); animation: grow var(--t-gentle) var(--ease-glide);
 }
 @keyframes grow { from { transform: scaleX(0); } }
-.idx { font-size: 11px; color: var(--scene-accent); }
-.header:not([data-night='1']) .idx { color: var(--accent-strong); }
+/* أيقونة القسم (SceneIcon): خطها بلون الذهب المقروء ومعيّنها أفتح — فوق المشاهد ثم على الشريط المصمت */
+.ico { inline-size: 16px; block-size: 16px; flex: none; color: var(--scene-accent); --ico-mark: var(--scene-mark);
+  opacity: 0.85; transition: opacity var(--t-base) var(--ease-move), translate var(--t-base) var(--ease-glide); }
+.ico :global(.ico-mark) { fill: var(--ico-mark); stroke: none; }
+.header:not([data-night='1']) .ico { color: var(--accent-strong); --ico-mark: var(--gold-2); }
+.nav a:hover .ico, .nav a[aria-current='true'] .ico { opacity: 1; translate: 0 -1px; }
 
 .actions { display: flex; align-items: center; gap: 10px; }
 .theme { inline-size: 42px; block-size: 42px; display: grid; place-items: center; border-radius: 50%; color: inherit; transition: background var(--t-base) var(--ease-move); }
@@ -83,7 +87,7 @@
   .nav ol { flex-direction: column; gap: 2px; }
   .nav a { font-size: 22px; padding: 12px 6px; inline-size: 100%; }
   /* لوحة القائمة بخلفية الصفحة لا بخلفية المشهد — الأرقام تتبعها */
-  .nav .idx, .header[data-night='1'] .nav .idx { color: var(--accent-strong); }
+  .nav .ico, .header[data-night='1'] .nav .ico { color: var(--accent-strong); --ico-mark: var(--gold-2); inline-size: 20px; block-size: 20px; }
 }
 @media (max-width: 560px) {
   .cta { display: none !important; }

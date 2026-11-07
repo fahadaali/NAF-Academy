@@ -68,6 +68,6 @@ export const DEFAULT_HOME: Omit<HomeContent, 'hero' | 'ladder' | 'stats' | 'corp
 }
 
 /** قائمة الشريط من مشاهد الرئيسية نفسها: الظاهر منها وبترتيبه — فلا رابط إلى مشهد أُخفي */
-export function menuOf(h: Pick<HomeContent, 'sections'>): { href: string; label: string }[] {
-  return h.sections.filter((x) => x.visible && x.menu?.trim()).map((x) => ({ href: `/#${x.key}`, label: x.menu!.trim() }))
+export function menuOf(h: Pick<HomeContent, 'sections'>): { href: string; label: string; key: SceneKey }[] {
+  return h.sections.filter((x) => x.visible && x.menu?.trim()).map((x) => ({ href: `/#${x.key}`, label: x.menu!.trim(), key: x.key }))
 }

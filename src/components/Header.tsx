@@ -5,10 +5,11 @@ import { useEffect, useRef, useState } from 'react'
 import { follower, subscribe } from '@/motion/scroll-bus'
 import { currentTheme, switchTheme, type Theme } from '@/motion/theme'
 import { Wordmark } from './Logo'
+import { SceneIcon } from './SceneIcon'
 import type { BrandView } from '@/lib/brand'
 import styles from './Header.module.css'
 
-type Item = { href: string; label: string }
+type Item = { href: string; label: string; key?: string }
 
 export function Header({ nav, brand }: { nav: Item[]; brand: BrandView }) {
   const bar = useRef<HTMLDivElement>(null)
@@ -79,10 +80,10 @@ export function Header({ nav, brand }: { nav: Item[]; brand: BrandView }) {
         </a>
         <nav className={styles.nav} aria-label="الأقسام">
           <ol role="list">
-            {nav.map((n, i) => (
+            {nav.map((n) => (
               <li key={n.href}>
                 <a href={n.href} aria-current={active && active === n.href.split('#')[1] ? 'true' : undefined} onClick={() => setOpen(false)}>
-                  <span className={`${styles.idx} num`}>{String(i + 1).padStart(2, '0')}</span>
+                  <SceneIcon name={n.key ?? n.href.split('#')[1] ?? ''} className={styles.ico} />
                   {n.label}
                 </a>
               </li>
