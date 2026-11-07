@@ -20,13 +20,13 @@ const CODE_TTL = 10 * 60e3
 const MAX_ATTEMPTS = 5
 const MAX_SENDS = 3
 
-function secret() {
+export function learnerSecret() {
   const v = envVar('LEARNER_SECRET')
   if (v && v.length >= 32) return v
   if (process.env.NODE_ENV === 'production') throw new Error('LEARNER_SECRET missing')
   return 'dev-learner-secret-dev-learner-secret'
 }
-const hashCode = (target: string, code: string) => createHmac('sha256', secret()).update(`${target}:${code}`).digest('hex')
+const hashCode = (target: string, code: string) => createHmac('sha256', learnerSecret()).update(`${target}:${code}`).digest('hex')
 const sha = (t: string) => createHash('sha256').update(t).digest('hex')
 const now = () => new Date().toISOString()
 
@@ -105,7 +105,7 @@ export async function verifyCode(channel: Channel, raw: string, code: string, na
   return { ok: true, learner }
 }
 
-async function startSession(learnerId: string, name = '') {
+export async function startSession(learnerId: string, name = '') {
   const token = randomBytes(32).toString('base64url')
   const h = await headers()
   const exp = new Date(Date.now() + SESSION_DAYS * 864e5)

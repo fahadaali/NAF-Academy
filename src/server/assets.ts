@@ -9,13 +9,14 @@ export async function assetRow(id: string) {
   return a ?? null
 }
 
-export async function serveAsset(a: NonNullable<Awaited<ReturnType<typeof assetRow>>>) {
+/** inline: لعارض السلايدات داخل الصفحة — وإلا تنزيل */
+export async function serveAsset(a: NonNullable<Awaited<ReturnType<typeof assetRow>>>, o: { inline?: boolean } = {}) {
   const bytes = await getObject(a.key)
   if (!bytes) return new Response('Not found', { status: 404 })
   return new Response(bytes as BodyInit, {
     headers: {
       'content-type': a.mime, 'cache-control': 'private, max-age=300', 'x-content-type-options': 'nosniff',
-      'content-disposition': `attachment; filename*=UTF-8''${encodeURIComponent(a.name)}`,
+      'content-disposition': `${o.inline ? 'inline' : 'attachment'}; filename*=UTF-8''${encodeURIComponent(a.name)}`,
     },
   })
 }

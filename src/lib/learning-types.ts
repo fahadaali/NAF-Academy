@@ -9,6 +9,8 @@ export type Chapter = { at: number; title: string }
 /** ترجمة نصية: ملف VTT في التخزين الخاص */
 export type Caption = { lang: string; label: string; assetId: string }
 export type Attachment = { assetId: string; name: string; size: number }
+/** درس سلايدات: ملف PDF خاص، وعدد صفحاته محسوب على الخادم عند الرفع (فلا يزوّر العميل الإكمال) */
+export type Slides = { assetId: string; name: string; size: number; pages: number; download: boolean }
 
 export type QuizQuestion = {
   id: string

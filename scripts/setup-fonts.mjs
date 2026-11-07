@@ -1,7 +1,7 @@
 /* يولّد src/design/fonts.generated.css من ملفات خط ثمانية في src/fonts/thmanyah/ (ضمن المستودع بقرار المالك)،
    فتُدمج في البناء بأسماء مجزّأة. إن غابت: ملف فارغ، فيعمل البناء بالخط الاحتياطي. الملفات تُستخدم كما هي بلا تعديل.
    وينسخ منها نسخاً ثابتة الاسم للبريد والشهادات، ورمز الريال من حزمته (OFL). */
-import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
+import { copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 
 const dir = 'src/fonts/thmanyah'
 const out = 'src/design/fonts.generated.css'
@@ -52,6 +52,17 @@ if (existsSync(riyal)) {
     const src = `${riyal}/${from}`, dst = `public/fonts/${to}`
     if (existsSync(src) && (!existsSync(dst) || !readFileSync(src).equals(readFileSync(dst)))) copyFileSync(src, dst)
   }
+}
+
+/* عامل pdf.js لعارض السلايدات — باسم يحمل الإصدار فلا يعلق قديم في الذاكرة المؤقتة، في public/pdfjs (لا يُرفع) */
+const pdfjs = 'node_modules/pdfjs-dist'
+if (existsSync(`${pdfjs}/build/pdf.worker.min.mjs`)) {
+  const { version } = JSON.parse(readFileSync(`${pdfjs}/package.json`, 'utf8'))
+  const dst = `public/pdfjs/pdf.worker-${version}.min.mjs`
+  mkdirSync('public/pdfjs', { recursive: true })
+  if (!existsSync(dst)) copyFileSync(`${pdfjs}/build/pdf.worker.min.mjs`, dst)
+  /* خطوط PDF القياسية وجداول الترميز (للملفات التي لا تضمّن خطوطها، فلا تتشوّه المسافات) ومفكّكات الصور (wasm) */
+  for (const d of ['standard_fonts', 'cmaps', 'wasm']) if (!existsSync(`public/pdfjs/${version}/${d}`)) cpSync(`${pdfjs}/${d}`, `public/pdfjs/${version}/${d}`, { recursive: true })
 }
 
 /* الترحيلات المحزومة للتطبيق، وحزمة الهوية لـASSETS — في الخطوة نفسها (تسبق dev وbuild والأنواع والاختبارات) */

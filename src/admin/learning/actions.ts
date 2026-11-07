@@ -38,6 +38,31 @@ export async function uploadLessonFile(form: FormData): Promise<{ ok: true; file
   return { ok: true, file: { assetId: id, name, size: file.size } }
 }
 
+/** سلايدات درس: PDF فقط، ويُحسب عدد صفحاته هنا (pdf-lib) فيُخزَّن مع الدرس — الإكمال يُقاس به على الخادم */
+export async function uploadSlides(form: FormData): Promise<{ ok: true; slides: { assetId: string; name: string; size: number; pages: number } } | { ok: false; error: string }> {
+  const st = await requirePermission('content.write')
+  const file = form.get('file')
+  if (!(file instanceof File) || !file.size) return { ok: false, error: 'لم يُرفق ملف' }
+  if (file.name.split('.').pop()?.toLowerCase() !== 'pdf') return { ok: false, error: 'السلايدات ملف PDF — من PowerPoint: حفظ باسم ← PDF' }
+  if (file.size > MAX) return { ok: false, error: 'الحد الأقصى 25 ميغابايت' }
+  const bytes = new Uint8Array(await file.arrayBuffer())
+  let pages = 0
+  try {
+    const { PDFDocument } = await import('pdf-lib')
+    pages = (await PDFDocument.load(bytes, { ignoreEncryption: true, updateMetadata: false })).getPageCount()
+  } catch {
+    return { ok: false, error: 'تعذّرت قراءة الملف — تأكد أنه PDF سليم' }
+  }
+  if (pages < 1) return { ok: false, error: 'الملف بلا صفحات' }
+  const id = randomUUID()
+  const key = `les-${id}.pdf`
+  await putObject(key, bytes, EXT_MIME.pdf)
+  const name = file.name.slice(0, 200)
+  await db.insert(s.assets).values({ id, key, name, mime: EXT_MIME.pdf, size: file.size, scope: 'lesson' })
+  await audit(st.name, 'upload', 'asset', id, `${name} · ${pages} شريحة`)
+  return { ok: true, slides: { assetId: id, name, size: file.size, pages } }
+}
+
 /** رابط رفع مباشر إلى Stream — مقفل حتى تُضاف المفاتيح */
 export async function streamUpload(): Promise<{ ok: true; uploadURL: string; uid: string } | { ok: false; error: string }> {
   await requirePermission('content.write')

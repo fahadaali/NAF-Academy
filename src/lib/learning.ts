@@ -36,6 +36,18 @@ export function availability(lessons: LessonLite[], o: { enrolledAt: string | nu
   return out
 }
 
+/**
+ * تقدّم السلايدات: أبعد شريحة بلغها المتدرب. التقدّم شريحةً شريحة — القفز لا يُحتسب أبعد من التالية لما بلغه،
+ * والرجوع لا ينقصه. يكتمل الدرس ببلوغ آخر شريحة (pages محسوب على الخادم عند الرفع).
+ */
+export function slideReach(prev: number, page: number, pages: number): { furthest: number; done: boolean } {
+  const total = Math.max(1, Math.floor(pages) || 1)
+  const before = Math.max(0, Math.min(total, Math.floor(prev) || 0))
+  const p = Math.floor(page) || 0
+  const furthest = p > before ? Math.min(before + 1, total) : before
+  return { furthest, done: furthest >= total }
+}
+
 export type JoinState = { state: 'upcoming'; opensAt: string } | { state: 'open' } | { state: 'ended' } | { state: 'unscheduled' }
 
 /** زر الانضمام يُفعَّل قبل الموعد بربع ساعة ويبقى حتى النهاية (أو ساعتين إن لم تُحدَّد) */

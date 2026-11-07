@@ -28,7 +28,9 @@ import { cohortsOf, holdsSeat, sessionsOf } from '../cohorts'
 import { livePromotions, promosFor } from '../promotions'
 
 /** مفتوحة الآن؟ «المجدولة» تُفتح بنفسها عند موعد نشرها — كما تراها الواجهة */
-const openNow = (c: { status: typeof s.courses.$inferSelect['status']; publishAt: string | null }, now: Date) => resolveStatus(c.status, c.publishAt, now) === 'open'
+/** والخاصة لا «يُفتح» تسجيلها للعموم — فلا رسائل «فُتح التسجيل» ولا «العرض ينتهي» عنها */
+const openNow = (c: { status: typeof s.courses.$inferSelect['status']; publishAt: string | null; visibility?: 'public' | 'private' }, now: Date) =>
+  c.visibility !== 'private' && resolveStatus(c.status, c.publishAt, now) === 'open'
 
 /** مفتوحة فعلاً للتسجيل الآن بالقاعدة نفسها في الواجهة: الحالة، ثم الدفعات (statusWithCohorts) أو سعة الدورة */
 async function sellableNow(c: typeof s.courses.$inferSelect, now: Date, memo: Map<string, boolean>) {
