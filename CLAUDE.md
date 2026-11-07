@@ -93,7 +93,8 @@
   (`pages-defaults.ts` ← «الصفحات العامة» في اللوحة). قائمة الشريط من مشاهد الرئيسية الظاهرة (`menuOf()`) لا قائمة ثابتة.
   مشهد جديد يُضاف إلى `SCENES` ويُلحق تلقائياً بترتيب محفوظ قديم. الآراء والشركاء والأسئلة تغيب ما دامت فارغة — لا محتوى مختلق.
 - **درس السلايدات** (`type='slides'`، `lessons.slides`): PDF يُرفع بـ `uploadSlides()` ويُحسب عدد صفحاته على الخادم (pdf-lib)، ويُعرض شريحةً شريحة
-  في `SlidesViewer` (pdf.js بـ `import()`، وعامله وخطوطه في `public/pdfjs` يولّدها `setup-fonts`؛ الـcanvas `dir="ltr"`). التقدّم `saveSlide()` ←
+  في `SlidesViewer` (pdf.js ملفات ثابتة في `public/pdfjs/<الإصدار>` يولّدها `setup-fonts` ومسارها `pdfjs.generated.ts`، يستوردها المتصفح بـ `import()` عند فتح الدرس —
+  لا يُستورد `pdfjs-dist` في الشيفرة فلا يدخل حزمة الـWorker، وهو اعتماد تطوير فقط؛ الـcanvas `dir="ltr"`). التقدّم `saveSlide()` ←
   `slideReach()` (شريحةً شريحة، والقفز لا يُحتسب) في `positionSec`، ويكتمل الدرس بآخر شريحة. التنزيل مقفل إلا بخيار «السماح بالتنزيل».
 - **وصف الدورة كتل** (`courses.content`، `src/lib/blocks.ts`): المحرّر `BlockEditor` والعرض `<Blocks>` — بلا HTML خام، والتنسيق داخل السطر
   بصيغة مقيّدة (`**`، `*`، `[نص](https://…)`). المحتوى القديم يُشتق بـ `blocksFrom()`، و`description` نص مشتق للبحث والرسائل.

@@ -6,6 +6,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { saveSlide } from '@/site/learn-actions'
+import { PDFJS_BASE } from './pdfjs.generated'
 import v from './slides.module.css'
 
 type Doc = { numPages: number; getPage: (n: number) => Promise<Page>; destroy: () => Promise<void> }
@@ -36,12 +37,14 @@ export function SlidesViewer(p: {
     let dead = false
     ;(async () => {
       try {
-        const pdfjs = await import('pdfjs-dist')
-        pdfjs.GlobalWorkerOptions.workerSrc = `/pdfjs/pdf.worker-${pdfjs.version}.min.mjs`
+        /* من public/pdfjs لا من الحزمة: لا يدخل حزمة الخادم ولا المتصفح، ويُحمَّل عند فتح الدرس وحده */
+        const url = `${PDFJS_BASE}/pdf.min.mjs`
+        const pdfjs = (await import(/* webpackIgnore: true */ /* turbopackIgnore: true */ url)) as typeof import('pdfjs-dist')
+        pdfjs.GlobalWorkerOptions.workerSrc = `${PDFJS_BASE}/pdf.worker.min.mjs`
         const d = (await pdfjs.getDocument({
           url: p.src, withCredentials: true, disableRange: true, disableStream: true,
           /* خطوط PDF القياسية وجداول الترميز ومفكّكات الصور من public/pdfjs (يولّدها setup-fonts). والـcanvas باتجاه ltr: ترث الصفحة rtl فتنقلب مواضع الحروف */
-          standardFontDataUrl: `/pdfjs/${pdfjs.version}/standard_fonts/`, cMapUrl: `/pdfjs/${pdfjs.version}/cmaps/`, cMapPacked: true, wasmUrl: `/pdfjs/${pdfjs.version}/wasm/`,
+          standardFontDataUrl: `${PDFJS_BASE}/standard_fonts/`, cMapUrl: `${PDFJS_BASE}/cmaps/`, cMapPacked: true, wasmUrl: `${PDFJS_BASE}/wasm/`,
         }).promise) as unknown as Doc
         if (dead) { d.destroy(); return }
         doc.current = d

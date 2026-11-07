@@ -20,3 +20,4 @@ public/pdfjs
 /playwright-report/
 /public/_kit/
 /src/server/setup/migrations.generated.ts
+/src/site/learn/pdfjs.generated.ts
