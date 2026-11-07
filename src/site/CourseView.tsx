@@ -19,7 +19,7 @@ function Stars({ value }: { value: number }) {
   return <span className={s.stars} role="img" aria-label={`${value} من 5`}><span style={{ inlineSize: `${(value / 5) * 100}%` }}>★★★★★</span>★★★★★</span>
 }
 
-const LESSON: Record<string, string> = { video: 'فيديو', article: 'مقال', file: 'ملف', quiz: 'اختبار', live: 'مباشر', onsite: 'حضوري', assignment: 'واجب' }
+const LESSON: Record<string, string> = { video: 'فيديو', article: 'مقال', file: 'ملف', quiz: 'اختبار', live: 'مباشر', onsite: 'حضوري', assignment: 'واجب', slides: 'سلايدات' }
 
 /** `corporate`: مشهد «للمؤسسات» ظاهر في الرئيسية (وإلا فرابطه ميت) · `vat`: نسبة الضريبة المئوية لإيضاح أن السعر شامل */
 export function CourseView({ data, preview, corporate = true, vat = 0 }: { data: CourseDetail; preview?: boolean; corporate?: boolean; vat?: number }) {

@@ -96,10 +96,10 @@ for (const width of [360, 390, 1366]) {
   })
 }
 
-test('صفحات البطاقة المفردة متمركزة على الجوال — الدخول وتعيين كلمة المرور والتهيئة', async ({ browser }) => {
+test('صفحات البطاقة المفردة متمركزة على الجوال — الدخول وتعيين كلمة المرور والتهيئة وقبول الدعوة', async ({ browser }) => {
   for (const width of [360, 390]) {
     const p = await (await browser.newContext({ viewport: { width, height: 760 } })).newPage()
-    for (const path of ['/admin/login', '/admin/set-password?t=invalid', '/setup']) {
+    for (const path of ['/admin/login', '/admin/set-password?t=invalid', '/setup', '/invite?t=invalid']) {
       const res = await p.goto(path)
       expect(res?.status(), path).toBe(200)
       const gaps = await p.evaluate(() => {

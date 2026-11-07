@@ -46,7 +46,7 @@ const COURSE_LABELS: Record<string, string> = {
 }
 
 const LESSON_LABEL: Record<(typeof LESSON_TYPE)[number], string> = {
-  video: 'فيديو', article: 'مقال', file: 'ملف', quiz: 'اختبار', live: 'جلسة مباشرة', onsite: 'جلسة حضورية', assignment: 'واجب',
+  video: 'فيديو', article: 'مقال', file: 'ملف', quiz: 'اختبار', live: 'جلسة مباشرة', onsite: 'جلسة حضورية', assignment: 'واجب', slides: 'سلايدات',
 }
 
 const slugify = (t: string) =>
@@ -323,6 +323,10 @@ export function CourseEditor({ id, initial, previewToken, tracks, instructors, m
                   <Field label="موعد النشر" error={err('publishAt')}><DateTime value={v.publishAt} onChange={(x) => set('publishAt', x)} /></Field>
                 )}
                 <Switch checked={v.featured} onChange={(x) => set('featured', x)} label="دورة مميزة (تتقدّم في الرئيسية)" />
+              </Section>
+              <Section title="الظهور" desc="البرنامج الخاص (التدريب التعاوني وبرامج الجامعات) لا يظهر في الموقع ولا يُشترى — يُسجَّل فيه المشاركون من «المتدربون ← إضافة مشاركين» أو بدعوة بالبريد">
+                <Segmented value={v.visibility ?? 'public'} onChange={(x) => set('visibility', x)}
+                  options={[{ value: 'public', label: 'عامة — في الموقع وتُشترى' }, { value: 'private', label: 'خاصة — بالتسجيل أو الدعوة فقط' }]} />
               </Section>
               <Section title="محركات البحث والمشاركة">
                 <Field label="عنوان SEO" hint="فارغ = عنوان الدورة"><Input value={v.seoTitle} onChange={(e) => set('seoTitle', e.target.value)} /></Field>

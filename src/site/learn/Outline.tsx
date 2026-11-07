@@ -3,7 +3,7 @@ import type { ModuleState } from '@/server/learning'
 import { formatDay, formatTime } from '@/lib/dates'
 import o from './outline.module.css'
 
-const ICON: Record<string, string> = { video: '▶', article: '¶', file: '⇩', quiz: '?', live: '●', onsite: '⌖', assignment: '✎' }
+const ICON: Record<string, string> = { video: '▶', article: '¶', file: '⇩', quiz: '?', live: '●', onsite: '⌖', assignment: '✎', slides: '▤' }
 
 export function Outline({ slug, modules, current }: { slug: string; modules: ModuleState[]; current?: string }) {
   return (

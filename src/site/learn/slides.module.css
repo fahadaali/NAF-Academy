@@ -1,0 +1,38 @@
+/* عارض السلايدات — مسرح الشريحة وشريط التحكم أسفله (سطح داكن في الوضعين كمشغّل الفيديو) */
+.wrap { display: grid; gap: 10px; }
+.viewer { position: relative; border-radius: var(--radius-l); overflow: hidden; background: var(--night-1); box-shadow: var(--shadow-2); outline: none; }
+.viewer:focus-visible { box-shadow: 0 0 0 3px var(--gold-3), var(--shadow-2); }
+.viewer:fullscreen { border-radius: 0; display: grid; grid-template-rows: 1fr auto auto; }
+.stage { position: relative; display: grid; place-items: center; min-block-size: 220px; padding: 12px; background: var(--surface-2); }
+.viewer:fullscreen .stage { min-block-size: 0; }
+/* الشريحة بعرضها المحسوب (--w) وتنكمش مع الحاوية بنسبتها (--ar) */
+.canvas { display: block; inline-size: min(100%, var(--w, 100%)); block-size: auto; aspect-ratio: var(--ar, 16 / 9); background: var(--white); box-shadow: var(--shadow-1); animation: slideIn var(--t-base) var(--ease-glide) backwards; }
+@keyframes slideIn { from { opacity: 0; } }
+.status { color: var(--muted); font-size: 15px; }
+
+/* العلامة المائية تنتقل بالتحويل وحده داخل طبقة بحجم المسرح (وحدات cq) */
+.wmLayer { position: absolute; inset: 0; z-index: 2; pointer-events: none; container-type: size; overflow: hidden; }
+.watermark {
+  position: absolute; inset-block-start: 0; left: 0; pointer-events: none; user-select: none; direction: ltr;
+  transform: translate(calc(var(--x, 8) * 1cqw), calc(var(--y, 10) * 1cqh));
+  font-size: 13px; font-weight: 700; color: color-mix(in srgb, var(--night-1) 22%, transparent);
+  transition: transform var(--t-breathe) var(--ease-move); white-space: nowrap;
+}
+
+.bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 12px; color: var(--night-ink); font-size: 15px; }
+.bar button, .bar a { display: inline-grid; place-items: center; min-inline-size: 40px; min-block-size: 40px; border-radius: 8px; color: inherit; font-size: 17px; text-decoration: none; transition: background-color var(--t-fast) var(--ease-glide); }
+.bar button:hover:not(:disabled), .bar a:hover { background: color-mix(in srgb, var(--night-ink) 12%, transparent); }
+.bar button:disabled { opacity: 0.35; cursor: default; }
+.count { min-inline-size: 72px; text-align: center; font-variant-numeric: tabular-nums; color: var(--night-muted); }
+.count b { color: var(--night-ink); }
+.grow { flex: 1; }
+.track { block-size: 3px; background: color-mix(in srgb, var(--night-ink) 14%, transparent); }
+.track i { display: block; block-size: 100%; background: var(--gold-3); transform-origin: right; transition: transform var(--t-base) var(--ease-glide); }
+
+.done { color: var(--success); font-weight: 700; }
+.hint { color: var(--muted); font-size: 14px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .canvas { animation: none; }
+  .watermark, .track i { transition: none; }
+}

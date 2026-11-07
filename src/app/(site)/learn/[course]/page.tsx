@@ -32,12 +32,15 @@ export default async function CourseHome({ params }: { params: Promise<{ course:
         <section className={st.box} aria-labelledby="exp-h">
           <h2 id="exp-h">انتهى وصولك إلى «{plain(ctx.course.title)}»</h2>
           <p>انتهت مدة الوصول في <span className="num">{formatDay(ctx.expired.accessUntil!)}</span>. تقدّمك محفوظ — جدّد الوصول لتكمل من حيث توقفت.</p>
-          <p><a className="btn" href={`/courses/${slug}/enroll`}>جدّد الوصول</a> <a className="btn ghost" href="/learn">دوراتي</a></p>
+          {ctx.course.visibility === 'private'
+            ? <p>لتجديد الوصول إلى هذا البرنامج تواصل مع إدارته. <a className="btn ghost" href="/learn">دوراتي</a></p>
+            : <p><a className="btn" href={`/courses/${slug}/enroll`}>جدّد الوصول</a> <a className="btn ghost" href="/learn">دوراتي</a></p>}
         </section>
       </div>
     )
   }
-  if (!ctx.enrollment) redirect(`/courses/${slug}`)
+  /* البرنامج الخاص لا صفحة عامة له — غير المسجّل يعود إلى دوراته */
+  if (!ctx.enrollment) redirect(ctx.course.visibility === 'private' ? '/learn' : `/courses/${slug}`)
   const { course, modules, pct, resumeId, upcoming, enrollment, cohort } = ctx
   const [cert, [issued], [myReview]] = await Promise.all([
     evaluate(me.id, course.id),

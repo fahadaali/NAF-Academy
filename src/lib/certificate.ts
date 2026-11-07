@@ -5,7 +5,7 @@ export const PAGE = { w: 842, h: 595 } as const
 
 export type CertRules = {
   enabled: boolean
-  /** نسبة الدروس القابلة للإكمال (فيديو، مقال، ملف، اختبار، واجب) */
+  /** نسبة الدروس القابلة للإكمال (فيديو، مقال، ملف، سلايدات، اختبار، واجب) */
   lessonsPct: number
   /** نسبة حضور الجلسات المباشرة والحضورية */
   attendancePct: number

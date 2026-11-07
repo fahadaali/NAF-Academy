@@ -68,7 +68,7 @@ export function CoursesTable({ courses, tracks, media }: { courses: CourseRow[];
                       </span>
                       <div>
                         <Link href={`/admin/courses/${c.id}`} className={p.rowLink}>{c.title}</Link>
-                        <div className={p.muted}>{t?.title ?? 'بلا مسار'} · /{c.slug}{c.featured ? ' · ★ مميزة' : ''}</div>
+                        <div className={p.muted}>{t?.title ?? 'بلا مسار'} · /{c.slug}{c.featured ? ' · ★ مميزة' : ''}{c.visibility === 'private' ? ' · خاصة' : ''}</div>
                       </div>
                     </div>
                   </td>

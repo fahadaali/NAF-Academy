@@ -56,7 +56,9 @@ export default async function MyCourses() {
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
             {open
               ? <a className="btn" href={p.resume ? `/learn/${c.slug}/${p.resume}` : `/learn/${c.slug}`}>{p.pct ? 'تابع التعلّم' : 'ابدأ'}</a>
-              : <a className="btn" href={`/courses/${c.slug}/enroll`}>جدّد الوصول</a>}
+              : c.visibility === 'private'
+                ? <span className={st.next}>لتجديد الوصول تواصل مع إدارة البرنامج</span>
+                : <a className="btn" href={`/courses/${c.slug}/enroll`}>جدّد الوصول</a>}
             <a className="btn ghost" href={`/learn/${c.slug}`}>المنهج</a>
             {open && c.startsAt && <a className="btn ghost" href={`/courses/${c.slug}/calendar${e.cohortId ? `?cohort=${e.cohortId}` : ''}`}>أضف إلى التقويم</a>}
           </div>
