@@ -966,3 +966,15 @@ export const invitations = sqliteTable(
   ],
 )
 export type InvitationRow = typeof invitations.$inferSelect
+
+/** حدّ المحاولات (دلو + عنوان، أو دلو عام) وأحداث Webhook المستلمة (`seen:…`) — في القاعدة فتصمد عبر نسخ العامل.
+   عدّاد بنافذة ثابتة: `reset_at` بالملّي ثانية؛ ما انتهت نافذته يبدأ من 1، ويُحذف المنتهي أحياناً. */
+export const rateLimits = sqliteTable(
+  'rate_limits',
+  {
+    key: text('key').primaryKey(),
+    n: integer('n').notNull().default(0),
+    resetAt: integer('reset_at').notNull(),
+  },
+  (t) => [index('rate_limits_reset_idx').on(t.resetAt)],
+)
