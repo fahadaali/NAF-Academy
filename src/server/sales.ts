@@ -390,7 +390,8 @@ async function issueInvoice(order: OrderRow, items: { title: string; tierName: s
     id, number, kind, orderId: order.id, refOf: refOf ?? null, seller: settings.seller,
     buyer: { name: order.buyer.name, email: order.buyer.email, org: order.buyer.org, vatNumber: order.buyer.vatNumber },
     lines, total, vat, issuedAt,
-    qr: zatcaTlv({ seller: settings.seller.name, vatNumber: settings.seller.vatNumber || '-', timestamp: issuedAt.replace(/\.\d+Z$/, 'Z'), total: kind === 'invoice' ? total : -total, vat: kind === 'invoice' ? vat : -vat }),
+    /* ZATCA: المبالغ في الرمز موجبة دائماً — الإشعار الدائن يُعرف بنوع المستند لا بإشارة المبلغ */
+    qr: zatcaTlv({ seller: settings.seller.name, vatNumber: settings.seller.vatNumber || '-', timestamp: issuedAt.replace(/\.\d+Z$/, 'Z'), total: Math.abs(total), vat: Math.abs(vat) }),
   })
   return { id, number }
 }
