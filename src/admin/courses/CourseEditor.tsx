@@ -26,6 +26,7 @@ import { blocksFrom } from '@/lib/blocks'
 import type { CohortRow, CohortSessionRow } from '@/server/db/schema'
 import { DEFAULT_RULES } from '@/lib/certificate'
 import styles from './editor.module.css'
+import p from '@/admin/ui/panel.module.css'
 import { useCan } from '@/admin/ui/perms'
 
 const TABS = [
@@ -483,7 +484,7 @@ function TiersEditor({ value, onChange, errors }: { value: Tiers; onChange: (v: 
           <Switch checked={t.highlight} onChange={(b) => onChange(value.map((x, k) => ({ ...x, highlight: k === i ? b : false })))} label="الأكثر اختياراً" />
         </div>
       ))}
-      <button type="button" className="btn ghost" style={{ justifySelf: 'start' }} onClick={() => onChange([...value, { id: `new-${Date.now()}`, name: '', description: '', price: 0, compareAt: null, features: [], highlight: value.length === 1, capacity: null }])}>+ باقة</button>
+      <button type="button" className={`btn ghost ${p.start}`} onClick={() => onChange([...value, { id: `new-${Date.now()}`, name: '', description: '', price: 0, compareAt: null, features: [], highlight: value.length === 1, capacity: null }])}>+ باقة</button>
     </Section>
   )
 }
@@ -492,17 +493,17 @@ function GroupEditor({ value, onChange, error }: { value: CourseInput['groupRule
   return (
     <Section title="خصم المقاعد الجماعية" desc="للفرق والمؤسسات: كلما زاد العدد زاد الخصم. تُطبَّق أعلى قاعدة منطبقة.">
       {value.map((g, i) => (
-        <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+        <div key={i} className={p.wrap}>
           <span>من</span>
-          <Input style={{ maxInlineSize: 90 }} type="number" dir="ltr" min={2} max={50} value={g.minQty} onChange={(e) => onChange(value.map((x, k) => (k === i ? { ...x, minQty: Number(e.target.value) } : x)))} />
+          <Input className={p.fitXs} type="number" dir="ltr" min={2} max={50} value={g.minQty} onChange={(e) => onChange(value.map((x, k) => (k === i ? { ...x, minQty: Number(e.target.value) } : x)))} />
           <span>مقاعد فأكثر ← خصم</span>
-          <Input style={{ maxInlineSize: 90 }} type="number" dir="ltr" min={1} max={90} value={g.percent} onChange={(e) => onChange(value.map((x, k) => (k === i ? { ...x, percent: Number(e.target.value) } : x)))} />
+          <Input className={p.fitXs} type="number" dir="ltr" min={1} max={90} value={g.percent} onChange={(e) => onChange(value.map((x, k) => (k === i ? { ...x, percent: Number(e.target.value) } : x)))} />
           <span>%</span>
-          <button type="button" className="btn ghost" style={{ minBlockSize: 36 }} onClick={() => onChange(value.filter((_, k) => k !== i))}>حذف</button>
+          <button type="button" className={`btn ghost ${p.btnSm}`} onClick={() => onChange(value.filter((_, k) => k !== i))}>حذف</button>
         </div>
       ))}
-      {error && <span style={{ color: 'var(--danger)', fontSize: 13, fontWeight: 600 }}>{error}</span>}
-      <button type="button" className="btn ghost" style={{ justifySelf: 'start' }} onClick={() => onChange([...value, { minQty: (value.at(-1)?.minQty ?? 2) + 3, percent: (value.at(-1)?.percent ?? 5) + 5 }])}>+ قاعدة</button>
+      {error && <span className={p.errStrong}>{error}</span>}
+      <button type="button" className={`btn ghost ${p.start}`} onClick={() => onChange([...value, { minQty: (value.at(-1)?.minQty ?? 2) + 3, percent: (value.at(-1)?.percent ?? 5) + 5 }])}>+ قاعدة</button>
     </Section>
   )
 }

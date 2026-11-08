@@ -13,6 +13,7 @@
 @media (prefers-reduced-motion: reduce) { .gateway .dot::after { animation: none; opacity: 0; } }
 .warn { color: var(--warn) !important; font-weight: 700; }
 .err { color: var(--danger); font-weight: 600; font-size: 14px; margin-block: -8px 14px; }
+.flat { margin: 0; } /* .err داخل صف أدوات */
 .stepsList { display: grid; gap: 10px; padding-inline-start: 22px; line-height: 1.8; }
 .stepsList code { font-size: 13px; padding: 2px 6px; border-radius: 6px; background: var(--surface-2); }
 .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; margin-block-end: 22px; }
@@ -40,3 +41,5 @@
 .hits { display: grid; gap: 4px; font-size: 13px; color: var(--text-soft); }
 .hits ul { display: grid; gap: 4px; padding-inline-start: 18px; }
 .hits code, .verify p code { overflow-wrap: anywhere; }
+/* أكواد الدفعة المولّدة — للنسخ */
+.codes { inline-size: 100%; font-family: monospace; padding: 12px; border-radius: var(--radius-s); border: 1px solid var(--line-strong); background: var(--bg); color: var(--text); }

@@ -23,7 +23,7 @@ export function TrashList({ items }: { items: Item[] }) {
             <td className={p.muted}>{it.label}</td>
             <td className={`${p.muted} num`}>{it.at ? new Date(it.at).toLocaleString('ar-SA-u-nu-latn', { timeZone: 'Asia/Riyadh', dateStyle: 'medium', timeStyle: 'short' }) : ''}</td>
             <td>
-              <div className={p.cellRow} style={{ justifyContent: 'end', gap: 4 }}>
+              <div className={`${p.cellRow} ${p.tools}`}>
                 {can(TRASH_OWNER[it.entity]) && <button className={p.iconBtn} onClick={() => { drop(it); start(async () => { const r = await restore(it.entity, it.id); if (!r.ok) alert(r.error) }) }}>استرجاع</button>}
                 {can('trash.purge') && <button className={`${p.iconBtn} ${p.danger}`} onClick={() => {
                   const c = prompt(`حذف «${it.name}» نهائياً لا يمكن التراجع عنه.\nاكتب كلمة: حذف`)

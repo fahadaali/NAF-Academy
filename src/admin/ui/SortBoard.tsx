@@ -24,7 +24,7 @@ export function SortBoard({ items, entity }: { items: BoardItem[]; entity: Extra
               <div className={p.cellRow}>
                 <span className={p.thumb}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  {it.thumb ? <img src={it.thumb} alt="" style={{ inlineSize: '100%', blockSize: '100%', objectFit: 'cover' }} /> : it.glyph}
+                  {it.thumb ? <img src={it.thumb} alt="" /> : it.glyph}
                 </span>
                 <div>
                   <Link href={it.href} className={p.rowLink}>{it.title}</Link>
@@ -33,8 +33,8 @@ export function SortBoard({ items, entity }: { items: BoardItem[]; entity: Extra
               </div>
             </td>
             <td>{it.badge && <Badge tone={it.badge.tone}>{it.badge.text}</Badge>}</td>
-            <td style={{ inlineSize: 1 }}>
-              <div className={p.cellRow} style={{ gap: 4 }}>
+            <td className={p.shrink}>
+              <div className={`${p.cellRow} ${p.tight}`}>
                 <Link className={p.iconBtn} href={it.href}>{write ? 'تحرير' : 'عرض'}</Link>
                 {write && <RowTools i={i} n={list.length} move={move} onRemove={() => {
                   if (!confirm(`نقل «${it.title}» إلى المحذوفات؟`)) return

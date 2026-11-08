@@ -92,5 +92,50 @@
 .notice { padding: 12px 16px; border-radius: var(--radius-m); background: var(--surface-2); font-weight: 600; margin-block-end: 16px; }
 .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr)); gap: 18px; }
 
+/* أدوات تخطيط صغيرة — بدل الأنماط المضمّنة في صفحات اللوحة ومحرّراتها */
+.title { font-size: 20px; margin-block: 30px 12px; }          /* عنوان قسم تحت جدول (سجل الاستخدام، المهتمون) */
+.more { display: inline-block; margin-block-start: 8px; }       /* رابط «المزيد» تحت قائمة — مع .muted */
+.pager { margin-block-start: 16px; }                             /* شريط الصفحات تحت الجدول — مع .toolbar */
+.spacer { flex: 1; }
+.start { justify-self: start; }                                  /* زر «+ إضافة» تحت قائمة في شبكة */
+.below { margin-block-start: 4px; }
+.gapEnd { margin-block-end: 16px; }
+.gapStart { margin-block-start: 12px; }
+.hstack { display: flex; gap: 8px; align-items: center; }
+.between { display: flex; gap: 8px; align-items: center; justify-content: space-between; }
+.wrap { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.pair { display: inline-flex; gap: 6px; }
+.options { display: flex; flex-wrap: wrap; gap: 20px; }
+.stack { display: grid; gap: 10px; }
+.cardStack { display: grid; gap: 8px; margin-block-end: 18px; }  /* مع .card */
+/* بطاقة عنصر داخل محرّر قائمة (رأي، جهة، درجة) */
+.tile { display: grid; gap: 10px; padding: 12px; border-radius: 12px; background: var(--surface-2); }
+.tileLg { display: grid; gap: 12px; padding: 16px; border-radius: 14px; background: var(--surface-2); }
+/* خلايا الجداول */
+.shrink { inline-size: 1px; }                                    /* عمود الأدوات بقدر محتواه */
+.tools { justify-content: end; gap: 4px; }                       /* مع .cellRow */
+.tight { gap: 4px; }                                             /* مع .cellRow */
+.clamp { max-inline-size: 420px; }
+.clampSm { max-inline-size: 240px; }
+.grip { cursor: grab; color: var(--muted); }
+.thumb img { inline-size: 100%; block-size: 100%; object-fit: cover; }
+/* حقول وأزرار بعرض محتواها */
+.filter { min-inline-size: 180px; }                              /* قائمة تصفية — مع .search */
+.searchSm { min-inline-size: 0; min-block-size: 34px; font-size: 13px; } /* قائمة داخل خلية — مع .search */
+.fitXs { max-inline-size: 90px; }
+.fitS { max-inline-size: 120px; }
+.fitM { max-inline-size: 180px; }
+.fitL { max-inline-size: 240px; }
+.btnSm { min-block-size: 36px; }
+.btnMd { min-block-size: 42px; }
+/* رسائل النتيجة */
+.errStrong { color: var(--danger); font-size: 13px; font-weight: 600; }
+.status { font-weight: 600; color: var(--danger); margin-block-end: 12px; }
+.status[data-ok='1'] { color: var(--success); }
+/* صف مشهد في محرّر الرئيسية — المخفي باهت */
+.sceneRow { display: flex; align-items: center; gap: 12px; padding: 6px 10px; border-radius: var(--radius-s); background: var(--surface-2); }
+.sceneRow[data-hidden='1'] { opacity: 0.55; }
+.sceneRow > strong { flex: 1; }
+
 /* اللمس: أهداف 40px على الأقل */
 @media (pointer: coarse) { .iconBtn, .chip, .select { min-block-size: 40px; } }

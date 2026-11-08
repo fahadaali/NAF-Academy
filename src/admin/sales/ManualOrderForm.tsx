@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { manualOrder, type ManualInput } from './actions'
 import { Field, Grid, Input, PageHead, Section, Segmented, Select, Switch, Textarea } from '@/admin/ui/kit'
+import p from '@/admin/ui/panel.module.css'
 
 /** cohorts: null للدورة بلا دفعات، وقائمة (قد تكون فارغة) لدورة بدفعات */
 type CourseOpt = { slug: string; title: string; tiers: { id: string; name: string }[]; cohorts: { id: string; title: string }[] | null }
@@ -41,7 +42,7 @@ export function ManualOrderForm({ courses }: { courses: CourseOpt[] }) {
         </Grid>
         <Field label="ملاحظة داخلية" hint="مثل رقم التحويل البنكي"><Textarea rows={2} value={v.note} onChange={(e) => setV((o) => ({ ...o, note: e.target.value }))} /></Field>
       </Section>
-      {msg && <p style={{ color: 'var(--danger)', fontWeight: 600, marginBlockEnd: 12 }}>{msg}</p>}
+      {msg && <p className={p.status}>{msg}</p>}
       <button className="btn" disabled={busy} onClick={async () => {
         setBusy(true); setMsg('')
         const r = await manualOrder(v)

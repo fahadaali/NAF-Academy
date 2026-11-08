@@ -48,7 +48,7 @@ export function CouponsTable({ rows }: { rows: Row[] }) {
                   <td className="num">{sar(c.revenue)} <span className={p.muted}>/ {sar(c.discountTotal)}</span></td>
                   <td><Badge tone={st.tone}>{st.text}</Badge></td>
                   <td>
-                    <div className={p.cellRow} style={{ gap: 2, justifyContent: 'end' }}>
+                    <div className={`${p.cellRow} ${p.tools}`}>
                       <button className={p.iconBtn} onClick={() => { navigator.clipboard?.writeText(`${location.origin}/courses?coupon=${c.code}`); setCopied(c.id) }}>{copied === c.id ? 'نُسخ ✓' : 'نسخ الرابط'}</button>
                       <button className={p.iconBtn} onClick={() => { setList((l) => l.map((x) => (x.id === c.id ? { ...x, active: !x.active } : x))); start(() => setCouponActive(c.id, !c.active)) }}>{c.active ? 'إيقاف' : 'تفعيل'}</button>
                       <button className={`${p.iconBtn} ${p.danger}`} onClick={() => { if (confirm(`حذف ${c.code}؟ يبقى أثره في الطلبات السابقة.`)) { setList((l) => l.filter((x) => x.id !== c.id)); start(() => trashCoupon(c.id)) } }}>حذف</button>

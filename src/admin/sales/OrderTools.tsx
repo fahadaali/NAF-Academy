@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { assignSeat, cancelPending, refundAction, resendOrderEmail, resyncWafeq } from './actions'
 import { Field, Input, Switch } from '@/admin/ui/kit'
 import s from './sales.module.css'
+import p from '@/admin/ui/panel.module.css'
 
 export function RefundPanel({ orderId, left }: { orderId: string; left: number }) {
   const router = useRouter()
@@ -18,7 +19,7 @@ export function RefundPanel({ orderId, left }: { orderId: string; left: number }
       <Field label="المبلغ (ر.س)" hint={`المتبقي القابل للاسترداد ${(left / 100).toLocaleString('en-US')} ر.س`}><Input dir="ltr" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value.replace(/[^\d.]/g, ''))} /></Field>
       <Field label="السبب"><Input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="مثال: اعتذار قبل الموعد بأسبوع" /></Field>
       <Switch checked={cancel} onChange={setCancel} label="إلغاء التسجيل وتحرير المقاعد" />
-      {msg && <p className={s.err} style={{ margin: 0 }}>{msg}</p>}
+      {msg && <p className={`${s.err} ${s.flat}`}>{msg}</p>}
       <button className="btn ghost" disabled={busy || !reason.trim() || !Number(amount)} onClick={async () => {
         if (!confirm(`استرداد ${amount} ر.س؟ يُنفَّذ عبر البوابة ويصدر إشعار دائن.`)) return
         setBusy(true)
@@ -53,14 +54,14 @@ export function SeatRow({ grantId }: { grantId: string }) {
   const [name, setName] = useState('')
   const [err, setErr] = useState('')
   return (
-    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-      <Input style={{ maxInlineSize: 170 }} placeholder="الاسم" value={name} onChange={(e) => setName(e.target.value)} />
-      <Input style={{ maxInlineSize: 240 }} dir="ltr" placeholder="email@company.sa" value={email} onChange={(e) => setEmail(e.target.value)} />
-      <button className="btn ghost" style={{ minBlockSize: 42 }} disabled={!email} onClick={async () => {
+    <div className={p.wrap}>
+      <Input className={p.fitM} placeholder="الاسم" value={name} onChange={(e) => setName(e.target.value)} />
+      <Input className={p.fitL} dir="ltr" placeholder="email@company.sa" value={email} onChange={(e) => setEmail(e.target.value)} />
+      <button className={`btn ghost ${p.btnMd}`} disabled={!email} onClick={async () => {
         const r = await assignSeat(grantId, email, name)
         if (!r.ok) setErr(r.error ?? ''); else router.refresh()
       }}>خصّص</button>
-      {err && <span className={s.err} style={{ margin: 0 }}>{err}</span>}
+      {err && <span className={`${s.err} ${s.flat}`}>{err}</span>}
     </div>
   )
 }

@@ -33,7 +33,7 @@ export default async function Reviews({ searchParams }: { searchParams: Promise<
             <tr key={r.id}>
               <td className="num" aria-label={`${r.rating} من 5`}>{'★'.repeat(r.rating)}<span className={p.muted}>{'★'.repeat(5 - r.rating)}</span></td>
               <td>{course.replace(/~\d/g, '')}<div className={`${p.muted} num`}>{when(r.updatedAt)}</div></td>
-              <td style={{ maxInlineSize: 420 }}>{r.comment || <span className={p.muted}>—</span>}</td>
+              <td className={p.clamp}>{r.comment || <span className={p.muted}>—</span>}</td>
               <td>{r.display}<div className={`${p.muted} ${p.ltr}`}>{name} · {email}</div></td>
               <td><Moderate id={r.id} status={r.status} /></td>
             </tr>

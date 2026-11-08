@@ -24,11 +24,11 @@ export default async function Templates() {
       <PageHead title="قوالب الشهادات" sub="الشهادة الصادرة تحفظ قالبها لحظة الإصدار — تعديل القالب لا يغيّر ما صدر" actions={<><a className="btn ghost" href="/admin/certificates">الشهادات</a><a className="btn" href="/admin/certificates/templates/new">+ قالب جديد</a></>} />
       <div className={p.cards}>
         {rows.map((t) => (
-          <a key={t.id} href={`/admin/certificates/templates/${t.id}`} style={{ display: 'grid', gap: 10 }}>
+          <a key={t.id} href={`/admin/certificates/templates/${t.id}`} className={p.stack}>
             <CertificateView design={mergeDesign(t.design)} data={SAMPLE} brand={brand} images={imgs.get(t.id)} />
-            <span style={{ display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'space-between' }}>
+            <span className={p.between}>
               <strong>{t.name}</strong>
-              <span style={{ display: 'flex', gap: 8, alignItems: 'center' }}>{t.isDefault && <Badge tone="open">الافتراضي</Badge>}<span className={`${p.muted} num`}>{u.get(t.id) ?? 0} صادرة</span></span>
+              <span className={p.hstack}>{t.isDefault && <Badge tone="open">الافتراضي</Badge>}<span className={`${p.muted} num`}>{u.get(t.id) ?? 0} صادرة</span></span>
             </span>
           </a>
         ))}
