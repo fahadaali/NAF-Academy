@@ -24,14 +24,14 @@
 .brand :global(.wordmark-text small) { font-size: 11px; opacity: 0.7; letter-spacing: 0.04em; }
 
 .nav ol { display: flex; gap: 6px; }
-.nav a {
+.nav ol a {
   position: relative; display: inline-flex; align-items: center; gap: 7px;
   padding: 8px 12px; border-radius: 999px; font-size: 15px; font-weight: 500; opacity: 0.88;
   transition: opacity var(--t-base) var(--ease-move), background var(--t-base) var(--ease-move);
 }
-.nav a:hover { opacity: 1; background: color-mix(in srgb, currentColor 8%, transparent); }
-.nav a[aria-current='true'] { opacity: 1; }
-.nav a[aria-current='true']::after {
+.nav ol a:hover { opacity: 1; background: color-mix(in srgb, currentColor 8%, transparent); }
+.nav ol a[aria-current='true'] { opacity: 1; }
+.nav ol a[aria-current='true']::after {
   content: ''; position: absolute; inset-inline: 14px; inset-block-end: 3px; block-size: 2px; border-radius: 2px;
   background: var(--gold-3); animation: grow var(--t-gentle) var(--ease-glide);
 }
@@ -41,7 +41,7 @@
   opacity: 0.85; transition: opacity var(--t-base) var(--ease-move), translate var(--t-base) var(--ease-glide); }
 .ico :global(.ico-mark) { fill: var(--ico-mark); stroke: none; }
 .header:not([data-night='1']) .ico { color: var(--accent-strong); --ico-mark: var(--gold-2); }
-.nav a:hover .ico, .nav a[aria-current='true'] .ico { opacity: 1; translate: 0 -1px; }
+.nav ol a:hover .ico, .nav ol a[aria-current='true'] .ico { opacity: 1; translate: 0 -1px; }
 
 .actions { display: flex; align-items: center; gap: 10px; }
 .theme { inline-size: 42px; block-size: 42px; display: grid; place-items: center; border-radius: 50%; color: inherit; transition: background var(--t-base) var(--ease-move); }
@@ -54,6 +54,7 @@
 .theme[data-state='dark'] .sun { r: 7px; }
 .theme[data-state='dark'] .rays { transform: rotate(45deg) scale(0.4); opacity: 0; }
 .theme[data-state='dark'] .bite { transform: none; }
+.menuActions { display: none; }
 .login { font-size: 15px; font-weight: 500; padding: 8px 10px; opacity: 0.85; }
 .login:hover { opacity: 1; }
 .cta { min-block-size: 42px !important; padding-inline: 20px !important; font-size: 15px !important; }
@@ -81,11 +82,20 @@
     clip-path: inset(0 0 100% 0); visibility: hidden;
     transition: clip-path calc(var(--t-gentle) * 1.6) var(--ease-travel), visibility 0s var(--ease-move) calc(var(--t-gentle) * 1.6);
     box-shadow: 0 1px 0 var(--line);
+    /* أطول من الشاشة؟ تتمرّر القائمة نفسها لا الصفحة خلفها */
+    max-block-size: calc(100dvh - var(--header-h)); overflow-y: auto; overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
   }
   .header[data-open='1'] .nav { clip-path: inset(0 0 0 0); visibility: visible; transition: clip-path calc(var(--t-gentle) * 1.6) var(--ease-travel), visibility 0s; }
   .header[data-open='1'] { background: var(--bg); color: var(--text); }
   .nav ol { flex-direction: column; gap: 2px; }
-  .nav a { font-size: 22px; padding: 12px 6px; inline-size: 100%; }
+  .nav ol a { font-size: 22px; padding: 12px 6px; inline-size: 100%; }
+  .menuActions {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 12px;
+    margin-block-start: 14px; padding-block-start: 18px; border-block-start: 1px solid var(--line);
+  }
+  .menuLogin { display: inline-flex; align-items: center; min-block-size: 44px; padding-inline: 6px; font-size: 17px; font-weight: 500; }
+  .menuActions :global(.btn) { flex: 1 1 auto; justify-content: center; }
   /* لوحة القائمة بخلفية الصفحة لا بخلفية المشهد — الأرقام تتبعها */
   .nav .ico, .header[data-night='1'] .nav .ico { color: var(--accent-strong); --ico-mark: var(--gold-2); inline-size: 20px; block-size: 20px; }
 }

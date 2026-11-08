@@ -24,6 +24,19 @@ export function Header({ nav, brand }: { nav: Item[]; brand: BrandView }) {
     if (m) setAccount(decodeURIComponent(m[1]))
   }, [])
 
+  /* القائمة مفتوحة على الجوال: الصفحة خلفها ثابتة والتمرير للقائمة وحدها، وEsc يغلقها */
+  useEffect(() => {
+    if (!open) return
+    const root = document.documentElement
+    root.dataset.menu = 'open'
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
+    document.addEventListener('keydown', onKey)
+    return () => {
+      delete root.dataset.menu
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [open])
+
   useEffect(() => {
     setTheme(currentTheme())
     const onTheme = (e: Event) => setTheme((e as CustomEvent<Theme>).detail)
@@ -78,7 +91,7 @@ export function Header({ nav, brand }: { nav: Item[]; brand: BrandView }) {
         <a href="/" className={styles.brand} aria-label={`${brand.name} — الرئيسية`}>
           <Wordmark brand={brand} />
         </a>
-        <nav className={styles.nav} aria-label="الأقسام">
+        <nav id="site-menu" className={styles.nav} aria-label="الأقسام">
           <ol role="list">
             {nav.map((n) => (
               <li key={n.href}>
@@ -89,6 +102,11 @@ export function Header({ nav, brand }: { nav: Item[]; brand: BrandView }) {
               </li>
             ))}
           </ol>
+          {/* على الجوال يختفي «دخول» و«سجّل الآن» من الشريط — فهما هنا في أسفل القائمة */}
+          <div className={styles.menuActions}>
+            <a href={account ? '/learn' : '/login'} className={styles.menuLogin} onClick={() => setOpen(false)}>{account ? 'حسابي' : 'دخول'}</a>
+            <a href="/courses" className="btn" onClick={() => setOpen(false)}>سجّل الآن</a>
+          </div>
         </nav>
         <div className={styles.actions}>
           <button
@@ -109,7 +127,7 @@ export function Header({ nav, brand }: { nav: Item[]; brand: BrandView }) {
           </button>
           <a href={account ? '/learn' : '/login'} className={styles.login}>{account ? 'حسابي' : 'دخول'}</a>
           <a href="/courses" className={`btn ${styles.cta}`}>سجّل الآن</a>
-          <button className={styles.burger} aria-label="القائمة" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+          <button className={styles.burger} aria-label="القائمة" aria-controls="site-menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
             <span /><span />
           </button>
         </div>
