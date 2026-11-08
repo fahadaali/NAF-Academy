@@ -6,8 +6,8 @@ import { and, desc, eq, isNull, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { db, schema as s } from '@/server/db'
 import { currentLearner } from '@/server/learner-auth'
-import { learnerCourse } from '@/server/learning'
-import { gradeQuiz, publicQuiz, slideReach } from '@/lib/learning'
+import { learnerCourse, openAttempt } from '@/server/learning'
+import { gradeQuiz, publicQuiz, slideReach, slideStart, takesHeartbeat } from '@/lib/learning'
 import { putObject } from '@/server/storage'
 import { limited } from '@/server/ratelimit'
 import { EXT_MIME } from '@/lib/files'
@@ -37,6 +37,8 @@ async function complete(learnerId: string, lessonId: string, courseId: string) {
    والمدة تُقيَّد بمدة الدرس المعلنة فلا يكفي إرسال مدة قصيرة. */
 export async function saveProgress(slug: string, lessonId: string, position: number, delta: number, duration: number) {
   const { me, ctx, lesson } = await gate(slug, lessonId)
+  /* النبضة للفيديو (وتسجيل الجلسة) وحده — positionSec في السلايدات رقم الشريحة، فنبضة عليها كانت تكفي لإكمالها دون تقليب */
+  if (!takesHeartbeat(lesson)) return { done: false }
   const pos = Math.max(0, Math.floor(position))
   /* الحساب داخل الكتابة نفسها (ذرّياً): ما يُضاف لا يتجاوز ضعف الوقت الفعلي منذ آخر نبضة محفوظة —
      فالنبضات المتوازية أو المتلاحقة لا تقرأ الطابع نفسه ولا تكسب ثواني لم تمضِ */
@@ -68,12 +70,14 @@ export async function saveSlide(slug: string, lessonId: string, page: number): P
   if (lesson.type !== 'slides' || !lesson.slides) return { furthest: 0, done: false }
   const [prog] = await db.select().from(s.lessonProgress).where(and(eq(s.lessonProgress.learnerId, me.id), eq(s.lessonProgress.lessonId, lessonId)))
   if (prog?.completedAt) return { furthest: lesson.slides.pages, done: true }
-  const r = slideReach(prog?.positionSec ?? 0, page, lesson.slides.pages)
-  if (!prog || r.furthest > prog.positionSec) {
+  /* موضع مخزّن يتجاوز عدد الشرائح يُهمل (slideStart) — لا يُعدّ بلوغاً للأخيرة */
+  const pages = lesson.slides.pages
+  const r = slideReach(slideStart(prog?.positionSec ?? 0, pages), page, pages)
+  if (!prog || r.furthest !== prog.positionSec) {
     const now = new Date().toISOString()
     /* max في الكتابة نفسها: طلبان متوازيان لا يُرجعان الموضع إلى الخلف */
     await db.insert(s.lessonProgress).values({ learnerId: me.id, lessonId, courseId: ctx.course.id, positionSec: r.furthest })
-      .onConflictDoUpdate({ target: [s.lessonProgress.learnerId, s.lessonProgress.lessonId], set: { positionSec: sql`max(${s.lessonProgress.positionSec}, ${r.furthest})`, updatedAt: now } })
+      .onConflictDoUpdate({ target: [s.lessonProgress.learnerId, s.lessonProgress.lessonId], set: { positionSec: sql`max(case when ${s.lessonProgress.positionSec} > ${pages} then 0 else ${s.lessonProgress.positionSec} end, ${r.furthest})`, updatedAt: now } })
   }
   if (r.done) {
     await complete(me.id, lessonId, ctx.course.id)
@@ -129,16 +133,8 @@ export async function listQuestions(slug: string, lessonId: string) {
 
 export async function startQuiz(slug: string, lessonId: string) {
   const { me, lesson } = await gate(slug, lessonId)
-  if (lesson.type !== 'quiz' || !lesson.quiz) return { ok: false, error: 'لا اختبار' }
-  const attempts = await db.select().from(s.quizAttempts).where(and(eq(s.quizAttempts.learnerId, me.id), eq(s.quizAttempts.lessonId, lessonId)))
-  const open = attempts.find((a) => !a.submittedAt)
-  if (open) return { ok: true, id: open.id, startedAt: open.startedAt }
-  if (lesson.quiz.attempts !== null && attempts.length >= lesson.quiz.attempts) return { ok: false, error: 'استنفدت المحاولات المتاحة' }
-  if (attempts.some((a) => a.passed)) return { ok: false, error: 'اجتزت هذا الاختبار' }
-  const id = randomUUID()
-  const startedAt = new Date().toISOString()
-  await db.insert(s.quizAttempts).values({ id, learnerId: me.id, lessonId, startedAt })
-  return { ok: true, id, startedAt }
+  if (lesson.type !== 'quiz' || !lesson.quiz) return { ok: false as const, error: 'لا اختبار' }
+  return openAttempt(me.id, lessonId, lesson.quiz.attempts)
 }
 
 const answersSchema = z.record(z.string().max(40), z.array(z.string().max(40)).max(10))
