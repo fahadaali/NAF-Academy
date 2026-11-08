@@ -120,6 +120,12 @@ test('قائمة الجوال: فيها الدخول، وتتمرّر وحدها
   await burger.click()
   const menu = page.getByRole('navigation', { name: 'الأقسام' })
   await expect(menu).toBeVisible()
+  /* الظهور وحده لا يكفي: ننتظر قفل الصفحة (data-menu) واكتمال كشف القائمة (clip-path يقصّ مواضع المؤشر أثناءه)
+     وأن تكون أطول من مكانها — وإلا ذهبت العجلة إلى الصفحة خلفها */
+  await expect(page.locator('html')).toHaveAttribute('data-menu', 'open')
+  await expect.poll(() => menu.evaluate((n) => n.getAnimations().filter((a) => a.playState === 'running').length)).toBe(0)
+  await expect(menu).toHaveCSS('clip-path', /^inset\(0(px)?( 0(px)?){0,3}\)$/)
+  await expect.poll(() => menu.evaluate((n) => n.scrollHeight - n.clientHeight)).toBeGreaterThan(0)
   await page.mouse.move(370, 250)
   await page.mouse.wheel(0, 2000)
   await expect.poll(() => menu.evaluate((n) => n.scrollTop)).toBeGreaterThan(0)
