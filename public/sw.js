@@ -1,11 +1,11 @@
 /* عامل الخدمة — تصفّح الصفحات العامة دون اتصال، وإشعارات المتصفح.
    لا يُخزَّن أي محتوى خاص (حسابي، الدروس، اللوحة، الطلبات، الملفات) — يُطلب من الشبكة دائماً. */
-const VERSION = 'naf-v5'
+const VERSION = 'naf-v6'
 const STATIC = `${VERSION}-static`
 const PAGES = `${VERSION}-pages`
 const OFFLINE = '/offline'
 
-const PRIVATE = /^\/(admin|api|auth|setup|learn|learn-go|files|orders|unsubscribe|login|certificates\/[^/]+\/(pdf|badge))(\/|$)/
+const PRIVATE = /^\/(admin|api|auth|setup|learn|learn-go|files|orders|unsubscribe|login|invite|certificates\/[^/]+\/(pdf|badge))(\/|$)/
 const PUBLIC_PAGE = /^\/($|courses(\/[a-z0-9-]+)?$|tracks(\/[a-z0-9-]+)?$|instructors(\/[a-z0-9-]+)?$|certificates\/verify$)/
 
 self.addEventListener('install', (e) => {

@@ -13,7 +13,7 @@ import { resolveStatus } from '@/lib/course-meta'
 import type { CourseRow, CouponRow, OrderRow, TierRow } from './db/schema'
 import { chunksOf } from './db/limits'
 import { livePromotions, promosFor } from './promotions'
-import { cohortSeatsUsed, holdsSeat } from './cohorts'
+import { cohortSeatsUsed, holdsSeat, inviteHolds } from './cohorts'
 import { accessUntilFor, cohortState, hasAccess } from '@/lib/cohorts'
 import type { CohortRow } from './db/schema'
 
@@ -30,7 +30,7 @@ async function nextNumber(key: string, prefix: string) {
 }
 
 /* ───────── المقاعد ───────── */
-/** المشغول = المحجوز يدوياً + التسجيلات النشطة + مقاعد المؤسسات غير المخصّصة + الطلبات المعلّقة السارية */
+/** المشغول = المحجوز يدوياً + التسجيلات النشطة + مقاعد المؤسسات غير المخصّصة + الطلبات المعلّقة السارية + الدعوات المفتوحة */
 export async function seatsUsed(course: Pick<CourseRow, 'id' | 'seatsTaken'>, tierId?: string | null) {
   const now = nowIso()
   const [e] = await db.select({ n: count() }).from(s.enrollments)
@@ -42,7 +42,9 @@ export async function seatsUsed(course: Pick<CourseRow, 'id' | 'seatsTaken'>, ti
   const [p] = await db.select({ n: sum(s.orderItems.quantity) }).from(s.orderItems)
     .innerJoin(s.orders, eq(s.orders.id, s.orderItems.orderId))
     .where(and(eq(s.orderItems.courseId, course.id), eq(s.orders.status, 'pending'), gt(s.orders.expiresAt, now), tierId ? eq(s.orderItems.tierId, tierId) : undefined))
-  return (tierId ? 0 : course.seatsTaken) + e.n + g.n + Number(p.n ?? 0)
+  /* الدعوة بلا باقة — تُحسب في سعة الدورة لا في سعة باقة */
+  const [i] = tierId ? [{ n: 0 }] : await db.select({ n: count() }).from(s.invitations).where(and(eq(s.invitations.courseId, course.id), inviteHolds(now)))
+  return (tierId ? 0 : course.seatsTaken) + e.n + g.n + Number(p.n ?? 0) + i.n
 }
 
 /** هل في الدورة (أو دفعتها) متّسع لـ n مقعداً إضافياً؟ يعيد رسالة الرفض أو null */
@@ -126,7 +128,7 @@ export async function priceFor(slug: string, opts: { tierId?: string | null; qua
 /** ينشئ المتدرب أو يكمل بياناته. `trusted`: صاحب الحساب نفسه بعد التحقق، أو موظف من اللوحة —
     وحده يغيّر الاسم والجوال القائمين. غيره (مسؤول مؤسسة يخصّص مقعداً، أو شراء بلا تحقق) يملأ الفارغ فقط،
     فلا يُكتب اسم خاطئ على شهادة أحد، ولا يُربط جوال غريب بحسابه (الدخول بالجوال). */
-export async function upsertLearner(b: { name: string; email: string; phone: string; org: string; vatNumber: string }, opts: { trusted?: boolean } = {}) {
+export async function upsertLearner(b: { name: string; email: string; phone: string; org: string; vatNumber: string; nameEn?: string }, opts: { trusted?: boolean } = {}) {
   const email = b.email.trim().toLowerCase()
   const phone = b.phone ? normalizePhone(b.phone) ?? b.phone.trim() : ''
   const name = b.name.trim()
@@ -137,7 +139,7 @@ export async function upsertLearner(b: { name: string; email: string; phone: str
   }
   const [old] = await db.select().from(s.learners).where(eq(s.learners.email, email))
   if (!old) {
-    const [row] = await db.insert(s.learners).values({ id: randomUUID(), name: name || email.split('@')[0], email, phone: (await phoneFree()) ? phone : '', org: b.org, vatNumber: b.vatNumber })
+    const [row] = await db.insert(s.learners).values({ id: randomUUID(), name: name || email.split('@')[0], email, phone: (await phoneFree()) ? phone : '', org: b.org, vatNumber: b.vatNumber, nameEn: b.nameEn?.trim() ?? '' })
       .onConflictDoNothing({ target: s.learners.email }).returning()
     if (row) return row
     const [again] = await db.select().from(s.learners).where(eq(s.learners.email, email))
@@ -150,6 +152,8 @@ export async function upsertLearner(b: { name: string; email: string; phone: str
   if (phone && phone !== old.phone && (opts.trusted || !old.phone) && (await phoneFree(old.id))) patch.phone = phone
   if (b.org && b.org !== old.org && (opts.trusted || !old.org)) patch.org = b.org
   if (b.vatNumber && b.vatNumber !== old.vatNumber && (opts.trusted || !old.vatNumber)) patch.vatNumber = b.vatNumber
+  const nameEn = b.nameEn?.trim() ?? ''
+  if (nameEn && nameEn !== old.nameEn && (opts.trusted || !old.nameEn)) patch.nameEn = nameEn
   if (!Object.keys(patch).length) return old
   const [row] = await db.update(s.learners).set({ ...patch, updatedAt: nowIso() }).where(eq(s.learners.id, old.id)).returning()
   return row
@@ -170,6 +174,8 @@ export async function placeOrder(p: { slug: string; tierId?: string | null; coho
   const priced = await priceFor(p.slug, { tierId: p.tierId, quantity: p.quantity, code: p.code, email: p.buyer.email })
   if (!priced) return { ok: false, error: 'الدورة غير موجودة' }
   const { course, tier, coupon, q } = priced
+  /* البرنامج الخاص لا يُشترى — يُسجَّل فيه من اللوحة أو بدعوة */
+  if (!p.by && course.visibility === 'private') return { ok: false, error: 'التسجيل في هذا البرنامج من الإدارة أو بدعوة فقط' }
   const email = p.buyer.email.trim().toLowerCase()
   const [known] = await db.select().from(s.learners).where(eq(s.learners.email, email))
   /* مسجّل في الدورة؟ لا يُشترى المقعد مرتين (إلا طلب مقاعد لفريق لا يحضر صاحبه).

@@ -6,6 +6,7 @@ import { currentLearner } from '@/server/learner-auth'
 import { learnerCourse, lessonView } from '@/server/learning'
 import { Outline } from '@/site/learn/Outline'
 import { VideoWorkspace, Notes, Questions } from '@/site/learn/Workspace'
+import { SlidesViewer } from '@/site/learn/SlidesViewer'
 import { CompleteButton, QuizRunner, AssignmentPanel, JoinPanel } from '@/site/learn/LessonParts'
 import { Prose } from '@/components/Prose'
 import { formatDay, formatHijri, formatTime } from '@/lib/dates'
@@ -70,6 +71,17 @@ export default async function LessonPage({ params }: { params: Promise<{ course:
               <VideoWorkspace slug={slug} lessonId={l.id} kind={v.player.kind} src={v.player.src} resumeAt={v.player.resumeAt} chapters={l.chapters} captions={v.player.captions} watermark={me ? me.email || me.phone || me.name : ''} done={v.done} />
             )}
             {l.type === 'video' && v.player.kind === 'none' && <div className={st.locked}><strong>الفيديو قيد التجهيز</strong></div>}
+
+            {l.type === 'slides' && (l.slides ? (
+              <>
+                <SlidesViewer slug={slug} lessonId={l.id} src={`/files/${l.slides.assetId}?inline`} pages={l.slides.pages}
+                  start={v.done ? 1 : Math.max(1, v.player.resumeAt)} furthest={v.done ? l.slides.pages : v.player.resumeAt}
+                  track={canAct} done={v.done} download={l.slides.download ? `/files/${l.slides.assetId}` : null} watermark={me ? me.email || me.phone || me.name : ''} />
+                <noscript>
+                  <div className={st.locked}><strong>عارض السلايدات يحتاج JavaScript</strong>{l.slides.download && <a className="btn ghost" href={`/files/${l.slides.assetId}`} download>تنزيل الملف</a>}</div>
+                </noscript>
+              </>
+            ) : <div className={st.locked}><strong>السلايدات قيد التجهيز</strong></div>)}
 
             {l.body && <Prose text={l.body} className={st.prose} />}
 

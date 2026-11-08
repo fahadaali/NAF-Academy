@@ -64,7 +64,7 @@ export const instructors = sqliteTable('instructors', {
 })
 
 import { COURSE_STATUS, DELIVERY, LESSON_TYPE, LEVEL } from '../../lib/enums'
-import type { Assignment, Attachment, Caption, Chapter, Drip, Quiz, VideoSource } from '../../lib/learning-types'
+import type { Assignment, Attachment, Caption, Chapter, Drip, Quiz, Slides, VideoSource } from '../../lib/learning-types'
 import type { CertDesign, CertRules, Criterion } from '../../lib/certificate'
 import type { Block } from '../../lib/blocks'
 export { COURSE_STATUS, DELIVERY, LESSON_TYPE, LEVEL }
@@ -116,6 +116,8 @@ export const courses = sqliteTable(
     requirements: text('requirements', { mode: 'json' }).$type<string[]>().notNull().default(sql`'[]'`),
     faq: text('faq', { mode: 'json' }).$type<Faq[]>().notNull().default(sql`'[]'`),
     featured: integer('featured', { mode: 'boolean' }).notNull().default(false),
+    /** خاصة: لا تظهر في الكتالوج ولا تُشترى — يُسجَّل فيها من اللوحة أو بدعوة (برامج الجامعات والتدريب التعاوني) */
+    visibility: text('visibility', { enum: ['public', 'private'] }).notNull().default('public'),
     /** لا يُفتح درس حتى يكتمل ما قبله */
     sequential: integer('sequential', { mode: 'boolean' }).notNull().default(false),
     /** نسبة المشاهدة التي يُعدّ بها الفيديو مكتملاً */
@@ -228,6 +230,8 @@ export const lessons = sqliteTable('lessons', {
   attachments: text('attachments', { mode: 'json' }).$type<Attachment[]>().notNull().default(sql`'[]'`),
   quiz: text('quiz', { mode: 'json' }).$type<Quiz>(),
   assignment: text('assignment', { mode: 'json' }).$type<Assignment>(),
+  /** درس «سلايدات»: ملف PDF يُعرض شريحةً شريحة */
+  slides: text('slides', { mode: 'json' }).$type<Slides>(),
   drip: text('drip', { mode: 'json' }).$type<Drip>().notNull().default(sql`'{"mode":"none","date":null,"days":null}'`),
   /* للجلسات المباشرة والحضورية */
   startsAt: text('starts_at'),
@@ -466,7 +470,7 @@ export const invoices = sqliteTable('invoices', {
   uniqueIndex('invoices_one_per_order').on(t.orderId).where(sql`kind = 'invoice'`),
 ])
 
-export const ENROLL_SOURCE = ['purchase', 'free', 'grant', 'manual', 'seat'] as const
+export const ENROLL_SOURCE = ['purchase', 'free', 'grant', 'manual', 'seat', 'invite'] as const
 export const enrollments = sqliteTable(
   'enrollments',
   {
@@ -918,3 +922,32 @@ export const mailSuppressions = sqliteTable('mail_suppressions', {
   reason: text('reason', { enum: ['bounce', 'complaint'] }).notNull(),
   createdAt: stamps.createdAt,
 })
+
+/** دعوات التسجيل: رابط موقّع بالبريد يكمل منه المدعو بياناته فيُسجَّل في الدورة (ودفعتها).
+   الدعوة المفتوحة غير المنتهية تحجز مقعداً، و`nonce` يتغيّر عند إعادة الإرسال فيبطل الرابط السابق.
+   دعوة مفتوحة واحدة لكل (دورة، بريد). */
+export const invitations = sqliteTable(
+  'invitations',
+  {
+    id: id(),
+    courseId: text('course_id').notNull().references(() => courses.id, { onDelete: 'cascade' }),
+    cohortId: text('cohort_id').references(() => cohorts.id, { onDelete: 'set null' }),
+    email: text('email').notNull(),
+    name: text('name').notNull().default(''),
+    phone: text('phone').notNull().default(''),
+    nonce: text('nonce').notNull(),
+    expiresAt: text('expires_at').notNull(),
+    invitedBy: text('invited_by').notNull().default(''),
+    sentAt: text('sent_at'),
+    acceptedAt: text('accepted_at'),
+    revokedAt: text('revoked_at'),
+    enrollmentId: text('enrollment_id'),
+    ...stamps,
+  },
+  (t) => [
+    index('invites_course_idx').on(t.courseId),
+    index('invites_cohort_idx').on(t.cohortId),
+    uniqueIndex('invites_one_open').on(t.courseId, t.email).where(sql`accepted_at is null and revoked_at is null`),
+  ],
+)
+export type InvitationRow = typeof invitations.$inferSelect

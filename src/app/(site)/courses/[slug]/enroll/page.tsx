@@ -47,7 +47,8 @@ export default async function Enroll({ params, searchParams }: { params: Promise
   const cohorts = (d.course.cohorts ?? []).map((k) => (renew && k.id === renew.cohortId ? { ...k, state: 'open' as const, seats: undefined } : k))
   const left = renew ? 50 : cohorts.length ? 50 : d.row.seatsTotal !== null ? Math.max(0, d.row.seatsTotal - (await seatsUsed(d.row))) : 50
   const initial = { ...priced.q, couponCode: priced.q.couponApplied ? priced.coupon!.code : undefined, couponLabel: priced.coupon?.label, tierId: priced.tier?.id ?? null }
-  const paidAndLocked = !open && priced.q.total > 0
+  /* بلا قناة دخول لا شراء (لا حساب يُدخل به) — والمجدِّد داخل أصلاً */
+  const paidAndLocked = (!open && priced.q.total > 0) || (!channels.length && !me)
 
   return (
     <>

@@ -18,7 +18,8 @@ export async function quoteAction(slug: string, o: { tierId?: string | null; qua
     return base ? { ...base.q, couponError: 'محاولات كثيرة — انتظر قليلاً', tierId: base.tier?.id ?? null } : null
   }
   const p = await priceFor(slug, { tierId: o.tierId, quantity: o.quantity, code: o.code, email: o.email?.trim().toLowerCase() })
-  if (!p) return null
+  /* البرنامج الخاص لا يُسعَّر للزائر — لا يُشترى */
+  if (!p || p.course.visibility === 'private') return null
   return { ...p.q, couponCode: p.q.couponApplied ? p.coupon!.code : undefined, couponLabel: p.coupon?.label || undefined, tierId: p.tier?.id ?? null }
 }
 
@@ -50,13 +51,16 @@ export async function placeOrderAction(slug: string, raw: unknown): Promise<Plac
     for (const i of p.error.issues) fields[i.path.join('.')] ??= i.message
     return { ok: false, error: 'راجع البيانات المعلّمة', fields }
   }
-  /* متى فُتح الدخول صار التحقق من البريد شرطاً — والبريد بريد الحساب لا ما يكتبه المتصفح */
+  /* الشراء يتطلب حساباً متحقَّقاً منه دائماً — الدورة والاختبارات لا تُفتح إلا بحساب.
+     بلا قناة دخول مفتوحة لا يستطيع المشتري الدخول بعد الدفع، فيُوقف الشراء بدل أن يمرّ بلا حساب.
+     والبريد بريد الحساب لا ما يكتبه المتصفح */
   const me = await currentLearner()
-  const verify = (await channelOpen('email')) || (await channelOpen('sms'))
-  if (verify && !me) return { ok: false, error: 'تحقّق من بريدك أولاً' }
-  const buyer = me ? { ...p.data.buyer, email: me.email } : p.data.buyer
-  /* صاحب الحساب المتحقَّق منه وحده يحدّث اسمه وجواله — الشراء بلا تحقق يملأ الفارغ فقط */
-  const r = await placeOrder({ slug, tierId: p.data.tierId, cohortId: p.data.cohortId, quantity: p.data.quantity, code: p.data.code || undefined, buyer, attendSelf: p.data.attendSelf, trusted: !!me })
+  if (!me) {
+    const login = (await channelOpen('email')) || (await channelOpen('sms'))
+    return { ok: false, error: login ? 'تحقّق من بريدك أولاً' : 'التسجيل الإلكتروني يُفتح قريباً — سجّل اهتمامك ونبلغك' }
+  }
+  const buyer = { ...p.data.buyer, email: me.email }
+  const r = await placeOrder({ slug, tierId: p.data.tierId, cohortId: p.data.cohortId, quantity: p.data.quantity, code: p.data.code || undefined, buyer, attendSelf: p.data.attendSelf, trusted: true })
   if (!r.ok) return { ok: false, error: r.error }
   const q = `t=${r.order.token}`
   return { ok: true, url: r.free ? `/orders/${r.order.number}?${q}` : `/orders/${r.order.number}/pay?${q}` }
@@ -74,7 +78,7 @@ export async function interestAction(slug: string, raw: unknown): Promise<{ ok: 
   const p = interestInput.safeParse(raw)
   if (!p.success) return { ok: false, error: p.error.issues[0]?.message }
   const { eq, and, isNull } = await import('drizzle-orm')
-  const [course] = await db.select({ id: s.courses.id }).from(s.courses).where(and(eq(s.courses.slug, slug), isNull(s.courses.deletedAt)))
+  const [course] = await db.select({ id: s.courses.id }).from(s.courses).where(and(eq(s.courses.slug, slug), isNull(s.courses.deletedAt), eq(s.courses.visibility, 'public')))
   if (!course) return { ok: false, error: 'الدورة غير موجودة' }
   const email = p.data.email.toLowerCase()
   const [dup] = await db.select({ id: s.interest.id }).from(s.interest).where(and(eq(s.interest.courseId, course.id), eq(s.interest.email, email), eq(s.interest.kind, p.data.kind)))

@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { availability, gradeQuiz, joinWindow, progressPct, publicQuiz } from '../src/lib/learning'
+import { availability, gradeQuiz, joinWindow, progressPct, publicQuiz, slideReach } from '../src/lib/learning'
 import type { Quiz } from '../src/lib/learning-types'
 
 const none = { mode: 'none' as const, date: null, days: null }
@@ -63,4 +63,15 @@ test('التصحيح بالنقاط ومطابقة المتعدد تماماً',
   const fail = gradeQuiz(quiz, { q1: ['b'], q2: ['a', 'b', 'c'], q3: ['f'] })
   assert.equal(fail.scorePct, 50); assert.equal(fail.passed, false)
   assert.equal(gradeQuiz(quiz, { q1: ['zzz'] }).results.q1.correct, false)
+})
+
+test('السلايدات: التقدّم شريحةً شريحة، والقفز لا يُحتسب، والإكمال عند الأخيرة', () => {
+  assert.deepEqual(slideReach(0, 1, 5), { furthest: 1, done: false })
+  assert.deepEqual(slideReach(1, 2, 5), { furthest: 2, done: false })
+  assert.deepEqual(slideReach(2, 5, 5), { furthest: 3, done: false }, 'القفز إلى الأخيرة لا يكمل الدرس')
+  assert.deepEqual(slideReach(4, 2, 5), { furthest: 4, done: false }, 'الرجوع لا ينقص')
+  assert.deepEqual(slideReach(4, 5, 5), { furthest: 5, done: true })
+  assert.deepEqual(slideReach(0, 1, 1), { furthest: 1, done: true }, 'شريحة واحدة')
+  assert.deepEqual(slideReach(5, 99, 5), { furthest: 5, done: true }, 'لا يتجاوز العدد')
+  assert.deepEqual(slideReach(0, -3, 5), { furthest: 0, done: false })
 })

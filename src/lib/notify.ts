@@ -6,7 +6,7 @@ export const EVENTS = [
   'inactive_nudge', 'halfway', 'completed',
   'registration_open', 'sale_ending', 'cart_abandoned',
   'certificate_issued', 'order_paid', 'refund_issued',
-  'cohort_transfer', 'access_ending', 'recording_ready',
+  'cohort_transfer', 'access_ending', 'recording_ready', 'invite',
 ] as const
 export type EventKey = (typeof EVENTS)[number]
 
@@ -62,6 +62,7 @@ export const VAR_LABEL: Record<string, string> = {
   price: 'السعر', ends: 'انتهاء العرض', coupon: 'الكوبون', order: 'رقم الطلب', left: 'المتبقي على الجلسة',
   code: 'رقم الشهادة', total: 'المبلغ المدفوع', amount: 'المبلغ المسترد', seats: 'عدد المقاعد',
   cohort: 'الدفعة', until: 'نهاية الوصول', review_url: 'رابط تقييم الدورة', linkedin_url: 'رابط الإضافة إلى LinkedIn',
+  expires: 'انتهاء صلاحية الدعوة',
 }
 
 const COMMON = ['name', 'course', 'link']
@@ -131,6 +132,10 @@ export const EVENT_META: Record<EventKey, EventMeta> = {
     label: 'قرب انتهاء الوصول', hint: 'قبل انتهاء مدة الوصول إلى الدورة بأسبوع', category: 'engagement', sms: false,
     vars: [...COMMON, 'until', 'pct'], facts: [['ينتهي الوصول', 'until'], ['إنجازك', 'pct']],
   },
+  invite: {
+    label: 'دعوة إلى برنامج', hint: 'حين يدعو الفريق مشاركاً بالبريد (التدريب التعاوني وبرامج الجامعات) — الزر رابط موقّع يكمل منه بياناته فيُسجَّل', category: 'transactional', sms: false,
+    vars: ['name', 'course', 'link', 'cohort', 'expires'], facts: [['البرنامج', 'course'], ['الدفعة', 'cohort'], ['الدعوة صالحة حتى', 'expires']],
+  },
 }
 
 const t = (subject: string, heading: string, body: string, cta: string, sms = '', cta2 = ''): Template => ({ enabled: true, subject, heading, body, cta, sms, cta2 })
@@ -152,6 +157,7 @@ export const DEFAULT_NOTIFY: NotifySettings = {
     cohort_transfer: t('انتقلت إلى {{cohort}}: {{course}}', 'دفعتك الجديدة', 'نُقل تسجيلك في «{{course}}» إلى «{{cohort}}». تقدّمك محفوظ، ومواعيد الجلسات صارت مواعيد الدفعة الجديدة — أضفها إلى تقويمك.', 'مساحة التعلّم', 'أكاديمية ناف: انتقلت إلى {{cohort}} في {{course}}. {{link}}'),
     recording_ready: t('تسجيل {{lesson}} متاح الآن', 'شاهد التسجيل متى شئت', 'أُضيف تسجيل جلسة «{{lesson}}» من دورة «{{course}}» — تجده تحت الجلسة في مساحة التعلّم.', 'شاهد التسجيل'),
     access_ending: t('وصولك إلى {{course}} ينتهي قريباً', 'أسبوع على نهاية الوصول', 'ينتهي وصولك إلى «{{course}}» في {{until}}، وأنجزت {{pct}}. أكمل ما بقي قبل الموعد، أو جدّد الوصول من صفحة الدورة.', 'تابع التعلّم'),
+    invite: t('دعوة للانضمام إلى {{course}}', 'دعوة إلى {{course}}', 'دُعيت للانضمام إلى «{{course}}» في الأكاديمية.\n\nأكمل بياناتك من الرابط (الاسم كما تريده في الشهادة، ورقم الجوال) فيُفعَّل تسجيلك وتدخل مساحة التعلّم مباشرة. الرابط لك وحدك ولمرة واحدة.', 'قبول الدعوة'),
     refund_issued: t('استرداد لطلبك {{order}}', 'نفّذنا الاسترداد', 'أُعيد {{amount}} من طلب «{{course}}» إلى وسيلة الدفع نفسها، ويصل خلال المدة المعتادة لدى البنك. الإشعار الدائن في صفحة الطلب.', 'صفحة الطلب'),
   },
   sessionOffsets: [

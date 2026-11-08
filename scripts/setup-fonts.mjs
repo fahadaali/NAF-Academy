@@ -1,7 +1,7 @@
 /* يولّد src/design/fonts.generated.css من ملفات خط ثمانية في src/fonts/thmanyah/ (ضمن المستودع بقرار المالك)،
    فتُدمج في البناء بأسماء مجزّأة. إن غابت: ملف فارغ، فيعمل البناء بالخط الاحتياطي. الملفات تُستخدم كما هي بلا تعديل.
    وينسخ منها نسخاً ثابتة الاسم للبريد والشهادات، ورمز الريال من حزمته (OFL). */
-import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
+import { copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 
 const dir = 'src/fonts/thmanyah'
 const out = 'src/design/fonts.generated.css'
@@ -52,6 +52,21 @@ if (existsSync(riyal)) {
     const src = `${riyal}/${from}`, dst = `public/fonts/${to}`
     if (existsSync(src) && (!existsSync(dst) || !readFileSync(src).equals(readFileSync(dst)))) copyFileSync(src, dst)
   }
+}
+
+/* pdf.js لعارض السلايدات — ملفات ثابتة في public/pdfjs/<الإصدار> (لا تُرفع): المحرّك وعامله، وخطوط PDF القياسية وجداول الترميز
+   (للملفات التي لا تضمّن خطوطها) ومفكّكات الصور (wasm). المتصفح يستوردها من هناك عند فتح الدرس، فلا يدخل pdf.js حزمة الـWorker.
+   ومسارها في pdfjs.generated.ts (الإصدار في الاسم فلا يعلق قديم في الذاكرة المؤقتة). */
+const pdfjs = 'node_modules/pdfjs-dist'
+if (existsSync(`${pdfjs}/build/pdf.min.mjs`)) {
+  const { version } = JSON.parse(readFileSync(`${pdfjs}/package.json`, 'utf8'))
+  const base = `public/pdfjs/${version}`
+  mkdirSync(base, { recursive: true })
+  for (const f of ['pdf.min.mjs', 'pdf.worker.min.mjs']) if (!existsSync(`${base}/${f}`)) copyFileSync(`${pdfjs}/build/${f}`, `${base}/${f}`)
+  for (const d of ['standard_fonts', 'cmaps', 'wasm']) if (!existsSync(`${base}/${d}`)) cpSync(`${pdfjs}/${d}`, `${base}/${d}`, { recursive: true })
+  const gen = 'src/site/learn/pdfjs.generated.ts'
+  const src = `// مولّد من scripts/setup-fonts.mjs — لا يُحرَّر\nexport const PDFJS_BASE = '/pdfjs/${version}'\n`
+  if (!existsSync(gen) || readFileSync(gen, 'utf8') !== src) writeFileSync(gen, src)
 }
 
 /* الترحيلات المحزومة للتطبيق، وحزمة الهوية لـASSETS — في الخطوة نفسها (تسبق dev وbuild والأنواع والاختبارات) */

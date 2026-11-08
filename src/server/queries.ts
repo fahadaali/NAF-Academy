@@ -10,7 +10,7 @@ import { corporate as seedCorporate, hero as seedHero, ladder as seedLadder, sta
 import { isPublic, liveStatus, publicOrder } from '@/lib/course-meta'
 import { priceView } from '@/lib/pricing'
 import { cohortState, leadCohort, statusWithCohorts, type CohortLite } from '@/lib/cohorts'
-import { cohortsOf } from './cohorts'
+import { cohortsOf, inviteHolds } from './cohorts'
 import { livePromotions, promosFor } from './promotions'
 import type { CourseRow, InstructorRow, LessonRow, Media, ModuleRow, TierRow, TrackRow } from './db/schema'
 import { inList } from '@/server/db/limits'
@@ -89,7 +89,7 @@ export async function mediaViews(ids: (string | null | undefined)[]): Promise<Ma
 
 /** كل ما تحتاجه الواجهة العامة دفعة واحدة */
 export async function catalog(now = new Date()) {
-  const [trackRows, courseRows, instRows, links, enrolled, granted, tierRows] = await Promise.all([
+  const [trackRows, courseRows, instRows, links, enrolled, granted, tierRows, invited] = await Promise.all([
     db.select().from(s.tracks).where(isNull(s.tracks.deletedAt)).orderBy(asc(s.tracks.sortOrder)),
     db.select().from(s.courses).where(isNull(s.courses.deletedAt)).orderBy(asc(s.courses.sortOrder)),
     db.select().from(s.instructors).where(isNull(s.instructors.deletedAt)).orderBy(asc(s.instructors.sortOrder)),
@@ -98,10 +98,11 @@ export async function catalog(now = new Date()) {
     db.select({ courseId: s.seatGrants.courseId, n: count() }).from(s.seatGrants).innerJoin(s.orders, eq(s.orders.id, s.seatGrants.orderId))
       .where(and(isNull(s.seatGrants.enrollmentId), inArray(s.orders.status, ['paid', 'partially_refunded']))).groupBy(s.seatGrants.courseId),
     db.select().from(s.priceTiers).orderBy(asc(s.priceTiers.sortOrder)),
+    db.select({ courseId: s.invitations.courseId, n: count() }).from(s.invitations).where(inviteHolds()).groupBy(s.invitations.courseId),
   ])
   const [promoRows, cohortMap] = await Promise.all([livePromotions(now), cohortsOf(courseRows.map((c) => c.id))])
   const booked = new Map<string, number>()
-  for (const r of [...enrolled, ...granted]) booked.set(r.courseId, (booked.get(r.courseId) ?? 0) + r.n)
+  for (const r of [...enrolled, ...granted, ...invited]) booked.set(r.courseId, (booked.get(r.courseId) ?? 0) + r.n)
   const m = await mediaMap([...trackRows.map((t) => t.coverId), ...courseRows.map((c) => c.coverId), ...instRows.flatMap((p) => [p.photoId, p.sceneId])])
   const trackSlug = new Map(trackRows.map((t) => [t.id, t.slug]))
   const instSlug = new Map(instRows.map((p) => [p.id, p.slug]))
@@ -114,7 +115,8 @@ export async function catalog(now = new Date()) {
     const promos = promosFor(c, promoRows)
     return { row: c, promos, view: toCourse(c, trackSlug.get(c.trackId ?? '') ?? '', byCourse.get(c.id) ?? [], m, now, booked.get(c.id) ?? 0, tierRows.filter((t) => t.courseId === c.id), promos, cohortMap.get(c.id) ?? []) }
   })
-  const courses = all.map((x) => x.view).filter((c) => isPublic(c.status)).sort(publicOrder)
+  /* الخاصة (برامج الجامعات والتدريب التعاوني) خارج الكتالوج والمسارات والرئيسية وخريطة الموقع */
+  const courses = all.filter((x) => x.row.visibility === 'public').map((x) => x.view).filter((c) => isPublic(c.status)).sort(publicOrder)
   const visibleTracks = trackRows.filter((t) => t.visible)
   const tracks = visibleTracks.map((t) => toTrack(t, courses.filter((c) => c.track === t.slug).length, m))
   const instructors = instRows.map((p) => toInstructor(p, m))
@@ -169,12 +171,12 @@ export type CourseDetail = {
 export type PublicLesson = Omit<LessonRow, 'video' | 'recording' | 'joinUrl' | 'streamUid' | 'thumbnailUrl' | 'quiz' | 'assignment' | 'attachments' | 'zoomMeetingId'>
 const publicLesson = ({ video: _v, recording: _r, joinUrl: _j, streamUid: _u, thumbnailUrl: _t, quiz: _q, assignment: _a, attachments: _f, zoomMeetingId: _z, ...l }: LessonRow): PublicLesson => l
 
-/** صفحة الدورة — المسودة والمؤرشفة لا تظهر إلا برمز المعاينة */
+/** صفحة الدورة — المسودة والمؤرشفة والخاصة لا تظهر إلا برمز المعاينة */
 export async function courseDetail(slug: string, preview?: string, now = new Date()): Promise<CourseDetail | null> {
   const { tracks, instructors, rows, courses } = await catalog(now)
   const hit = rows.find((x) => x.row.slug === slug)
   if (!hit) return null
-  const visible = isPublic(hit.view.status) || (preview && preview === hit.row.previewToken)
+  const visible = (hit.row.visibility === 'public' && isPublic(hit.view.status)) || (preview && preview === hit.row.previewToken)
   if (!visible) return null
   const mods = await db.select().from(s.modules).where(eq(s.modules.courseId, hit.row.id)).orderBy(asc(s.modules.sortOrder))
   const les = mods.length
