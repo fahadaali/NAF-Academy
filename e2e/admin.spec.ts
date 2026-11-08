@@ -68,10 +68,13 @@ test('سجل النسخ في محرّر الدورة، وصلاحيات عضو �
 })
 
 test('رمز تحقق ميسر من رابط الإشعار يظهر في إعدادات الدفع', async ({ browser, request }) => {
-  const r = await request.post('/api/payments/webhook', { data: { type: 'webhook_verification', data: { verification_code: '482913' } } })
+  /* شكل الطلب غير موثّق — الرمز يُقرأ أينما وُضع، وكل وصول يُسجَّل في الصندوق */
+  const r = await request.post('/api/payments/webhook', { data: { event: 'webhook_verification', verification_code: 482913 } })
   expect(r.status()).toBe(200)
   expect((await request.post('/api/payments/webhook', { data: { type: 'webhook_verification', data: { verification_code: 'x' } } })).status()).toBe(400)
   const a = await adminPage(browser)
   await a.goto('/admin/settings/payments')
-  await expect(a.locator('[role=status]', { hasText: 'رمز التحقق من إشعار ميسر' })).toContainText('482913')
+  const box = a.locator('[role=status]', { hasText: 'إشعارات ميسر' })
+  await expect(box).toContainText('482913')
+  await expect(box).toContainText('طلب تحقق بلا رمز مقروء')
 })
