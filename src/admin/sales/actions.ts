@@ -6,7 +6,7 @@ import { revalidatePath } from 'next/cache'
 import { and, eq, isNull } from 'drizzle-orm'
 import { z } from 'zod'
 import { db, schema as s } from '@/server/db'
-import { requirePermission } from '@/server/auth'
+import { courseScope, inScope, requirePermission } from '@/server/auth'
 import { audit } from '@/server/audit'
 import { gatewayStatus } from '@/server/payments/gateway'
 import { paymentSettings, setSetting, type PaymentSettings } from '@/server/settings'
@@ -21,6 +21,9 @@ import { wafeqCatalog, wafeqSettings, wafeqState, type WafeqCatalog } from '@/se
 import { resyncInvoice } from '@/server/wafeq/sync'
 
 const iso = z.string().datetime({ offset: true }).nullable()
+/** معرّفات الكتابة تُفحص قبل أي استعلام — قاعدة «تحقق قبل الكتابة» */
+const uuid = z.string().uuid()
+const validId = (v: unknown): v is string => uuid.safeParse(v).success
 
 /* ───────── إعدادات الدفع ───────── */
 
@@ -85,6 +88,7 @@ export type CouponInput = z.input<typeof couponInput>
 
 export async function saveCoupon(id: string | null, raw: CouponInput): Promise<Result> {
   const admin = await requirePermission('sales.coupons')
+  if (id !== null && !validId(id)) return { ok: false, errors: {}, message: 'طلب غير صالح' }
   const p = couponInput.safeParse(raw)
   if (!p.success) return { ok: false, errors: errorsOf(p.error), message: 'راجع الحقول' }
   const cid = id ?? randomUUID()
@@ -124,7 +128,7 @@ export async function generateBatch(raw: CouponInput & { count: number; prefix: 
 
 export async function setCouponActive(id: string, active: boolean) {
   const admin = await requirePermission('sales.coupons')
-  if (typeof active !== 'boolean' || typeof id !== 'string') return
+  if (typeof active !== 'boolean' || !validId(id)) return
   await db.update(s.coupons).set({ active }).where(eq(s.coupons.id, id))
   revalidatePath('/admin/coupons', 'layout')
   await audit(admin.name, active ? 'enable' : 'disable', 'coupon', id, active ? 'تفعيل' : 'إيقاف')
@@ -132,6 +136,7 @@ export async function setCouponActive(id: string, active: boolean) {
 
 export async function trashCoupon(id: string) {
   const admin = await requirePermission('sales.coupons')
+  if (!validId(id)) return
   await db.update(s.coupons).set({ deletedAt: new Date().toISOString() }).where(eq(s.coupons.id, id))
   await audit(admin.name, 'trash', 'coupon', id, 'نُقل إلى المحذوفات')
   revalidatePath('/admin/coupons', 'layout')
@@ -151,6 +156,7 @@ export async function refundAction(orderId: string, amountSar: number, reason: s
 
 export async function cancelPending(orderId: string) {
   const admin = await requirePermission('sales.orders')
+  if (!validId(orderId)) return
   await db.update(s.orders).set({ status: 'canceled', updatedAt: new Date().toISOString() }).where(and(eq(s.orders.id, orderId), eq(s.orders.status, 'pending')))
   await audit(admin.name, 'cancel', 'order', orderId, 'إلغاء طلب معلّق')
   revalidatePath('/', 'layout')
@@ -177,6 +183,12 @@ export async function manualOrder(raw: ManualInput): Promise<{ ok: boolean; id?:
   const admin = await requirePermission('sales.orders')
   const p = manualInput.safeParse(raw)
   if (!p.success) return { ok: false, error: 'راجع الحقول', fields: errorsOf(p.error) }
+  /* المدرب (إن مُنح الصلاحية) يُحصر في دوراته */
+  const scope = await courseScope(admin)
+  if (scope) {
+    const [c] = await db.select({ id: s.courses.id }).from(s.courses).where(eq(s.courses.slug, p.data.courseSlug))
+    if (!c || !inScope(scope, c.id)) return { ok: false, error: 'الدورة خارج دوراتك' }
+  }
   const r = await placeOrder({ slug: p.data.courseSlug, tierId: p.data.tierId, cohortId: p.data.cohortId, quantity: p.data.quantity, code: p.data.code || undefined, buyer: p.data.buyer, attendSelf: p.data.attendSelf, method: p.data.method, by: admin.name, note: p.data.note })
   if (!r.ok) return { ok: false, error: r.error }
   revalidatePath('/', 'layout')
@@ -186,6 +198,10 @@ export async function manualOrder(raw: ManualInput): Promise<{ ok: boolean; id?:
 /** تخصيص مقعد من طلب جماعي لبريد مشارك */
 export async function assignSeat(grantId: string, email: string, name: string): Promise<{ ok: boolean; error?: string }> {
   const admin = await requirePermission('sales.orders')
+  if (!validId(grantId) || typeof email !== 'string' || typeof name !== 'string' || email.length > 160 || name.length > 120) return { ok: false, error: 'بيانات غير صالحة' }
+  const [g] = await db.select({ courseId: s.seatGrants.courseId }).from(s.seatGrants).where(eq(s.seatGrants.id, grantId))
+  if (!g) return { ok: false, error: 'المقعد غير موجود' }
+  if (!inScope(await courseScope(admin), g.courseId)) return { ok: false, error: 'الدورة خارج دوراتك' }
   const r = await assignSeatCore(grantId, email, name, admin.name)
   if (r.orderId) revalidatePath(`/admin/orders/${r.orderId}`)
   return { ok: r.ok, error: r.error }
@@ -197,6 +213,7 @@ export async function setEnrollment(enrollmentId: string, status: 'active' | 'ca
   if ((status !== 'active' && status !== 'canceled') || !z.string().uuid().safeParse(enrollmentId).success) return { ok: false, error: 'حالة غير صالحة' }
   const [en] = await db.select().from(s.enrollments).where(eq(s.enrollments.id, enrollmentId))
   if (!en) return { ok: false, error: 'التسجيل غير موجود' }
+  if (!inScope(await courseScope(admin), en.courseId)) return { ok: false, error: 'الدورة خارج دوراتك' }
   if (status === 'canceled') {
     /* مقعد الطلب الجماعي يعود شاغراً فيُخصَّص لغيره */
     await db.update(s.seatGrants).set({ enrollmentId: null, email: null }).where(eq(s.seatGrants.enrollmentId, enrollmentId))

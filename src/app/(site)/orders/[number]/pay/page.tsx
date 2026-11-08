@@ -32,7 +32,7 @@ export default async function Pay({ params, searchParams }: { params: Promise<{ 
       <div className="wrap" style={{ paddingBlock: '44px 100px', maxInlineSize: 560 }}>
         <PayForm
           kind={g.kind} publishableKey={g.publishableKey} orderId={o.order.id} orderNumber={number} amount={o.order.total}
-          description={`${title} — ${number}`} callbackUrl={`${origin}/api/payments/callback?order=${o.order.id}`}
+          description={`${title} — ${number}`} callbackUrl={`${origin}/api/payments/callback?order=${o.order.id}&t=${encodeURIComponent(o.order.token)}`}
           methods={settings.methods} merchant={settings.seller.name}
         />
         <p className="num" style={{ marginBlockStart: 18, fontSize: 13, color: 'var(--muted)' }}>
