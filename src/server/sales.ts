@@ -284,6 +284,27 @@ export async function finalizeOrder(orderId: string, info: { method: OrderRow['m
   return claimed.length ? 'done' : 'already'
 }
 
+/** المشغّل الدوري: طلب مدفوع لم يكتمل تنفيذه (انقطع بعد المطالبة، أو طلب مجاني/يدوي لا Webhook يعيده) يُستأنف.
+    دفعة صغيرة كل مرة، وبعد دقيقة من الدفع على الأقل حتى لا يزاحم التنفيذ الجاري */
+export async function resumeFulfillment(now = new Date(), limit = 10) {
+  const stale = new Date(now.getTime() - 5 * 60e3).toISOString()
+  const settled = new Date(now.getTime() - 60e3).toISOString()
+  const rows = await db.select({ id: s.orders.id, method: s.orders.method }).from(s.orders)
+    .where(and(inArray(s.orders.status, ['paid', 'partially_refunded']), isNull(s.orders.fulfilledAt),
+      or(isNull(s.orders.fulfillingAt), lt(s.orders.fulfillingAt, stale)), or(isNull(s.orders.paidAt), lt(s.orders.paidAt, settled))))
+    .orderBy(asc(s.orders.paidAt)).limit(limit)
+  let done = 0
+  for (const o of rows) {
+    try {
+      await finalizeOrder(o.id, { method: o.method })
+      done++
+    } catch (e) {
+      await audit('system', 'needs_attention', 'order', o.id, `تعذّر استئناف التنفيذ: ${String((e as Error).message).slice(0, 200)}`)
+    }
+  }
+  return done
+}
+
 async function fulfill(order: OrderRow) {
   const items = await db.select().from(s.orderItems).where(eq(s.orderItems.orderId, order.id))
   const source = order.method === 'gateway' ? 'purchase' : order.method === 'grant' ? 'grant' : order.method === 'free' ? 'free' : 'manual'
@@ -370,16 +391,99 @@ async function issueInvoice(order: OrderRow, items: { title: string; tierName: s
   return { id, number }
 }
 
-/* ───────── الدفع عبر البوابة ───────── */
-/** استرداد تلقائي لدفعة مقبوضة لا يمكن إتمام طلبها (ملغى، مبلغ مختلف، عدد اكتمل) */
-async function refundOrphan(gatewayPaymentId: string, amount: number, orderId: string, why: string) {
+/* ───────── الدفع عبر البوابة ─────────
+   دفعة مقبوضة تنتهي دائماً إمّا دافعةً لطلبها (orders.gatewayPaymentId) أو مستردّة. علامة الاسترداد على صف الدفعة نفسه
+   (payments.status) — لا على «هل رأيناها من قبل» — فلا يُسترد مرتين بإعادة الـWebhook، ولا يُتخطّى استرداد دفعة
+   سُجّلت أولاً معلّقة ثم قُبضت. والفاشل يُعاد من المشغّل الدوري بتراجع وسقف (retryOrphanRefunds). */
+export const ORPHAN = {
+  /** مطالبة جارية بالاسترداد — من يضعها وحده يستدعي البوابة */
+  refunding: 'orphan_refunding',
+  refunded: 'orphan_refunded',
+  /** فشل يُعاد دورياً */
+  failed: 'orphan_refund_failed',
+  /** استُنفدت المحاولات — استرداد يدوي */
+  stuck: 'orphan_needs_attention',
+} as const
+/** محاولات الاسترداد التلقائي قبل تحويله إلى يدوي */
+export const ORPHAN_MAX_ATTEMPTS = 6
+const ORPHAN_STALE_MS = 15 * 60e3
+const orphanAttempts = (message: string) => Number(message.match(/^\[orphan (\d+)\]/)?.[1] ?? 0)
+const orphanWhy = (message: string) => message.replace(/^\[orphan \d+\]\s*/, '').split(' — ')[0]
+
+/** استرداد تلقائي لدفعة مقبوضة لا يمكن إتمام طلبها (ملغى، مبلغ مختلف، عدد اكتمل، دفعة مكرّرة).
+    المطالبة ذرّية على صف الدفعة: الأولى من أي حالة غير «orphan_*»، والإعادة من «فشل» أو مطالبة عالقة فقط. */
+async function refundOrphan(gatewayPaymentId: string, amount: number, orderId: string, why: string, retry = false): Promise<'refunded' | 'failed' | 'skipped'> {
+  const at = nowIso()
+  const stale = new Date(Date.now() - ORPHAN_STALE_MS).toISOString()
+  const claimable = retry
+    ? or(eq(s.payments.status, ORPHAN.failed), and(eq(s.payments.status, ORPHAN.refunding), lt(s.payments.updatedAt, stale)))
+    : sql`substr(${s.payments.status}, 1, 7) <> 'orphan_'`
+  const [row] = await db.update(s.payments).set({ status: ORPHAN.refunding, updatedAt: at })
+    .where(and(eq(s.payments.gatewayId, gatewayPaymentId), claimable)).returning()
+  if (!row) return 'skipped'
+  const n = orphanAttempts(row.message) + 1
   const g = await gateway()
   try {
-    if (g) await g.refund(gatewayPaymentId, amount)
+    if (!g) throw new Error('البوابة غير متاحة')
+    await g.refund(gatewayPaymentId, amount)
+    await db.update(s.payments).set({ status: ORPHAN.refunded, message: `[orphan ${n}] ${why}`, updatedAt: nowIso() }).where(eq(s.payments.id, row.id))
     await audit('system', 'auto_refund', 'order', orderId, `استرداد تلقائي ${(amount / 100).toFixed(2)} ر.س — ${why}`)
+    return 'refunded'
   } catch (e) {
-    await audit('system', 'needs_attention', 'order', orderId, `دفعة مقبوضة تحتاج استرداداً يدوياً (${gatewayPaymentId}): ${why} — ${(e as Error).message}`)
+    const last = n >= ORPHAN_MAX_ATTEMPTS
+    const err = String((e as Error).message).slice(0, 200)
+    await db.update(s.payments).set({ status: last ? ORPHAN.stuck : ORPHAN.failed, message: `[orphan ${n}] ${why} — ${err}`, updatedAt: nowIso() }).where(eq(s.payments.id, row.id))
+    /* أول فشل وآخره في السجل — لا سطر لكل إعادة */
+    if (n === 1 || last) await audit('system', 'needs_attention', 'order', orderId,
+      last ? `دفعة مقبوضة تحتاج استرداداً يدوياً (${gatewayPaymentId}) بعد ${n} محاولات: ${why} — ${err}`
+        : `تعذّر الاسترداد التلقائي (${gatewayPaymentId}) — يُعاد تلقائياً: ${why} — ${err}`)
+    return 'failed'
   }
+}
+
+/** المشغّل الدوري: يعيد الاستردادات التلقائية الفاشلة بتراجع (10 دقائق × 2^المحاولة، حتى 6 ساعات) وبسقف المحاولات.
+    يسأل البوابة أولاً: دفعة استُردّت فعلاً (مطالبة انقطعت بعد البوابة) تُعلَّم ولا تُسترد ثانية. */
+export async function retryOrphanRefunds(now = new Date(), limit = 10) {
+  const stale = new Date(now.getTime() - ORPHAN_STALE_MS).toISOString()
+  const rows = await db.select().from(s.payments)
+    .where(or(eq(s.payments.status, ORPHAN.failed), and(eq(s.payments.status, ORPHAN.refunding), lt(s.payments.updatedAt, stale))))
+    .orderBy(asc(s.payments.updatedAt)).limit(limit * 3)
+  const g = await gateway()
+  const r = { refunded: 0, failed: 0, waiting: 0 }
+  if (!g) return r
+  for (const row of rows) {
+    if (r.refunded + r.failed >= limit) break
+    const n = orphanAttempts(row.message)
+    const wait = Math.min(6 * 3600e3, 10 * 60e3 * 2 ** Math.max(0, n - 1))
+    if (row.status === ORPHAN.failed && Date.parse(row.updatedAt) + wait > now.getTime()) { r.waiting++; continue }
+    try {
+      const p = await g.fetchPayment(row.gatewayId)
+      if (p.status === 'refunded' || p.status === 'voided') {
+        await db.update(s.payments).set({ status: ORPHAN.refunded, updatedAt: nowIso() }).where(eq(s.payments.id, row.id))
+        await audit('system', 'auto_refund', 'order', row.orderId, `الدفعة ${row.gatewayId} مستردّة لدى البوابة`)
+        r.refunded++
+        continue
+      }
+    } catch { /* تعذّر السؤال — تُجرَّب الإعادة؛ البوابة ترفض ما يتجاوز المقبوض */ }
+    const out = await refundOrphan(row.gatewayId, row.amount, row.orderId, orphanWhy(row.message) || 'إعادة استرداد تلقائي', true)
+    if (out === 'refunded') r.refunded++
+    else if (out === 'failed') r.failed++
+  }
+  return r
+}
+
+/** بعد كل محاولة إتمام: هل صار الطلب مدفوعاً بهذه الدفعة تحديداً؟ وإلا فهي يتيمة تُسترد — ولو سبقها طلب أحدث
+    أو إلغاء أو دفعة أخرى بين القراءة والمطالبة */
+async function settlePayment(orderId: string, p: { id: string; amount: number }) {
+  const [fresh] = await db.select().from(s.orders).where(eq(s.orders.id, orderId))
+  const paidLike = !!fresh && ['paid', 'partially_refunded', 'refunded'].includes(fresh.status)
+  if (paidLike && fresh.gatewayPaymentId === p.id) return { order: fresh, outcome: 'paid' as const }
+  const why = !fresh ? 'الطلب غير موجود'
+    : paidLike ? 'دفعة مكرّرة لطلب مدفوع'
+    : fresh.status === 'canceled' ? `دُفع بعد إلغاء الطلب${fresh.note ? ` (${fresh.note})` : ''}`
+    : 'لم يُتمّ الطلب بهذه الدفعة'
+  await refundOrphan(p.id, p.amount, orderId, why)
+  return { order: fresh ?? null, outcome: paidLike ? 'paid' as const : 'mismatch' as const }
 }
 
 /** يجلب الدفعة من البوابة نفسها (لا يثق بما يرسله المتصفح)، ويشترط أن تحمل رقم هذا الطلب تحديداً */
@@ -394,26 +498,24 @@ export async function confirmPayment(paymentId: string, expectOrderId?: string):
   const [prior] = await db.select().from(s.payments).where(eq(s.payments.gatewayId, p.id))
   if (prior && prior.orderId !== order.id) return { order, outcome: 'mismatch' }
   const captured = p.status === 'paid' || p.status === 'captured'
+  /* علامة الاسترداد التلقائي (orphan_*) لا تمحوها حالة البوابة اللاحقة */
+  const keep = (col: typeof s.payments.status | typeof s.payments.message, v: string) => sql`case when substr(${s.payments.status}, 1, 7) = 'orphan_' then ${col} else ${v} end`
   await db.insert(s.payments).values({ id: randomUUID(), orderId: order.id, gateway: g.kind, gatewayId: p.id, status: p.status, amount: p.amount, method: p.method, message: p.message })
-    .onConflictDoUpdate({ target: s.payments.gatewayId, set: { status: p.status, message: p.message, updatedAt: nowIso() } })
+    .onConflictDoUpdate({ target: s.payments.gatewayId, set: { status: keep(s.payments.status, p.status), message: keep(s.payments.message, p.message), updatedAt: nowIso() } })
 
   if (p.amount !== order.total || p.currency.toUpperCase() !== 'SAR') {
     await audit('system', 'mismatch', 'order', order.id, `مبلغ الدفعة ${p.amount} لا يطابق ${order.total}`)
-    if (captured && !prior) await refundOrphan(p.id, p.amount, order.id, 'مبلغ لا يطابق الطلب')
+    if (captured) await refundOrphan(p.id, p.amount, order.id, 'مبلغ لا يطابق الطلب')
     return { order, outcome: 'mismatch' }
   }
   if (!captured) return { order, outcome: p.status === 'failed' ? 'failed' : 'unknown' }
 
   if (['paid', 'partially_refunded', 'refunded'].includes(order.status)) {
-    if (order.gatewayPaymentId && order.gatewayPaymentId !== p.id && !prior) await refundOrphan(p.id, p.amount, order.id, 'دفعة مكرّرة لطلب مدفوع')
-    else await finalizeOrder(order.id, { method: 'gateway', paymentId: p.id })
-    const [fresh] = await db.select().from(s.orders).where(eq(s.orders.id, order.id))
-    return { order: fresh, outcome: 'paid' }
+    /* دفعة الطلب نفسها: استئناف تنفيذ منقطع إن وُجد. وغيرها مكرّرة تُسترد في settlePayment */
+    if (order.gatewayPaymentId === p.id) await finalizeOrder(order.id, { method: 'gateway', paymentId: p.id })
+    return settlePayment(order.id, p)
   }
-  if (order.status === 'canceled') {
-    if (!prior) await refundOrphan(p.id, p.amount, order.id, 'دُفع بعد إلغاء الطلب')
-    return { order, outcome: 'mismatch' }
-  }
+  if (order.status === 'canceled') return settlePayment(order.id, p)
   /* بعد انتهاء المهلة: لا يُقبل إلا إن بقيت المقاعد */
   if (order.expiresAt && order.expiresAt < nowIso()) {
     const items = await db.select().from(s.orderItems).where(eq(s.orderItems.orderId, order.id))
@@ -432,15 +534,14 @@ export async function confirmPayment(paymentId: string, expectOrderId?: string):
       if (cp && u && ((cp.maxUses !== null && u.total >= cp.maxUses) || (cp.maxPerLearner !== null && u.byLearner >= cp.maxPerLearner))) why = 'استُنفد الكوبون بعد انتهاء مهلة الحجز'
     }
     if (why) {
-      const [gone] = await db.update(s.orders).set({ status: 'canceled', note: why, updatedAt: nowIso() })
-        .where(and(eq(s.orders.id, order.id), inArray(s.orders.status, ['pending', 'expired', 'failed']))).returning({ id: s.orders.id })
-      if (gone) await refundOrphan(p.id, p.amount, order.id, why)
-      return { order, outcome: 'mismatch' }
+      await db.update(s.orders).set({ status: 'canceled', note: why, updatedAt: nowIso() })
+        .where(and(eq(s.orders.id, order.id), inArray(s.orders.status, ['pending', 'expired', 'failed'])))
+      /* أُلغي هنا أو سبقه غيره — settlePayment يحكم بحالة الطلب الفعلية */
+      return settlePayment(order.id, p)
     }
   }
   await finalizeOrder(order.id, { method: 'gateway', paymentId: p.id })
-  const [fresh] = await db.select().from(s.orders).where(eq(s.orders.id, order.id))
-  return { order: fresh, outcome: 'paid' }
+  return settlePayment(order.id, p)
 }
 
 /* ───────── الاسترداد ─────────
