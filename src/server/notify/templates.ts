@@ -30,35 +30,56 @@ export type EmailParts = {
   unsubscribe?: string
   /** للمعاينة في اللوحة: فرض الوضع الداكن */
   forceDark?: boolean
+  /** اتجاه الرسالة — يُستنتج من نصها إن لم يُذكر (عربية ← rtl، إنجليزية ← ltr) */
+  dir?: Dir
 }
 
-function blocks(body: string) {
+export type Dir = 'rtl' | 'ltr'
+
+/** اتجاه النص بغلبة حروفه: العربية ← rtl، واللاتينية ← ltr (التساوي أو الخلو ← rtl) */
+export function textDir(s: string): Dir {
+  const ar = (s.match(/[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/g) ?? []).length
+  const la = (s.match(/[A-Za-z\u00C0-\u024F]/g) ?? []).length
+  return la > ar ? 'ltr' : 'rtl'
+}
+
+/* عملاء البريد (Gmail خاصة) يُسقطون dir من <html> و<body>، فيُكرَّر الاتجاه على كل حاوية:
+   السمة dir والنمط direction وtext-align صريحاً. والقيم القصيرة (رقم طلب، مبلغ) dir="auto" فتأخذ اتجاهها. */
+
+function blocks(body: string, dir: Dir) {
+  const start = dir === 'rtl' ? 'right' : 'left'
+  const listPad = dir === 'rtl' ? '0 22px 0 0' : '0 0 0 22px'
   return body.trim().split(/\n\s*\n/).map((para) => {
     const lines = para.split('\n').map((l) => l.trim()).filter(Boolean)
     if (lines.length && lines.every((l) => /^[-•]\s+/.test(l)))
-      return `<ul class="soft" style="margin:0 0 16px;padding:0 20px 0 0;font-size:16px;line-height:1.9;color:${C.soft}">${lines.map((l) => `<li>${esc(l.replace(/^[-•]\s+/, ''))}</li>`).join('')}</ul>`
-    return `<p class="soft" style="margin:0 0 16px;font-size:16px;line-height:1.9;color:${C.soft}">${lines.map(esc).join('<br>')}</p>`
+      return `<ul class="soft" dir="${dir}" style="margin:0 0 16px;padding:${listPad};direction:${dir};text-align:${start};font-size:16px;line-height:1.9;color:${C.soft}">${lines.map((l) => `<li dir="${dir}" style="direction:${dir};text-align:${start}">${esc(l.replace(/^[-•]\s+/, ''))}</li>`).join('')}</ul>`
+    return `<p class="soft" dir="${dir}" style="margin:0 0 16px;direction:${dir};text-align:${start};font-size:16px;line-height:1.9;color:${C.soft}">${lines.map(esc).join('<br>')}</p>`
   }).join('')
 }
 
 export function renderEmail(p: EmailParts): { html: string; text: string } {
   const font = `'Thmanyah Sans','Segoe UI',Tahoma,Arial,sans-serif`
+  const dir: Dir = p.dir ?? textDir(`${p.heading}\n${p.body}`)
+  const rtl = dir === 'rtl'
+  const start = rtl ? 'right' : 'left'
+  const end = rtl ? 'left' : 'right'
+  const d = `dir="${dir}"`
   const facts = (p.facts ?? []).filter(([, v]) => v)
   const factsHtml = facts.length
-    ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="box" style="margin:8px 0 22px;background:${C.bg};border-radius:14px">${facts.map(([k, v]) => `<tr><td style="padding:10px 16px;font-size:13px;color:${C.muted};white-space:nowrap;vertical-align:top" class="muted">${esc(k)}</td><td class="ink" style="padding:10px 16px;font-size:15px;font-weight:700;color:${C.ink}">${esc(v)}</td></tr>`).join('')}</table>`
+    ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="box" ${d} style="margin:8px 0 22px;direction:${dir};background:${C.bg};border-radius:14px">${facts.map(([k, v]) => `<tr><td ${d} style="padding:10px 16px;direction:${dir};text-align:${start};font-size:13px;color:${C.muted};white-space:nowrap;vertical-align:top" class="muted">${esc(k)}</td><td class="ink" ${d} style="padding:10px 16px;direction:${dir};text-align:${end};font-size:15px;font-weight:700;color:${C.ink}"><span dir="auto" style="unicode-bidi:isolate">${esc(v)}</span></td></tr>`).join('')}</table>`
     : ''
   const code = p.code
     ? `<div style="margin:24px 0;padding:18px;border-radius:14px;background:${C.night};color:#e0bc6e;font:800 34px/1 'Courier New',monospace;letter-spacing:10px;text-align:center;direction:ltr">${esc(p.code)}</div>`
     : ''
   const cta = p.cta
-    ? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:6px 0 8px"><tr><td style="border-radius:999px;background:${C.gold}"><a href="${esc(p.cta.href)}" style="display:inline-block;padding:14px 30px;font-family:${font};font-size:16px;font-weight:700;color:${C.night};text-decoration:none;border-radius:999px">${esc(p.cta.label)}</a></td></tr></table>`
+    ? `<table role="presentation" cellpadding="0" cellspacing="0" ${d} style="margin:6px 0 8px;direction:${dir}"><tr><td style="border-radius:999px;background:${C.gold}"><a href="${esc(p.cta.href)}" style="display:inline-block;padding:14px 30px;font-family:${font};font-size:16px;font-weight:700;color:${C.night};text-decoration:none;border-radius:999px">${esc(p.cta.label)}</a></td></tr></table>`
     : ''
   const cta2 = p.cta2
-    ? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:6px 0 8px"><tr><td style="border-radius:999px;border:1.5px solid ${C.gold}"><a href="${esc(p.cta2.href)}" style="display:inline-block;padding:12px 26px;font-family:${font};font-size:15px;font-weight:700;color:${C.goldText};text-decoration:none;border-radius:999px">${esc(p.cta2.label)}</a></td></tr></table>`
+    ? `<table role="presentation" cellpadding="0" cellspacing="0" ${d} style="margin:6px 0 8px;direction:${dir}"><tr><td style="border-radius:999px;border:1.5px solid ${C.gold}"><a href="${esc(p.cta2.href)}" style="display:inline-block;padding:12px 26px;font-family:${font};font-size:15px;font-weight:700;color:${C.goldText};text-decoration:none;border-radius:999px">${esc(p.cta2.label)}</a></td></tr></table>`
     : ''
-  const unsub = p.unsubscribe ? ` · <a href="${esc(p.unsubscribe)}" style="color:${C.muted}" class="muted">إيقاف هذه الرسائل</a>` : ''
+  const unsub = p.unsubscribe ? ` · <a href="${esc(p.unsubscribe)}" style="color:${C.muted}" class="muted">${rtl ? 'إيقاف هذه الرسائل' : 'Unsubscribe'}</a>` : ''
   const dark = `.bg{background:${C.dBg}!important}.card{background:${C.dCard}!important;border-color:${C.dLine}!important}.ink{color:${C.dInk}!important}.soft{color:${C.dSoft}!important}.box{background:${C.dBg}!important}.line{border-color:${C.dLine}!important}`
-  const html = `<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  const html = `<!doctype html><html lang="${rtl ? 'ar' : 'en'}" dir="${dir}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark"><title>${esc(p.heading)}</title>
 <style>
 @font-face{font-family:'Thmanyah Sans';font-weight:400;src:url('${p.site}/email-fonts/sans-regular.woff2') format('woff2')}
@@ -67,18 +88,18 @@ export function renderEmail(p: EmailParts): { html: string; text: string } {
 ${p.forceDark ? dark : ''}
 @media (max-width:480px){.pad{padding:24px 20px!important}}
 </style></head>
-<body class="bg" style="margin:0;padding:0;background:${C.bg};font-family:${font};color:${C.ink};-webkit-text-size-adjust:100%">
+<body class="bg" ${d} style="margin:0;padding:0;direction:${dir};background:${C.bg};font-family:${font};color:${C.ink};-webkit-text-size-adjust:100%">
 ${p.preheader ? `<div style="display:none;max-height:0;overflow:hidden;opacity:0">${esc(p.preheader)}</div>` : ''}
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="bg" style="background:${C.bg};padding:32px 12px"><tr><td align="center">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="card" style="max-width:560px;background:${C.card};border-radius:20px;overflow:hidden;border:1px solid ${C.line}">
-<tr><td style="background:${C.night};padding:20px 32px;text-align:right">${p.brand.logo ? `<img src="${esc(p.brand.logo)}" alt="${esc(p.brand.name)}" height="36" style="height:36px;width:auto;border:0;vertical-align:middle;display:inline-block">` : ''}${p.brand.showName || !p.brand.logo ? ` <span style="font-family:${font};color:${C.ivory};font-size:19px;font-weight:700;vertical-align:middle">${esc(p.brand.name)}</span>${p.brand.tagline ? ` <span style="color:${C.gold};font-size:13px;vertical-align:middle">${esc(p.brand.tagline)}</span>` : ''}` : ''}</td></tr>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="bg" ${d} style="direction:${dir};background:${C.bg};padding:32px 12px"><tr><td align="center" ${d}>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="card" ${d} style="direction:${dir};max-width:560px;background:${C.card};border-radius:20px;overflow:hidden;border:1px solid ${C.line}">
+<tr><td ${d} style="background:${C.night};padding:20px 32px;direction:${dir};text-align:${start}">${p.brand.logo ? `<img src="${esc(p.brand.logo)}" alt="${esc(p.brand.name)}" height="36" style="height:36px;width:auto;border:0;vertical-align:middle;display:inline-block">` : ''}${p.brand.showName || !p.brand.logo ? ` <span dir="auto" style="unicode-bidi:isolate"><span style="font-family:${font};color:${C.ivory};font-size:19px;font-weight:700;vertical-align:middle">${esc(p.brand.name)}</span>${p.brand.tagline ? ` <span style="color:${C.gold};font-size:13px;vertical-align:middle">${esc(p.brand.tagline)}</span>` : ''}</span>` : ''}</td></tr>
 <tr><td style="height:3px;background:${C.gold};line-height:3px;font-size:0">&nbsp;</td></tr>
-<tr><td class="pad" style="padding:34px 32px 26px;text-align:right">
-<h1 class="ink" style="margin:0 0 14px;font-family:${font};font-size:26px;line-height:1.4;font-weight:700;color:${C.ink}">${esc(p.heading)}</h1>
-${blocks(p.body)}${code}${factsHtml}${cta}${cta2}
-${p.note ? `<p class="muted" style="margin:18px 0 0;font-size:13px;line-height:1.7;color:${C.muted}">${esc(p.note)}</p>` : ''}
+<tr><td class="pad" ${d} style="padding:34px 32px 26px;direction:${dir};text-align:${start}">
+<h1 class="ink" ${d} style="margin:0 0 14px;direction:${dir};text-align:${start};font-family:${font};font-size:26px;line-height:1.4;font-weight:700;color:${C.ink}">${esc(p.heading)}</h1>
+${blocks(p.body, dir)}${code}${factsHtml}${cta}${cta2}
+${p.note ? `<p class="muted" ${d} style="margin:18px 0 0;direction:${dir};text-align:${start};font-size:13px;line-height:1.7;color:${C.muted}">${esc(p.note)}</p>` : ''}
 </td></tr>
-<tr><td class="line muted" style="padding:16px 32px;border-top:1px solid ${C.line};font-size:12px;line-height:1.8;color:${C.muted};text-align:right">${esc(p.brand.name)} — إحدى مبادرات ${esc(p.brand.companyName)} · <a href="${esc(p.site)}" style="color:${C.goldText}">الموقع</a>${unsub}</td></tr>
+<tr><td class="line muted" ${d} style="padding:16px 32px;border-top:1px solid ${C.line};font-size:12px;line-height:1.8;color:${C.muted};direction:${dir};text-align:${start}"><span dir="auto" style="unicode-bidi:isolate">${esc(p.brand.name)}</span> — ${rtl ? 'إحدى مبادرات' : 'An initiative of'} <span dir="auto" style="unicode-bidi:isolate">${esc(p.brand.companyName)}</span> · <a href="${esc(p.site)}" style="color:${C.goldText}">${rtl ? 'الموقع' : 'Website'}</a>${unsub}</td></tr>
 </table></td></tr></table></body></html>`
 
   const text = [

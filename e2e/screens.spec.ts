@@ -112,3 +112,18 @@ test('صفحات البطاقة المفردة متمركزة على الجوا�
     }
   }
 })
+
+test('قائمة الجوال: فيها الدخول، وتتمرّر وحدها والصفحة خلفها ثابتة', async ({ page }) => {
+  await page.setViewportSize({ width: 740, height: 360 })
+  await page.goto('/')
+  const burger = page.getByRole('button', { name: 'القائمة' })
+  await burger.click()
+  const menu = page.getByRole('navigation', { name: 'الأقسام' })
+  await expect(menu).toBeVisible()
+  await page.mouse.move(370, 250)
+  await page.mouse.wheel(0, 2000)
+  await expect.poll(() => menu.evaluate((n) => n.scrollTop)).toBeGreaterThan(0)
+  expect(await page.evaluate(() => scrollY)).toBe(0)
+  await menu.getByRole('link', { name: 'دخول' }).click()
+  await expect(page).toHaveURL(/\/login$/)
+})

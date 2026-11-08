@@ -27,6 +27,8 @@
     overflow-x: clip;
   }
   body { min-height: 100svh; background: var(--bg); overflow-x: clip; }
+  /* قائمة الجوال مفتوحة: الصفحة خلفها لا تتمرّر (Header.tsx) */
+  html[data-menu='open'], html[data-menu='open'] body { overflow: hidden; }
   ::selection { background: var(--gold-3); color: var(--night-1); }
   :focus-visible { outline: 2px solid var(--accent-glow); outline-offset: 3px; border-radius: 6px; }
   h1, h2, h3, h4 { line-height: var(--lh-tight); font-weight: 700; text-wrap: balance; }
