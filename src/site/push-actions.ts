@@ -5,7 +5,7 @@ import { and, eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { db, schema as s } from '@/server/db'
 import { currentLearner } from '@/server/learner-auth'
-import { channelOpen } from '@/server/notify/channels'
+import { channelOpen, vapidKeys } from '@/server/notify/channels'
 
 const sub = z.object({ endpoint: z.string().url().regex(/^https:\/\//).max(1000), keys: z.object({ p256dh: z.string().min(40).max(200), auth: z.string().min(10).max(100) }) })
 
@@ -25,4 +25,10 @@ export async function removePushSubscription(endpoint: string): Promise<{ ok: bo
   if (!me) return { ok: false }
   await db.delete(s.pushSubscriptions).where(and(eq(s.pushSubscriptions.endpoint, endpoint), eq(s.pushSubscriptions.learnerId, me.id)))
   return { ok: true }
+}
+
+/** المفتاح العام لشريط الطلب الفوري: للمتدرب الداخل ومتى كانت القناة مفعّلة — وإلا لا شريط */
+export async function pushPublicKey(): Promise<string | null> {
+  if (!(await currentLearner()) || !(await channelOpen('push'))) return null
+  return vapidKeys()?.publicKey ?? null
 }
