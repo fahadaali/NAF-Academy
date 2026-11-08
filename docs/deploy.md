@@ -61,12 +61,14 @@
 مع رابط إلى `/setup` لتطبيقه فوراً. لا أوامر ولا Console.
 
 ## ٦) الخدمات الخارجية (من مواقعها) — كلٌّ مستقل
-كل مفتاح يُضاف في **Variables and Secrets** (الخطوة ٣): السرّ بنوع Secret، والقيمة العامة (`MAIL_FROM`، `SMS_SENDER`، `VAPID_PUBLIC_KEY`، `VAPID_SUBJECT`) بنوع Text.
+كل سرّ يُضاف في **Variables and Secrets** (الخطوة ٣) بنوع **Secret** — الأسرار لا يمسّها النشر.
+أما القيم العامة (`MAIL_FROM`، `SMS_SENDER`، `VAPID_PUBLIC_KEY`، `VAPID_SUBJECT`) فتُكتب في `vars` داخل `wrangler.jsonc` على `main`،
+**لا** بنوع Text في اللوحة: كل نشر يستبدل متغيرات النص بما في الملف فيحذف ما أُضيف في اللوحة (وبلا `MAIL_FROM` تُقفل قناة البريد والدخول).
 
 **البريد — resend.com** (ابدأ به: رموز الدخول تعتمد عليه)
 1. **Domains ← Add Domain:** `naflaw.sa` ← انسخ سجلات DNS المعروضة إلى Cloudflare ← DNS ← Records ← Add record، حتى تصير Verified.
    ومن صفحة النطاق فعّل **Open tracking** و**Click tracking**.
-2. **API Keys ← Create API Key** (Sending access) ← `RESEND_API_KEY`. و`MAIL_FROM` = `أكاديمية ناف <academy@naflaw.sa>`.
+2. **API Keys ← Create API Key** (Sending access) ← `RESEND_API_KEY`. و`MAIL_FROM` = `أكاديمية ناف <academy@naflaw.sa>` (مضبوط في `wrangler.jsonc`).
 3. **Webhooks ← Add Webhook:** `https://academy.naflaw.sa/api/mail/webhook` بالأحداث email.delivered وopened وclicked وbounced وcomplained
    ← انسخ **Signing Secret** ← `RESEND_WEBHOOK_SECRET`.
 
