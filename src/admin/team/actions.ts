@@ -1,6 +1,7 @@
 'use server'
 /* الفريق: دعوة بالبريد (رابط تعيين كلمة المرور)، وتغيير الدور، والإيقاف، وروابط إعادة التعيين، وإلغاء التحقق الثنائي.
-   الحسابات مستقلة في جدول members — لا هوية خارجية. ما يخصّ المالك (منح دور المالك، روابط حسابه، تحققه الثنائي) للمالك وحده. */
+   الحسابات مستقلة في جدول members — لا هوية خارجية. ما يخصّ المالك (منح دور المالك، روابط حسابه، تحققه الثنائي) للمالك وحده.
+   وغير المالك (بصلاحية الفريق) لا يمنح ما لا يملكه، ولا يعدّل نفسه، ولا يدير من يملك ما لا يملكه — guard.ts. */
 import { randomUUID } from 'node:crypto'
 import { revalidatePath } from 'next/cache'
 import { and, count, eq, ne } from 'drizzle-orm'
@@ -11,6 +12,7 @@ import { audit } from '@/server/audit'
 import { passwordLink, resetMemberTotp, revokeSessions, sendInviteEmail } from '@/server/staff-auth'
 import { PERMS, ROLES, roleDefaults, type Role } from '@/lib/permissions'
 import { channelState, saveChannelSettings, type ChannelSettings } from '@/server/notify/channels'
+import { BEYOND, beyondActor, OUTRANKED, outranks, SELF } from './guard'
 
 async function ownersLeft(exceptId: string) {
   const [r] = await db.select({ n: count() }).from(s.members).where(and(eq(s.members.role, 'owner'), eq(s.members.isActive, 1), ne(s.members.userId, exceptId)))
@@ -19,6 +21,12 @@ async function ownersLeft(exceptId: string) {
 
 /** حساب المالك لا يمسّه إلا مالك (فلا يستولي عضو بصلاحية الفريق على حساب المالك) */
 const guardOwner = (me: Staff, target: { role: string }) => target.role === 'owner' && me.role !== 'owner'
+
+/** غير المالك لا يدير حساب من يملك ما لا يملكه (فلا يصدر له رابط إعادة تعيين ولا يوقفه ولا يعدّله) — null = مسموح */
+const guardRank = (me: Staff, target: { userId: string; role: string; perms: string | null }) =>
+  target.userId !== me.id && outranks(target, me).length ? OUTRANKED : null
+/** غير المالك لا يعدّل دوره ولا صلاحياته ولا ملف مدربه بنفسه */
+const guardSelf = (me: Staff, userId: string) => (me.role !== 'owner' && userId === me.id ? SELF : null)
 
 export type LinkResult = { ok: boolean; error?: string; link?: string; mailed?: boolean }
 
@@ -30,6 +38,7 @@ export async function inviteMember(raw: { email: string; name: string; role: str
   const p = z.object({ email: z.string().trim().toLowerCase().email('بريد غير صالح').max(160), name: z.string().trim().max(120), role: z.enum(ROLES) }).safeParse(raw)
   if (!p.success) return { ok: false, error: p.error.issues[0]?.message }
   if (p.data.role === 'owner' && me.role !== 'owner') return { ok: false, error: 'دور المالك يمنحه مالك فقط' }
+  if (beyondActor(me, null, { role: p.data.role, perms: null }).length) return { ok: false, error: BEYOND }
   const [dup] = await db.select().from(s.members).where(eq(s.members.email, p.data.email))
   if (dup) return { ok: false, error: 'هذا البريد في الفريق من قبل' }
   const [m] = await db.insert(s.members).values({ userId: randomUUID(), email: p.data.email, displayName: p.data.name || null, role: p.data.role, isActive: 1, createdAt: Math.floor(Date.now() / 1000) }).returning()
@@ -49,6 +58,8 @@ export async function memberPasswordLink(userId: string): Promise<LinkResult> {
   if (!m) return { ok: false, error: 'العضو غير موجود' }
   if (!m.isActive) return { ok: false, error: 'فعّل العضو أولاً' }
   if (guardOwner(me, m)) return { ok: false, error: 'حساب المالك يديره مالك فقط' }
+  const rank = guardRank(me, m)
+  if (rank) return { ok: false, error: rank }
   const purpose = m.passwordHash ? 'reset' : 'invite'
   const link = await passwordLink(m, purpose)
   const mailed = purpose === 'invite' ? await sendInviteEmail(m, link, me.name) : false
@@ -63,6 +74,8 @@ export async function resetMemberTwoStep(userId: string): Promise<{ ok: boolean;
   const [m] = await db.select().from(s.members).where(eq(s.members.userId, userId))
   if (!m) return { ok: false, error: 'العضو غير موجود' }
   if (guardOwner(me, m)) return { ok: false, error: 'حساب المالك يديره مالك فقط' }
+  const rank = guardRank(me, m)
+  if (rank) return { ok: false, error: rank }
   await resetMemberTotp(userId)
   await audit(me.name, '2fa-reset', 'member', m.email ?? userId, 'ألغى التحقق الثنائي للعضو')
   revalidatePath('/admin/team')
@@ -71,10 +84,15 @@ export async function resetMemberTwoStep(userId: string): Promise<{ ok: boolean;
 
 export async function setMemberRole(userId: string, role: Role): Promise<{ ok: boolean; error?: string }> {
   const me = await requirePermission('team.manage')
-  if (!ROLES.includes(role)) return { ok: false, error: 'دور غير معروف' }
+  if (typeof userId !== 'string' || !ROLES.includes(role)) return { ok: false, error: 'دور غير معروف' }
+  const self = guardSelf(me, userId)
+  if (self) return { ok: false, error: self }
   const [m] = await db.select().from(s.members).where(eq(s.members.userId, userId))
   if (!m) return { ok: false, error: 'العضو غير موجود' }
   if ((role === 'owner' || m.role === 'owner') && me.role !== 'owner') return { ok: false, error: 'دور المالك يمنحه ويسحبه مالك فقط' }
+  const rank = guardRank(me, m)
+  if (rank) return { ok: false, error: rank }
+  if (beyondActor(me, m, { role, perms: m.perms }).length) return { ok: false, error: BEYOND }
   if (m.role === 'owner' && role !== 'owner' && (await ownersLeft(userId)) === 0) return { ok: false, error: 'لا بد من مالك نشط واحد على الأقل' }
   await db.update(s.members).set({ role }).where(eq(s.members.userId, userId))
   await audit(me.name, 'role', 'member', m.email ?? userId, `${m.role} ← ${role}`)
@@ -89,6 +107,8 @@ export async function setMemberActive(userId: string, active: boolean): Promise<
   if (!m) return { ok: false, error: 'العضو غير موجود' }
   if (!active && userId === me.id) return { ok: false, error: 'لا يمكنك إيقاف نفسك' }
   if (guardOwner(me, m)) return { ok: false, error: 'حساب المالك يديره مالك فقط' }
+  const rank = guardRank(me, m)
+  if (rank) return { ok: false, error: rank }
   if (!active && m.role === 'owner' && (await ownersLeft(userId)) === 0) return { ok: false, error: 'لا بد من مالك نشط واحد على الأقل' }
   await db.update(s.members).set({ isActive: active ? 1 : 0 }).where(eq(s.members.userId, userId))
   /* الإيقاف يُسقط كل جلساته وروابطه فوراً */
@@ -103,8 +123,12 @@ export async function setMemberPerms(userId: string, raw: { add: string[]; remov
   const me = await requirePermission('team.manage')
   const p = z.object({ add: z.array(z.enum(PERMS)).max(PERMS.length), remove: z.array(z.enum(PERMS)).max(PERMS.length) }).safeParse(raw)
   if (!p.success || typeof userId !== 'string') return { ok: false, error: 'بيانات غير صالحة' }
+  const self = guardSelf(me, userId)
+  if (self) return { ok: false, error: self }
   const [m] = await db.select().from(s.members).where(eq(s.members.userId, userId))
   if (!m) return { ok: false, error: 'العضو غير موجود' }
+  const rank = guardRank(me, m)
+  if (rank) return { ok: false, error: rank }
   /* المالك صلاحياته كاملة دائماً — لا تخصيص يحجب عنه شيئاً (ولا عن نفسه بالخطأ) */
   if (m.role === 'owner') return { ok: false, error: 'صلاحيات المالك كاملة ولا تُخصَّص — غيّر دوره أولاً إن لزم' }
   const base = roleDefaults(m.role)
@@ -114,6 +138,8 @@ export async function setMemberPerms(userId: string, raw: { add: string[]; remov
   if (remove.includes('team.manage') && userId === me.id) return { ok: false, error: 'لا تحجب عن نفسك إدارة الفريق' }
   if (remove.includes('team.manage') && m.role === 'owner' && (await ownersLeft(userId)) === 0) return { ok: false, error: 'لا بد من مالك يدير الفريق' }
   const perms = add.length || remove.length ? JSON.stringify({ '+': add, '-': remove }) : null
+  /* منح مباشر أو فكّ حجب: ما يصير نافذاً للعضو يجب أن يملكه المانح */
+  if (beyondActor(me, m, { role: m.role, perms }).length) return { ok: false, error: BEYOND }
   await db.update(s.members).set({ perms }).where(eq(s.members.userId, userId))
   await audit(me.name, 'perms', 'member', m.email ?? userId, `منح: ${add.join('، ') || '—'} · حجب: ${remove.join('، ') || '—'}`)
   revalidatePath('/admin/team')
@@ -124,8 +150,13 @@ export async function setMemberPerms(userId: string, raw: { add: string[]; remov
 export async function setMemberInstructor(userId: string, instructorId: string | null): Promise<{ ok: boolean; error?: string }> {
   const me = await requirePermission('team.manage')
   if (typeof userId !== 'string' || (instructorId !== null && !z.string().uuid().safeParse(instructorId).success)) return { ok: false, error: 'بيانات غير صالحة' }
+  const self = guardSelf(me, userId)
+  if (self) return { ok: false, error: self }
   const [m] = await db.select().from(s.members).where(eq(s.members.userId, userId))
   if (!m) return { ok: false, error: 'العضو غير موجود' }
+  if (guardOwner(me, m)) return { ok: false, error: 'حساب المالك يديره مالك فقط' }
+  const rank = guardRank(me, m)
+  if (rank) return { ok: false, error: rank }
   if (instructorId) {
     const [i] = await db.select({ id: s.instructors.id, name: s.instructors.name }).from(s.instructors).where(eq(s.instructors.id, instructorId))
     if (!i) return { ok: false, error: 'المدرب غير موجود' }

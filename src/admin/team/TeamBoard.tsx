@@ -2,6 +2,8 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ROLES, ROLE_HINT, ROLE_LABEL, type Role } from '@/lib/permissions'
+import { useCan } from '@/admin/ui/perms'
+import { effective, type Holder } from './guard'
 import { inviteMember, memberPasswordLink, resetMemberTwoStep, setMemberActive, setMemberInstructor, setMemberRole, type LinkResult } from './actions'
 import { PermsDialog } from './PermsDialog'
 import { Badge, Field, Grid, Input, PageHead, Section, Select } from '@/admin/ui/kit'
@@ -25,7 +27,10 @@ export function TeamBoard({ members, meId, meOwner, instructors = [], mail }: { 
   const [copied, setCopied] = useState(false)
   const act = async (fn: () => Promise<{ ok: boolean; error?: string }>) => { const r = await fn(); if (!r.ok) setMsg(r.error ?? 'تعذّر'); else { setMsg(''); router.refresh() }; return r }
   const showLink = (who: string, kind: 'invite' | 'reset', r: LinkResult) => { if (r.ok && r.link) { setLink({ who, url: r.link, kind, mailed: r.mailed }); setCopied(false) } }
-  const roles = ROLES.filter((r) => meOwner || r !== 'owner')
+  /* غير المالك لا يمنح ما لا يملكه، ولا يعدّل نفسه، ولا يدير من يملك ما لا يملكه (الخادم يرفضها — فلا تُعرض) */
+  const can = useCan()
+  const above = (h: Holder) => !meOwner && effective(h).some((x) => !can(x))
+  const roles = ROLES.filter((r) => meOwner || (r !== 'owner' && !above({ role: r, perms: null })))
 
   return (
     <>
@@ -64,18 +69,19 @@ export function TeamBoard({ members, meId, meOwner, instructors = [], mail }: { 
           <thead><tr><th>العضو</th><th>الدور</th><th>الحالة</th><th>التحقق الثنائي</th><th>الصلاحيات</th><th><span className="sr-only">إجراءات</span></th></tr></thead>
           <tbody>
             {members.map((m) => {
-              const ownerLocked = m.role === 'owner' && !meOwner
+              const ownerLocked = (m.role === 'owner' && !meOwner) || above(m)
+              const self = !meOwner && m.userId === meId
               const who = m.displayName || m.email || ''
               return (
                 <tr key={m.userId}>
                   <td><strong>{who}</strong><div className={`${p.muted} ${p.ltr}`}>{m.email}</div><div className={p.muted}>آخر دخول: {seen(m.lastSeenAt)}</div></td>
                   <td>
-                    <select aria-label="الدور" className={`${p.search} ${t.role}`} value={m.role} disabled={ownerLocked} onChange={(e) => act(() => setMemberRole(m.userId, e.target.value as Role))}>
+                    <select aria-label="الدور" className={`${p.search} ${t.role}`} value={m.role} disabled={ownerLocked || self} onChange={(e) => act(() => setMemberRole(m.userId, e.target.value as Role))}>
                       {!(ROLES as readonly string[]).includes(m.role) && <option value={m.role} disabled>بلا دور — اختر دوراً</option>}
-                      {(ownerLocked ? ROLES : roles).map((r) => <option key={r} value={r}>{ROLE_LABEL[r]}</option>)}
+                      {(ownerLocked || self ? ROLES : roles.filter((r) => !above({ role: r, perms: m.perms }))).map((r) => <option key={r} value={r}>{ROLE_LABEL[r]}</option>)}
                     </select>
                     {m.role === 'instructor' && (
-                      <select aria-label="ملف المدرب" className={`${p.select} ${t.instructor}`} value={m.instructorId ?? ''} onChange={(e) => act(() => setMemberInstructor(m.userId, e.target.value || null))}>
+                      <select aria-label="ملف المدرب" className={`${p.select} ${t.instructor}`} value={m.instructorId ?? ''} disabled={ownerLocked || self} onChange={(e) => act(() => setMemberInstructor(m.userId, e.target.value || null))}>
                         <option value="">— اربطه بملف مدرب ليرى دوراته —</option>
                         {instructors.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}
                       </select>
@@ -86,7 +92,7 @@ export function TeamBoard({ members, meId, meOwner, instructors = [], mail }: { 
                     {m.locked && <div className={t.warn}>مقفل مؤقتاً بعد محاولات خاطئة</div>}
                   </td>
                   <td>{m.totp ? <Badge tone="open">مفعّل</Badge> : <span className={p.muted}>—</span>}</td>
-                  <td>{m.role === 'owner' ? <span className={p.muted}>كاملة</span> : <PermsDialog userId={m.userId} role={m.role} perms={m.perms} name={who} onDone={() => router.refresh()} />}</td>
+                  <td>{m.role === 'owner' ? <span className={p.muted}>كاملة</span> : ownerLocked || self ? <span className={p.muted}>يعدّلها المالك</span> : <PermsDialog userId={m.userId} role={m.role} perms={m.perms} name={who} canGrant={(x) => meOwner || can(x)} onDone={() => router.refresh()} />}</td>
                   <td>
                     {!ownerLocked && m.isActive && (
                       <div className={t.tools}>
