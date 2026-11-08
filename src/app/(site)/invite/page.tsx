@@ -26,9 +26,8 @@ export default async function Invite({ searchParams }: { searchParams: Promise<{
     )
   }
   const { invite, course, cohort } = target
-  const [known] = await db.select().from(s.learners).where(eq(s.learners.email, invite.email))
-  /* الاسم الافتراضي (ما قبل @) لا يُقترح */
-  const knownName = known && known.name !== invite.email.split('@')[0] ? known.name : ''
+  /* بريد له حساب قائم: لا تُعرض بياناته ولا تُطلب — الرابط قد يكون بيد غير صاحبه (يراه الفريق)، والدخول برمزه بعد القبول */
+  const [known] = await db.select({ id: s.learners.id }).from(s.learners).where(eq(s.learners.email, invite.email))
   return (
     <section className={v.card} aria-labelledby="inv-h">
         <span className="eyebrow">دعوة من {brand.name}</span>
@@ -38,8 +37,17 @@ export default async function Invite({ searchParams }: { searchParams: Promise<{
           {(cohort?.startsAt ?? course.startsAt) && <div><dt>تبدأ</dt><dd className="num">{formatDay((cohort?.startsAt ?? course.startsAt)!)}</dd></div>}
           <div><dt>الدعوة صالحة حتى</dt><dd className="num">{formatDay(invite.expiresAt)}</dd></div>
         </dl>
-        <p className={v.lead}>أكمل بياناتك ليُفعَّل تسجيلك وتدخل مساحة التعلّم مباشرة.</p>
-        <InviteForm token={t} email={invite.email} name={invite.name || knownName} phone={invite.phone || known?.phone || ''} nameEn={known?.nameEn ?? ''} org={known?.org ?? ''} />
+        {known ? (
+          <>
+            <p className={v.lead}>لديك حساب بهذا البريد. اقبل الدعوة ليُفعَّل تسجيلك، ثم ادخل برمز يصلك لتبلغ مساحة التعلّم.</p>
+            <InviteForm token={t} email={invite.email} existing />
+          </>
+        ) : (
+          <>
+            <p className={v.lead}>أكمل بياناتك ليُفعَّل تسجيلك وتدخل مساحة التعلّم مباشرة.</p>
+            <InviteForm token={t} email={invite.email} name={invite.name} phone={invite.phone} />
+          </>
+        )}
         <p className={v.note}>بقبول الدعوة توافق على <a href="/policies">الشروط والخصوصية</a>.</p>
     </section>
   )

@@ -8,7 +8,7 @@ import { brandView, emailBrand } from '../brand'
    ٣) الإرسال: يُحجز كل صف ذرياً، ويُتحقق من أنه ما زال صحيحاً، ويُصاغ من القالب الحالي، ثم يُرسل ويُسجّل،
       ويُعاد المحاولة عند الفشل (5د ← 30د ← ساعتان). */
 import { randomUUID } from 'node:crypto'
-import { and, asc, count, desc, eq, gte, inArray, isNotNull, isNull, lt, lte, max, sql } from 'drizzle-orm'
+import { and, asc, count, desc, eq, gte, inArray, isNotNull, isNull, lt, lte, max, sql, type AnyColumn } from 'drizzle-orm'
 import { db, schema as s } from '../db'
 import { getSetting } from '../settings'
 import { channelOpen, send, sendPushTo, type Channel } from './channels'
@@ -52,6 +52,9 @@ async function sellableNow(c: typeof s.courses.$inferSelect, now: Date, memo: Ma
 type Row = typeof s.notifications.$inferInsert
 const iso = (d: Date) => d.toISOString()
 const MIN = 60e3
+/* مقارنة الأوقات بقيمتها لا بنصّها: قيمة قديمة مخزّنة بإزاحة (`…+03:00`) تُقارن صحيحاً بأوقات UTC (`…Z`) */
+const atOrAfter = (col: AnyColumn, d: Date) => sql`julianday(${col}) >= julianday(${iso(d)})`
+const atOrBefore = (col: AnyColumn, d: Date) => sql`julianday(${col}) <= julianday(${iso(d)})`
 
 export async function notifySettings(): Promise<NotifySettings> {
   return mergeNotify(await getSetting<Partial<NotifySettings> | null>('notify', null))
@@ -108,13 +111,18 @@ export async function onRecordingReady(lessonId: string, cohortId: string | null
   try {
     const [row] = await db.select({ courseId: s.modules.courseId }).from(s.lessons).innerJoin(s.modules, eq(s.modules.id, s.lessons.moduleId)).where(eq(s.lessons.id, lessonId))
     if (!row) return
-    /* تسجيل جلسة دفعة: لمتدربيها. تسجيل الدرس نفسه: لمن يتبع موعد الدرس — من ليس في دفعة، ومن لا صفّ لدفعته لهذا الدرس */
-    const covered = cohortId ? [] : (await db.select({ c: s.cohortSessions.cohortId }).from(s.cohortSessions).where(eq(s.cohortSessions.lessonId, lessonId))).map((x) => x.c)
+    /* تسجيل جلسة دفعة: لمتدربيها. تسجيل الدرس نفسه: لمن يتبع موعد الدرس — من ليس في دفعة، ومن لا صفّ لدفعته (غير المحذوفة) لهذا الدرس */
+    const covered = cohortId ? [] : (await db.select({ c: s.cohortSessions.cohortId }).from(s.cohortSessions).innerJoin(s.cohorts, eq(s.cohorts.id, s.cohortSessions.cohortId))
+      .where(and(eq(s.cohortSessions.lessonId, lessonId), isNull(s.cohorts.deletedAt)))).map((x) => x.c)
+    /* التسجيل لا يظهر للمتدرب قبل انتهاء الجلسة — فالرسالة تُجدول لنهايتها (وتُفحص ثانية عند الإرسال) */
+    const [ls] = await db.select({ startsAt: s.lessons.startsAt, endsAt: s.lessons.endsAt }).from(s.lessons).where(eq(s.lessons.id, lessonId))
+    const [ks] = cohortId ? await db.select({ startsAt: s.cohortSessions.startsAt, endsAt: s.cohortSessions.endsAt }).from(s.cohortSessions).where(and(eq(s.cohortSessions.cohortId, cohortId), eq(s.cohortSessions.lessonId, lessonId))) : []
+    const sendAt = iso(new Date(Math.max(Date.now(), sessionEnd(ks?.startsAt ? ks : ls) ?? 0)))
     const all = await db.select({ e: s.enrollments, l: s.learners }).from(s.enrollments).innerJoin(s.learners, eq(s.learners.id, s.enrollments.learnerId))
       .where(and(eq(s.enrollments.courseId, row.courseId), eq(s.enrollments.status, 'active'), cohortId ? eq(s.enrollments.cohortId, cohortId) : undefined))
     const enr = cohortId ? all : all.filter((x) => !x.e.cohortId || !covered.includes(x.e.cohortId))
     const rows: Omit<Row, 'id'>[] = enr.filter((x) => hasAccess(x.e)).map(({ l }) => ({
-      key: `rec:${lessonId}:${cohortId ?? '-'}:${l.id}`, event: 'recording_ready', channel: 'email', to: l.email, learnerId: l.id, courseId: row.courseId, ref: { lessonId }, sendAt: iso(new Date()),
+      key: `rec:${lessonId}:${cohortId ?? '-'}:${l.id}`, event: 'recording_ready', channel: 'email', to: l.email, learnerId: l.id, courseId: row.courseId, ref: { lessonId }, sendAt,
     }))
     if (!rows.length) return
     await enqueue(rows)
@@ -237,15 +245,19 @@ async function activeEnrollments(courseIds: string[]) {
 async function sessionLessons(from: Date, to: Date) {
   const own = await db.select({ l: s.lessons, courseId: s.courses.id }).from(s.lessons)
     .innerJoin(s.modules, eq(s.modules.id, s.lessons.moduleId)).innerJoin(s.courses, eq(s.courses.id, s.modules.courseId))
-    .where(and(inArray(s.lessons.type, ['live', 'onsite']), isNotNull(s.lessons.startsAt), gte(s.lessons.startsAt, iso(from)), lte(s.lessons.startsAt, iso(to)), isNull(s.courses.deletedAt)))
+    .where(and(inArray(s.lessons.type, ['live', 'onsite']), isNotNull(s.lessons.startsAt), atOrAfter(s.lessons.startsAt, from), atOrBefore(s.lessons.startsAt, to), isNull(s.courses.deletedAt)))
   const per = await db.select({ l: s.lessons, courseId: s.courses.id, x: s.cohortSessions }).from(s.cohortSessions)
     .innerJoin(s.cohorts, eq(s.cohorts.id, s.cohortSessions.cohortId))
     .innerJoin(s.lessons, eq(s.lessons.id, s.cohortSessions.lessonId))
     .innerJoin(s.modules, eq(s.modules.id, s.lessons.moduleId)).innerJoin(s.courses, eq(s.courses.id, s.modules.courseId))
-    .where(and(inArray(s.lessons.type, ['live', 'onsite']), isNotNull(s.cohortSessions.startsAt), gte(s.cohortSessions.startsAt, iso(from)), lte(s.cohortSessions.startsAt, iso(to)), isNull(s.courses.deletedAt), isNull(s.cohorts.deletedAt)))
-  /* الدفعات التي لها صفّ لكل درس من دروس موعدها الأصلي — من لا صفّ لدفعته يتبع موعد الدرس نفسه (كما في withSession) */
+    .where(and(inArray(s.lessons.type, ['live', 'onsite']), isNotNull(s.cohortSessions.startsAt), atOrAfter(s.cohortSessions.startsAt, from), atOrBefore(s.cohortSessions.startsAt, to), isNull(s.courses.deletedAt), isNull(s.cohorts.deletedAt)))
+  /* الدفعات التي لها صفّ لكل درس من دروس موعدها الأصلي — من لا صفّ لدفعته يتبع موعد الدرس نفسه (كما في withSession).
+     الدفعة المحذوفة لا صفوف لها (sessionsOf): مسجّلها يتبع موعد الدرس */
   const ownIds = [...new Set(own.map((r) => r.l.id))]
-  const rowsOf = ownIds.length ? await db.select({ c: s.cohortSessions.cohortId, l: s.cohortSessions.lessonId }).from(s.cohortSessions).where(inList(s.cohortSessions.lessonId, ownIds)) : []
+  const rowsOf = ownIds.length
+    ? await db.select({ c: s.cohortSessions.cohortId, l: s.cohortSessions.lessonId }).from(s.cohortSessions).innerJoin(s.cohorts, eq(s.cohorts.id, s.cohortSessions.cohortId))
+      .where(and(inList(s.cohortSessions.lessonId, ownIds), isNull(s.cohorts.deletedAt)))
+    : []
   const covered = new Set(rowsOf.map((r) => `${r.c}:${r.l}`))
   return [
     ...own.map((r) => ({ ...r, cohortId: null as string | null, covered })),
@@ -305,7 +317,8 @@ export async function planScan(now: Date, cfg: NotifySettings) {
       .where(and(sql`json_extract(${s.lessons.drip}, '$.mode') <> 'none'`, isNull(s.courses.deletedAt)))
     const enr = await activeEnrollments([...new Set(lessons.map((x) => x.courseId))])
     const ks = [...new Set(enr.map((x) => x.e.cohortId).filter((x): x is string => !!x))]
-    const starts = new Map((ks.length ? await db.select({ id: s.cohorts.id, startsAt: s.cohorts.startsAt }).from(s.cohorts).where(inList(s.cohorts.id, ks)) : []).map((k) => [k.id, k.startsAt]))
+    /* بداية الدفعة المحذوفة لا تُعتمد — العدّ من التسجيل (كما في learnerCourse) */
+    const starts = new Map((ks.length ? await db.select({ id: s.cohorts.id, startsAt: s.cohorts.startsAt }).from(s.cohorts).where(and(inList(s.cohorts.id, ks), isNull(s.cohorts.deletedAt))) : []).map((k) => [k.id, k.startsAt]))
     for (const { l, courseId } of lessons) for (const { e, l: who } of enr.filter((x) => x.e.courseId === courseId)) {
       const opens = dripOpensAt(l.drip, dripBase(e.createdAt, e.cohortId ? starts.get(e.cohortId) : null))
       if (!opens) continue
@@ -363,7 +376,7 @@ export async function planScan(now: Date, cfg: NotifySettings) {
   /* ٦) قرب انتهاء العرض */
   if (on('sale_ending') && cfg.saleHours > 0) {
     const courses = await db.select().from(s.courses)
-      .where(and(inArray(s.courses.status, ['open', 'scheduled']), isNull(s.courses.deletedAt), isNotNull(s.courses.saleEndsAt), gte(s.courses.saleEndsAt, iso(now)), lte(s.courses.saleEndsAt, iso(new Date(t + cfg.saleHours * 3600e3)))))
+      .where(and(inArray(s.courses.status, ['open', 'scheduled']), isNull(s.courses.deletedAt), isNotNull(s.courses.saleEndsAt), atOrAfter(s.courses.saleEndsAt, now), atOrBefore(s.courses.saleEndsAt, new Date(t + cfg.saleHours * 3600e3))))
     /* العرض على السعر الأساسي أو على باقة — كلاهما ينتهي بموعد الدورة نفسه */
     const tierSale = new Set((await db.select({ id: s.priceTiers.courseId }).from(s.priceTiers).where(sql`${s.priceTiers.compareAt} > ${s.priceTiers.price}`)).map((x) => x.id))
     const memo = new Map<string, boolean>()
@@ -417,7 +430,15 @@ export async function planScan(now: Date, cfg: NotifySettings) {
 
 /* ───────── الإرسال ───────── */
 
-type Ctx = { ok: true; vars: Record<string, string>; name: string; after?: () => Promise<void> } | { ok: false; reason: string }
+/** later: الرسالة صحيحة لكن موعدها لم يحن (مثل التسجيل قبل انتهاء الجلسة) — تبقى في الطابور إليه */
+type Ctx = { ok: true; vars: Record<string, string>; name: string; after?: () => Promise<void> } | { ok: false; reason: string; later?: string }
+
+/** نهاية الجلسة: موعد انتهائها، أو ساعتان بعد بدئها (كما في joinWindow) — null بلا موعد */
+function sessionEnd(l: { startsAt: string | null; endsAt: string | null } | undefined): number | null {
+  if (!l?.startsAt) return null
+  const end = l.endsAt ? Date.parse(l.endsAt) : Date.parse(l.startsAt) + 2 * 3600e3
+  return Number.isNaN(end) ? null : end
+}
 
 async function enrollmentActive(learnerId: string | null, courseId: string | null) {
   if (!learnerId || !courseId) return false
@@ -483,6 +504,12 @@ async function contextFor(n: typeof s.notifications.$inferSelect, site: string, 
     case 'drip_unlocked': {
       const l = await lessonOf()
       if (!l) return { ok: false, reason: 'الدرس غير موجود' }
+      if (ev === 'recording_ready') {
+        /* التسجيل يظهر للمتدرب بعد انتهاء جلسته (بموعد دفعته) — قبلها تنتظر الرسالة، وبلا موعد لا يظهر أصلاً */
+        const end = sessionEnd(l)
+        if (end === null) return { ok: false, reason: 'الجلسة بلا موعد — لا يظهر تسجيلها' }
+        if (end >= now.getTime()) return { ok: false, reason: 'بانتظار انتهاء الجلسة', later: iso(new Date(end + MIN)) }
+      }
       Object.assign(vars, { lesson: l.title, link: `${site}/learn/${course.slug}/${l.id}` })
       break
     }
@@ -625,6 +652,7 @@ export async function dispatch(now: Date, opt: { limit?: number; keys?: string[]
       else { await finish('failed', { attempts: n.attempts + 1, error }); out.failed++ }
       continue
     }
+    if (!ctx.ok && ctx.later) { await finish('pending', { error: ctx.reason, sendAt: ctx.later }); out.retry++; continue }
     if (!ctx.ok) { await finish('cancelled', { error: ctx.reason }); out.skipped++; continue }
 
     const v = ctx.vars

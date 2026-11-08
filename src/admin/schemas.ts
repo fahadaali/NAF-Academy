@@ -10,7 +10,8 @@ const slug = z
   .min(2, 'الرابط قصير')
   .max(80)
   .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'حروف إنجليزية صغيرة وأرقام وشرطات فقط')
-const iso = z.string().datetime({ offset: true }).nullable()
+/** وقت بإزاحة يُخزَّن UTC (`toISOString`) — الأوقات تُقارن نصّياً في الاستعلامات، فلا تختلط `…+03:00` بـ`…Z` */
+const iso = z.string().datetime({ offset: true }).transform((v) => new Date(v).toISOString()).nullable()
 const text = (max = 300) => z.string().trim().max(max)
 const lines = z.array(text(300)).transform((a) => a.filter(Boolean)).pipe(z.array(z.string()).max(30))
 const halalas = z.number().int().min(0).max(100_000_000)

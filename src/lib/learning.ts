@@ -1,5 +1,12 @@
 /* منطق التعلّم — دوال نقية مختبرة: الإتاحة، ونافذة الانضمام، والتقدّم، وتصحيح الاختبار. */
 import type { Drip, PublicQuiz, Quiz } from './learning-types'
+import type { CourseStatus } from '@/content/types'
+import { isPublic, liveStatus } from './course-meta'
+
+/** دروس المعاينة (وملفاتها) مفتوحة للزائر ما دامت الدورة عامة وظاهرة للعموم — القاعدة نفسها في الفيديو التشويقي.
+    البرنامج الخاص والمسودة والمؤرشفة والمجدولة قبل موعدها: لا معاينة */
+export const previewOpen = (c: { visibility: string; status: CourseStatus; publishAt: string | null }, now = new Date()) =>
+  c.visibility === 'public' && isPublic(liveStatus(c.status, c.publishAt, null, now))
 
 export type LessonLite = { id: string; type: string; drip: Drip; preview: boolean; startsAt?: string | null }
 export type Availability = { state: 'open' } | { state: 'drip'; opensAt: string } | { state: 'sequence'; after: string } | { state: 'enroll' }
@@ -47,6 +54,14 @@ export function slideReach(prev: number, page: number, pages: number): { furthes
   const furthest = p > before ? Math.min(before + 1, total) : before
   return { furthest, done: furthest >= total }
 }
+
+/** الموضع المخزّن صالحاً لعدّ السلايدات: ما تجاوز عدد الشرائح ليس رقم شريحة (نبضة فيديو، أو درس حُوّل من فيديو)
+    فيُهمل ويبدأ العدّ من أوله — لا يُقصّ إلى الأخيرة فيُعدّ بلوغاً لها */
+export const slideStart = (stored: number, pages: number) => (Number.isFinite(stored) && stored >= 0 && stored <= pages ? Math.floor(stored) : 0)
+
+/** نبضة المشاهدة (الموضع والثواني) للفيديو وحده، ولتسجيل الجلسة المباشرة/الحضورية الذي يُشغَّل بالمشغّل نفسه */
+export const takesHeartbeat = (l: { type: string; recording?: { provider: string } | null }) =>
+  l.type === 'video' || ((l.type === 'live' || l.type === 'onsite') && !!l.recording && l.recording.provider !== 'none')
 
 export type JoinState = { state: 'upcoming'; opensAt: string } | { state: 'open' } | { state: 'ended' } | { state: 'unscheduled' }
 

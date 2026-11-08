@@ -21,6 +21,8 @@ export async function seedContent(db: LibSQLDatabase<any>): Promise<{ tracks: nu
   if (!(await isEmpty(db))) return null
 
   const token = () => randomUUID().replace(/-/g, '')
+  /* أوقات البذرة مكتوبة بتوقيت الرياض (`…+03:00`) — تُخزَّن UTC كما يخزّنها المحرّر، فالمقارنة بأوقات المحرّك صحيحة */
+  const utc = (v: string | null | undefined) => (v ? new Date(v).toISOString() : null)
   const trackId = new Map<string, string>()
   for (const [i, t] of tracks.entries()) {
     const id = randomUUID()
@@ -60,7 +62,7 @@ export async function seedContent(db: LibSQLDatabase<any>): Promise<{ tracks: nu
   function demoLesson(type: string, startsAt: string | null, minutes: number) {
     if (type === 'quiz') return { quiz: demoQuiz, body: 'اختبار قصير يقيس فهمك لمحاور الدورة.' }
     if (type === 'assignment') return { assignment: { ...EMPTY_ASSIGNMENT, instructions: 'صُغ بنداً تعاقدياً وفق ما تعلّمته، وارفع الملف هنا ليراجعه المدرب.' } }
-    if (type === 'live' && startsAt) return { startsAt, endsAt: new Date(Date.parse(startsAt) + minutes * 60_000).toISOString() }
+    if (type === 'live' && startsAt) return { startsAt: utc(startsAt), endsAt: new Date(Date.parse(startsAt) + minutes * 60_000).toISOString() }
     if (type === 'video') return { body: 'ملخص الدرس ونقاطه الرئيسية تُكتب من محرّر الدرس في اللوحة.' }
     return { body: 'محتوى الدرس يُكتب من اللوحة.' }
   }
@@ -69,8 +71,8 @@ export async function seedContent(db: LibSQLDatabase<any>): Promise<{ tracks: nu
     const id = randomUUID()
     await db.insert(s.courses).values({
       id, slug: c.slug, title: c.title, trackId: trackId.get(c.track), level: c.level, mode: c.mode, status: c.status,
-      startsAt: c.startsAt ?? null, hours: c.hours, seatsTotal: c.seats?.total ?? null, seatsTaken: c.seats?.taken ?? 0,
-      city: c.city ?? '', price: c.pricing.amount, compareAt: c.pricing.compareAt ?? null, saleEndsAt: c.pricing.saleEndsAt ?? null,
+      startsAt: utc(c.startsAt), hours: c.hours, seatsTotal: c.seats?.total ?? null, seatsTaken: c.seats?.taken ?? 0,
+      city: c.city ?? '', price: c.pricing.amount, compareAt: c.pricing.compareAt ?? null, saleEndsAt: utc(c.pricing.saleEndsAt),
       sortOrder: i, previewToken: token(), featured: i < 3,
       subtitle: 'دورة تطبيقية تنقلك من فهم النص إلى ممارسته بثقة.',
       description: 'وصف الدورة يُكتب من لوحة الإدارة.\n\n## ماذا ستتعلم\nمحاور الدورة وتسلسلها، وأسلوب التدريب القائم على الحالات العملية.',

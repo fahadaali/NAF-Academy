@@ -7,7 +7,8 @@ import { z } from 'zod'
 import { db, schema as s } from '@/server/db'
 import { courseScope, inScope, requirePermission } from '@/server/auth'
 import { enrollDirect } from '@/server/enroll'
-import { closeInvitesFor, createInvites, inviteLink, resendInvite, revokeInvite, type InviteOutcome } from '@/server/invites'
+import { closeInvitesFor, createInvites, inviteLink, NO_SITE, resendInvite, revokeInvite, type InviteOutcome } from '@/server/invites'
+import { siteUrl } from '@/server/site'
 import { inviteState } from '@/lib/invites'
 import { ROSTER_BATCH } from '@/lib/roster'
 
@@ -26,7 +27,8 @@ const refresh = (courseId: string) => revalidatePath(`/admin/courses/${courseId}
 
 export type EnrollOutcome = { email: string; status: 'enrolled' | 'renewed' | 'already' | 'error'; error?: string }
 
-/** تسجيل مباشر بلا طلب ولا دفع (مصدره «منحة») — يصل كل مشارك بريد الترحيب، ومن له دعوة مفتوحة تُغلق فيتحرر مقعدها */
+/** تسجيل مباشر بلا طلب ولا دفع (مصدره «منحة») — يصل كل مشارك بريد الترحيب. من له دعوة مفتوحة يأخذ مقعدها
+    (enrollDirect لا يعدّها عليه مرتين)، ثم تُغلق دعوته */
 export async function bulkEnroll(courseId: string, cohortId: string | null, raw: unknown): Promise<{ ok: true; results: EnrollOutcome[] } | { ok: false; error: string }> {
   const st = await guard(courseId)
   if (!st) return { ok: false, error: 'الدورة خارج صلاحيتك' }
@@ -79,10 +81,13 @@ export async function revokeInviteAction(id: string): Promise<{ ok: boolean; err
   return r
 }
 
-/** رابط الدعوة القائم للنسخ (لا يغيّره) — للدعوة المفتوحة فقط */
+/** رابط الدعوة القائم للنسخ (لا يغيّره) — للدعوة المفتوحة فقط.
+    رؤية الفريق للرابط مقبولة: قبوله لبريد له حساب قائم لا يبدأ جلسة ولا يمسّ بياناته (acceptInvite)،
+    ولبريد جديد ينشئ حساباً جديداً فقط */
 export async function inviteLinkAction(id: string): Promise<{ ok: true; link: string } | { ok: false; error: string }> {
   const g = await inviteGuard(id)
   if (!g) return { ok: false, error: 'الدعوة غير موجودة' }
+  if (!siteUrl()) return { ok: false, error: NO_SITE }
   if (inviteState(g.r) !== 'pending') return { ok: false, error: 'الدعوة ليست مفتوحة — أعد إرسالها' }
   return { ok: true, link: await inviteLink(g.r) }
 }

@@ -1,7 +1,9 @@
 import 'server-only'
 /* دعوات التسجيل — الفريق يدعو مشاركاً ببريده إلى دورة (ودفعتها)، فيصله رابط موقّع يكمل منه بياناته فيُسجَّل ويدخل.
    الدعوة المفتوحة تحجز مقعداً (inviteHolds في cohorts.ts)، وتُقبل مرة واحدة بمطالبة ذرّية،
-   و`nonce` يتغيّر عند إعادة الإرسال فيبطل كل رابط سابق. البريد من قالب «دعوة إلى برنامج» في اللوحة. */
+   و`nonce` يتغيّر عند إعادة الإرسال فيبطل كل رابط سابق. البريد من قالب «دعوة إلى برنامج» في اللوحة.
+   الرابط يراه الفريق أيضاً (نسخه من اللوحة) — فهو لا يثبت ملكية حساب قائم: لبريد له حساب يُسجَّل القبول بلا مساس
+   ببياناته ولا جلسة، ويدخل صاحبه برمزه. */
 import { randomBytes, randomUUID } from 'node:crypto'
 import { and, eq, gt, isNull, sql } from 'drizzle-orm'
 import { db, schema as s } from './db'
@@ -27,6 +29,9 @@ const nowIso = () => new Date().toISOString()
 const nonce = () => randomBytes(12).toString('base64url')
 const title = (t: string) => t.replace(/~\d?/g, '')
 
+/** بلا SITE_URL في الإنتاج تخرج الروابط نسبية مكسورة — تتوقف الدعوات بدلاً من ذلك (كالرسائل الآلية) */
+export const NO_SITE = 'رابط الموقع (SITE_URL) غير مضبوط — لا تُرسل الدعوات بروابط مكسورة. اضبطه في إعدادات النشر ثم أعد المحاولة'
+
 export async function inviteLink(r: Pick<InvitationRow, 'id' | 'nonce' | 'expiresAt'>): Promise<string> {
   const t = await signToken({ k: 'learner-invite', i: r.id, n: r.nonce, exp: Math.floor(Date.parse(r.expiresAt) / 1000) }, learnerSecret())
   return `${siteUrl() ?? ''}/invite?t=${encodeURIComponent(t)}`
@@ -44,10 +49,10 @@ async function courseAndCohort(courseId: string, cohortId: string | null | undef
 
 /** بريد الدعوة — إن كانت قناة البريد مفتوحة وقالبه مفعّلاً؛ وإلا يبقى الرابط في اللوحة للنسخ */
 export async function sendInvite(r: InvitationRow, course: Pick<CourseRow, 'title'>, cohort: Pick<CohortRow, 'title'> | null): Promise<boolean> {
-  if (!(await channelOpen('email'))) return false
+  const site = siteUrl()
+  if (!site || !(await channelOpen('email'))) return false
   const tpl = (await notifySettings()).templates.invite
   if (!tpl.enabled) return false
-  const site = siteUrl() ?? ''
   const link = await inviteLink(r)
   const vars: Record<string, string> = { name: r.name, course: title(course.title), link, cohort: cohort?.title ?? '', expires: formatDay(r.expiresAt) }
   const parts = renderEmail({
@@ -65,6 +70,7 @@ export type InviteOutcome = { email: string; status: 'invited' | 'enrolled-befor
 
 /** دعوات لعدة مشاركين في دورة (ودفعة): يتخطّى المسجّل الساري ومن له دعوة مفتوحة، ويحجز مقاعد البقية معاً أو يرفض كلها */
 export async function createInvites(courseId: string, cohortId: string | null, rows: InviteRow[], by: string): Promise<{ ok: true; results: InviteOutcome[] } | { ok: false; error: string }> {
+  if (!siteUrl()) return { ok: false, error: NO_SITE }
   const cc = await courseAndCohort(courseId, cohortId)
   if ('error' in cc) return { ok: false, error: cc.error }
   const { course, cohort } = cc
@@ -110,6 +116,7 @@ export async function createInvites(courseId: string, cohortId: string | null, r
 
 /** إعادة الإرسال: رابط جديد (يبطل السابق) ومدة جديدة — والمنتهية تحتاج مقعداً من جديد */
 export async function resendInvite(id: string, by: string): Promise<{ ok: true; link: string; mailed: boolean } | { ok: false; error: string }> {
+  if (!siteUrl()) return { ok: false, error: NO_SITE }
   const [r] = await db.select().from(s.invitations).where(eq(s.invitations.id, id))
   if (!r) return { ok: false, error: 'الدعوة غير موجودة' }
   const st = inviteState(r)
@@ -156,23 +163,47 @@ export async function inviteTarget(token: string | null | undefined) {
 
 export type InviteProfile = { name: string; phone: string; nameEn: string; org: string }
 
-/** القبول: مطالبة ذرّية بالدعوة ← تسجيل بالمقعد المحجوز. الإجراء بعده يبدأ جلسة المتدرب (الرابط في بريده إثبات ملكيته كرمز الدخول) */
-export async function acceptInvite(token: string, p: InviteProfile): Promise<{ ok: true; slug: string; learnerId: string } | { ok: false; error: string }> {
+/** للبريد حساب متدرب قائم؟ — حينها لا يثبت الرابط ملكيته (يراه الفريق)، فلا تُكتب بياناته ولا تبدأ جلسة منه */
+export async function inviteeHasAccount(email: string) {
+  const [l] = await db.select({ id: s.learners.id }).from(s.learners).where(eq(s.learners.email, email.trim().toLowerCase()))
+  return !!l
+}
+
+/** القبول: مطالبة ذرّية بالرابط ← تسجيل بالمقعد المحجوز ← إغلاق الدعوة.
+    المطالبة تبدّل `nonce` (فيبطل الرابط لأي طلب موازٍ) دون أن تحرّر المقعد: الدعوة تبقى حاجزة حتى يُدرج التسجيل،
+    ثم تكفّ عن الحجز بوجوده (inviteHolds) — فلا لحظة يُتاح فيها مقعدها لغيره. فشل التسجيل يعيد الرابط كما كان.
+    `existing`: البريد له حساب قائم — لا تُمسّ بياناته (حتى الفارغ: الجوال طريق دخول) ولا يبدأ الإجراء جلسة؛ يدخل صاحبه برمزه.
+    وإلا فهو حساب جديد يُنشأ بالبيانات، ويبدأ الإجراء جلسته (الرابط في بريده إثبات ملكيته كرمز الدخول). */
+export async function acceptInvite(token: string, p: InviteProfile | null): Promise<{ ok: true; slug: string; learnerId: string; existing: boolean } | { ok: false; error: string }> {
   const target = await inviteTarget(token)
   if (!target) return { ok: false, error: 'الرابط منتهٍ أو استُخدم — اطلب دعوة جديدة من إدارة البرنامج' }
   const { invite, course } = target
+  const existing = await inviteeHasAccount(invite.email)
+  if (!existing && !p) return { ok: false, error: 'أكمل بياناتك' }
   const at = nowIso()
-  const [claimed] = await db.update(s.invitations).set({ acceptedAt: at, updatedAt: at })
+  const claim = `claim.${nonce()}`
+  const [claimed] = await db.update(s.invitations).set({ nonce: claim, updatedAt: at })
     .where(and(eq(s.invitations.id, invite.id), eq(s.invitations.nonce, invite.nonce), isNull(s.invitations.acceptedAt), isNull(s.invitations.revokedAt), gt(s.invitations.expiresAt, at)))
     .returning()
   if (!claimed) return { ok: false, error: 'الرابط استُخدم للتو' }
-  const r = await enrollDirect({ courseId: course.id, cohortId: invite.cohortId, learner: { name: p.name, email: invite.email, phone: p.phone, org: p.org, nameEn: p.nameEn }, source: 'invite', by: `دعوة · ${invite.email}`, heldSeat: true })
+  const learner = existing || !p
+    ? { name: '', email: invite.email, phone: '', org: '', nameEn: '' }
+    : { name: p.name, email: invite.email, phone: p.phone, org: p.org, nameEn: p.nameEn }
+  let r: Awaited<ReturnType<typeof enrollDirect>>
+  try {
+    r = await enrollDirect({ courseId: course.id, cohortId: invite.cohortId, learner, source: 'invite', by: `دعوة · ${invite.email}`, heldSeat: true })
+  } catch (e) {
+    r = { ok: false, error: 'تعذّر التسجيل — أعد المحاولة' }
+    console.error('acceptInvite', e)
+  }
   if (!r.ok) {
-    await db.update(s.invitations).set({ acceptedAt: null, updatedAt: nowIso() }).where(eq(s.invitations.id, invite.id))
+    /* الرابط يعود صالحاً (ما لم يُعَد الإرسال أو يُلغَ في الأثناء) */
+    await db.update(s.invitations).set({ nonce: invite.nonce, updatedAt: nowIso() }).where(and(eq(s.invitations.id, invite.id), eq(s.invitations.nonce, claim)))
     return { ok: false, error: r.error }
   }
-  await db.update(s.invitations).set({ enrollmentId: r.enrollmentId, updatedAt: nowIso() }).where(eq(s.invitations.id, invite.id))
-  return { ok: true, slug: course.slug, learnerId: r.learnerId }
+  await db.update(s.invitations).set({ acceptedAt: nowIso(), enrollmentId: r.enrollmentId, updatedAt: nowIso() })
+    .where(and(eq(s.invitations.id, invite.id), isNull(s.invitations.acceptedAt)))
+  return { ok: true, slug: course.slug, learnerId: r.learnerId, existing }
 }
 
 /** دعوات الدورة للوحة — الأحدث أولاً */
