@@ -24,7 +24,7 @@ const refundsOf = (gid: string) => mock.refunds.filter((r) => r.paymentId === gi
 async function place(slug: string, email: string, extra: Partial<Parameters<typeof m.placeOrder>[0]> = {}) {
   const r = await m.placeOrder({ slug, quantity: 1, buyer: who(email), attendSelf: true, ...extra })
   assert.ok(r.ok, !r.ok ? r.error : '')
-  if (!r.ok) throw new Error(r.error)
+  if (!r.ok) throw new Error('order failed')
   return r.order
 }
 
