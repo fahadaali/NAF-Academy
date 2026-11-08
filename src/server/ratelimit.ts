@@ -84,6 +84,11 @@ export async function limited(bucket: string, max: number, windowMs: number): Pr
   return (await bump(`${bucket}:${await clientIp()}`, windowMs)) > max
 }
 
+/** حدّ تقريبي في ذاكرة النسخة وحدها — لما يكثر جداً ولا يحمي سراً (عدّاد الزيارات): لا كتابة في القاعدة لكل زيارة */
+export async function limitedLocal(bucket: string, max: number, windowMs: number): Promise<boolean> {
+  return memBump(`${bucket}:${await clientIp()}`, windowMs, Date.now()) > max
+}
+
 /** يُبقي الكتابة حيّة بعد الردّ (waitUntil في Workers) لمن لا ينتظرها */
 function keep(p: Promise<unknown>) {
   try { after(p) } catch { /* خارج طلب (الاختبارات) */ }
