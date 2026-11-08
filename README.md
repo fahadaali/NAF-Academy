@@ -11,7 +11,7 @@ npm run check    # الأنواع والاختبارات
 npm run db:reset # إعادة القاعدة المحلية إلى المحتوى المبدئي
 ```
 
-لوحة الإدارة: `/admin` — في التطوير كلمة المرور `naf-dev`. في الإنتاج اضبط `ADMIN_PASSWORD` و`ADMIN_SECRET` (انظر `.env.example`).
+لوحة الإدارة: `/admin` — في التطوير مالك تجريبي `admin@academy.local` بكلمة المرور `naf-dev-password` (أو `ADMIN_EMAIL`/`ADMIN_PASSWORD`). في الإنتاج اضبط `ADMIN_SECRET` و`ADMIN_PASSWORD` — كلمة مرور الإعداد لـ `/setup`، 16 حرفاً على الأقل (انظر `.env.example` و`docs/deploy.md`).
 
 ## البنية
 
