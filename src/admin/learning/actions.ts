@@ -14,7 +14,6 @@ import { refreshVideo, saveWebhook, trackUpload } from '@/server/stream-videos'
 import { STREAM_UID } from '@/lib/stream-status'
 import { BASIC_MAX } from '@/lib/tus'
 import { siteUrl } from '@/server/site'
-import { headers } from 'next/headers'
 import { toVtt } from '@/lib/captions'
 import { setZoomEnabled, zoomState } from '@/server/zoom'
 import { readTicket } from '@/server/tickets'
@@ -63,8 +62,7 @@ export async function streamUpload(raw: unknown): Promise<{ ok: true; uploadURL:
     if (l && !inScope(await courseScope(st), l.courseId)) return { ok: false, error: 'الدرس خارج نطاقك' }
     lessonId = l?.id ?? null
   }
-  const host = (await headers()).get('host')
-  const meta = { lessonId, name: p.data.name || 'فيديو', host }
+  const meta = { lessonId, name: p.data.name || 'فيديو' }
   /* في محاكاة الاختبارات وحدها يمكن خفض حدّ tus لتجربته بملف صغير */
   const tusAbove = streamMock() && Number(process.env.STREAM_MOCK_TUS_ABOVE) > 0 ? Number(process.env.STREAM_MOCK_TUS_ABOVE) : BASIC_MAX
   const r = p.data.size > tusAbove ? await tusCreate({ ...meta, size: p.data.size }) : await directUpload(meta)

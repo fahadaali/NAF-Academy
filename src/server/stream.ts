@@ -33,14 +33,10 @@ const TOKEN_TTL = 2 * 3600
 /** لون أزرار مشغّل Stream — مرآة --gold-3: المشغّل iframe في نطاق Stream لا يقرأ متغيرات CSS (كالبريد وPDF) */
 const PLAYER_ACCENT = '#c9a25a'
 
-/** النطاقات المسموح لها بعرض الفيديو: نطاق المنصة.
-   مؤقت لتجربة بيئة المعاينة: نطاق نسخة المعاينة (*-naf-academy.*.workers.dev) حين يُرفع منها — يُزال قبل الدمج. */
-export function allowedOrigins(host?: string | null): string[] {
+/** النطاقات المسموح لها بعرض الفيديو: نطاق المنصة وحده (من SITE_URL) */
+export function allowedOrigins(): string[] {
   const site = siteUrl()
-  const out = site ? [new URL(site).host] : []
-  const h = (host ?? '').toLowerCase()
-  if (/^[a-z0-9-]+-naf-academy\.[a-z0-9-]+\.workers\.dev$/.test(h) && !out.includes(h)) out.push(h)
-  return out
+  return site ? [new URL(site).host] : []
 }
 
 /** رمز تشغيل قصير العمر — المشاهدة فقط: لا تنزيل. يُطلب بعد التحقق من حق المشاهد، ولا يخرج معرّف الفيديو في الرابط */
@@ -67,13 +63,13 @@ export async function playbackUrl(uid: string, startSec = 0): Promise<string | n
   return `${host}/${token}/iframe?${q}`
 }
 
-type UploadMeta = { lessonId?: string | null; name: string; host?: string | null }
+type UploadMeta = { lessonId?: string | null; name: string }
 export type UploadTicket = { uploadURL: string; uid: string; method: 'basic' | 'tus' }
 
 /** رابط رفع مباشر بطلب واحد (حتى 200MB): المتصفح يرفع إلى Stream ولا يمرّ الملف بخادمنا */
 export async function directUpload(m: UploadMeta): Promise<UploadTicket | null> {
   if (!streamState().configured) return null
-  const body = { maxDurationSeconds: MAX_DURATION, requireSignedURLs: true, allowedOrigins: allowedOrigins(m.host), meta: { name: m.name.slice(0, 200), lessonId: m.lessonId ?? '' } }
+  const body = { maxDurationSeconds: MAX_DURATION, requireSignedURLs: true, allowedOrigins: allowedOrigins(), meta: { name: m.name.slice(0, 200), lessonId: m.lessonId ?? '' } }
   const r = await fetch(`${api()}/direct_upload`, { method: 'POST', headers: auth(), body: JSON.stringify(body) })
   if (!r.ok) return null
   const j = (await r.json()) as { result?: { uploadURL?: string; uid?: string } }
@@ -84,7 +80,7 @@ export async function directUpload(m: UploadMeta): Promise<UploadTicket | null> 
 /** رفع tus للملفات الكبيرة: الخادم ينشئ الرفع (بالسرّ) ويعيد رابطه وحده؛ المتصفح يرسل الأجزاء إليه مباشرة */
 export async function tusCreate(m: UploadMeta & { size: number }): Promise<UploadTicket | null> {
   if (!streamState().configured || !(m.size > 0)) return null
-  const origins = allowedOrigins(m.host)
+  const origins = allowedOrigins()
   const r = await fetch(`${api()}?direct_user=true`, {
     method: 'POST',
     headers: {
