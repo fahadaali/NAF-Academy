@@ -66,3 +66,12 @@ test('سجل النسخ في محرّر الدورة، وصلاحيات عضو �
   await a.click('dialog[open] button:has-text("حفظ الصلاحيات")')
   await expect(a.locator('text=مخصّصة').first()).toBeVisible()
 })
+
+test('رمز تحقق ميسر من رابط الإشعار يظهر في إعدادات الدفع', async ({ browser, request }) => {
+  const r = await request.post('/api/payments/webhook', { data: { type: 'webhook_verification', data: { verification_code: '482913' } } })
+  expect(r.status()).toBe(200)
+  expect((await request.post('/api/payments/webhook', { data: { type: 'webhook_verification', data: { verification_code: 'x' } } })).status()).toBe(400)
+  const a = await adminPage(browser)
+  await a.goto('/admin/settings/payments')
+  await expect(a.locator('[role=status]', { hasText: 'رمز التحقق من إشعار ميسر' })).toContainText('482913')
+})

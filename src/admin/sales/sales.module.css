@@ -33,3 +33,7 @@
 
 /* الحركة: بطاقات المؤشرات تتتابع (globals.css) */
 .kpis { composes: stagger from global; }
+/* رمز تحقق ميسر من رابط الإشعار */
+.verify { display: grid; gap: 6px; justify-items: start; padding: 18px 22px; margin-block-end: 18px; border-radius: var(--radius-l); background: color-mix(in srgb, var(--gold-3) 12%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gold-3) 40%, transparent); }
+.verify p { color: var(--text-soft); font-size: 14px; }
+.code { font-size: 32px; font-weight: 800; letter-spacing: 0.3em; color: var(--text); user-select: all; }

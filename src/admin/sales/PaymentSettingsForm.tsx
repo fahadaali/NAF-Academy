@@ -11,7 +11,7 @@ import { History } from '@/admin/ui/History'
 
 const METHOD: Record<PaymentSettings['methods'][number], string> = PAY_METHOD_LABEL
 
-export function PaymentSettingsForm({ initial, status }: { initial: PaymentSettings; status: GatewayStatus }) {
+export function PaymentSettingsForm({ initial, status, verification }: { initial: PaymentSettings; status: GatewayStatus; verification?: { code: string; at: string; signed: boolean } | null }) {
   const router = useRouter()
   const [v, setV] = useState(initial)
   const [saved, setSaved] = useState(JSON.stringify(initial))
@@ -35,6 +35,15 @@ export function PaymentSettingsForm({ initial, status }: { initial: PaymentSetti
         <Switch checked={v.enabled} onChange={(b) => up((o) => ({ ...o, enabled: b }))} label={v.enabled ? 'مفعّل' : 'مقفل'} />
       </div>
       {errors.enabled && <p className={s.err}>{errors.enabled}</p>}
+
+      {verification && (
+        <div className={s.verify} role="status">
+          <strong>رمز التحقق من إشعار ميسر</strong>
+          <p>أدخله في لوحة ميسر ← الإعدادات ← الإشعارات ← «التحقق من الإشعار». وصل {new Intl.DateTimeFormat('ar-SA-u-nu-latn', { timeStyle: 'short', timeZone: 'Asia/Riyadh' }).format(new Date(verification.at))}، وصالح 30 دقيقة.</p>
+          <code className={`${s.code} num`} dir="ltr">{verification.code}</code>
+          {!verification.signed && <p className={s.warn}>لم يصل معه السرّ المطابق: تأكد أن «Secret Token» في ميسر هو نفسه قيمة MOYASAR_WEBHOOK_SECRET في Cloudflare، وإلا رُفضت إشعارات الدفع بعد التحقق.</p>}
+        </div>
+      )}
 
       {!status.configured && (
         <Section title="خطوات الربط" desc="تُضاف في متغيّرات البيئة على الخادم، ولا تُكتب في اللوحة حفاظاً عليها">
