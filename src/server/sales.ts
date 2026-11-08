@@ -11,7 +11,7 @@ import { normalizeCode, quote, type Quote } from '@/lib/quote'
 import { normalizePhone } from '@/lib/phone'
 import { resolveStatus } from '@/lib/course-meta'
 import type { CourseRow, CouponRow, OrderRow, TierRow } from './db/schema'
-import { chunksOf } from './db/limits'
+import { chunksOf, inList } from './db/limits'
 import { livePromotions, promosFor } from './promotions'
 import { cohortSeatsUsed, holdsSeat, inviteHolds } from './cohorts'
 import { accessUntilFor, cohortState, hasAccess } from '@/lib/cohorts'
@@ -582,6 +582,11 @@ export async function refundOrder(orderId: string, amount: number, reason: strin
   if (cancelEnrollments) {
     await db.update(s.enrollments).set({ status: 'canceled', updatedAt: nowIso() }).where(eq(s.enrollments.orderId, orderId))
     await db.delete(s.seatGrants).where(and(eq(s.seatGrants.orderId, orderId), isNull(s.seatGrants.enrollmentId)))
+    const moved = await renewedAway(held)
+    if (moved.length) {
+      await db.update(s.enrollments).set({ status: 'canceled', updatedAt: nowIso() }).where(inList(s.enrollments.id, moved))
+      await audit(by, 'cancel', 'order', orderId, `${held.number}: أُلغي ${moved.length} تسجيل جُدّد بلا مقابل بعد هذا الطلب`)
+    }
   }
   await audit(by, 'refund', 'order', orderId, `${held.number} · ${(amount / 100).toFixed(2)} ر.س · ${reason}`)
   /* وافق: الإشعار الدائن وصرف المبلغ — قبل إشعار المشتري ليُرفق PDF وافق */
@@ -591,6 +596,30 @@ export async function refundOrder(orderId: string, amount: number, reason: strin
   const { onRefund } = await import('./notify/engine')
   await onRefund(orderId, refundId)
   return { ok: true }
+}
+
+/** تسجيلات وُلدت من هذا الطلب ثم انتقلت إلى طلب تجديد (fulfill يكتب orderId التجديد على التسجيل نفسه).
+    لا عمود «الطلب الأصلي» في المخطط، فالأصل يُعرف بوقت الإنشاء: أُنشئ التسجيل للمشتري نفسه في الدورة نفسها
+    أثناء تنفيذ هذا الطلب (بين الدفع واكتمال التنفيذ، بهامش دقيقتين لفرق ساعة القاعدة). ويُلغى معه فقط ما لم يدفعه
+    التجديد بمال — تجديد مدفوع (أو مقعد طلب جماعي مدفوع، أو عقد مؤسسة) وصولٌ قائم بذاته يُلغى باسترداد طلبه هو. */
+async function renewedAway(order: OrderRow): Promise<string[]> {
+  if (!order.paidAt) return []
+  const margin = 2 * 60e3
+  const from = new Date(Date.parse(order.paidAt) - margin).toISOString()
+  const to = new Date(Date.parse(order.fulfilledAt ?? order.updatedAt ?? order.paidAt) + margin).toISOString()
+  const items = await db.select({ courseId: s.orderItems.courseId }).from(s.orderItems).where(eq(s.orderItems.orderId, order.id))
+  if (!items.length) return []
+  const rows = await db.select({ id: s.enrollments.id, orderId: s.enrollments.orderId, contractId: s.enrollments.contractId, createdAt: s.enrollments.createdAt })
+    .from(s.enrollments)
+    .where(and(eq(s.enrollments.learnerId, order.learnerId), eq(s.enrollments.status, 'active'), inList(s.enrollments.courseId, items.map((i) => i.courseId))))
+  const out: string[] = []
+  for (const e of rows) {
+    if (!e.orderId || e.orderId === order.id || e.contractId || e.createdAt < from || e.createdAt > to) continue
+    const [cur] = await db.select({ status: s.orders.status, total: s.orders.total, refunded: s.orders.refunded }).from(s.orders).where(eq(s.orders.id, e.orderId))
+    const paidRenewal = !!cur && ['paid', 'partially_refunded'].includes(cur.status) && cur.total - cur.refunded > 0
+    if (!paidRenewal) out.push(e.id)
+  }
+  return out
 }
 
 /* ───────── قراءة الطلب للمشتري برمز الوصول ───────── */
