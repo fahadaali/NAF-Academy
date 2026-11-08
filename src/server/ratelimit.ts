@@ -65,6 +65,9 @@ export async function forget(key: string): Promise<void> {
   await db.delete(s.rateLimits).where(eq(s.rateLimits.key, key)).catch((e) => fallback(e))
 }
 
+/** نافذة إسقاط أحداث Webhook المكررة: ضعف مهلة التوقيع (خمس دقائق) — وما بعدها يرفضه التوقيع نفسه */
+export const REPLAY_WINDOW = 10 * 60e3
+
 /** أول مرة يُرى فيها المفتاح خلال النافذة؟ — لإسقاط أحداث Webhook المكررة (إعادة الإرسال) */
 export async function firstSeen(key: string, windowMs: number, now = Date.now()): Promise<boolean> {
   return (await bump(`seen:${key}`, windowMs, now)) === 1
