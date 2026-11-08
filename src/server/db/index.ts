@@ -13,7 +13,10 @@ const g = globalThis as unknown as { __academyLocal?: DB; __academyD1?: WeakMap<
 
 function local(): DB {
   if (g.__academyLocal) return g.__academyLocal
-  const client = createClient({ url: process.env.DATABASE_URL ?? 'file:.data/academy.db' })
+  /* timeout: مهلة انتظار قفل الملف (ملّي ثانية) لكل اتصال في مجمّع العميل. خادم التطوير يشغّل أكثر من خيط،
+     لكلٍّ مجمّعه، فتتزامن كتابتان أحياناً (عدّاد الزيارات مع إجراء في اللوحة) — وبلا مهلة تفشل الثانية فوراً
+     بـ «database is locked» (ظهر في CI). الانتظار متزامن فلا يصلح إلا لأن الشيفرة لا تُبقي معاملة مفتوحة عبر await. */
+  const client = createClient({ url: process.env.DATABASE_URL ?? 'file:.data/academy.db', timeout: 3000 })
   /* D1 يفرض المفاتيح الأجنبية — نفرضها محلياً أيضاً كي لا يختلف السلوك */
   void client.execute('PRAGMA foreign_keys = ON')
   return (g.__academyLocal = libsql(client, { schema }))

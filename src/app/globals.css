@@ -8,6 +8,14 @@
   html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
   img, svg, video, canvas { display: block; max-width: 100%; }
   button, input, textarea, select { font: inherit; color: inherit; }
+  /* لا عنصر يفرض عرضه على عموده فيدفع الصفحة خارج الجوال (و html يقصّ ولا يمرّر):
+     الحقول (عرضها الأصلي من عدد أحرفها، وحقل الملف أعرضها) تنكمش عند الضيق، والإطارات المضمّنة لا تتجاوز حاويتها،
+     والنص الطويل بلا مسافات (رابط، بريد) ينكسر حين يفيض عن صندوقه فقط (break-word لا anywhere — هذه تغيّر
+     الحد الأدنى للعرض فتكسر الأرقام في الخلايا الضيقة). الشاشات الأوسع لا تتأثر: كلها حدود لا تعمل إلا حين يضيق المكان. */
+  button, input, textarea, select, iframe { max-inline-size: 100%; }
+  input:not([type='checkbox'], [type='radio']), textarea, select { min-inline-size: 0; }
+  fieldset { min-inline-size: 0; } /* افتراضه min-content: يتسع لأعرض حقل فيه */
+  body { overflow-wrap: break-word; }
   button { cursor: pointer; background: none; border: 0; }
   a { color: inherit; text-decoration: none; }
   ul[role='list'], ol[role='list'] { list-style: none; padding: 0; }

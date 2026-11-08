@@ -94,3 +94,9 @@
 
 /* اللمس: أهداف 40px على الأقل */
 @media (pointer: coarse) { .iconBtn, .chip, .select { min-block-size: 40px; } }
+
+/* صف ترتيب المشاهد (محرّر الرئيسية): سطر واحد على الشاشة الواسعة، ويلتفّ على الجوال فلا يخرج عنها */
+.sceneRow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 6px 10px; border-radius: 10px; background: var(--surface-2); }
+.sceneRow[data-off='1'] { opacity: 0.55; }
+.sceneRow > strong { flex: 1 1 140px; min-inline-size: 0; }
+.sceneRow > input { flex: 0 1 180px; }

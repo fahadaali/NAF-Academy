@@ -5,6 +5,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { SCENE_LABEL, type HomeContent } from '@/content/home-defaults'
 import { saveHome } from '@/admin/actions'
+import p from '@/admin/ui/panel.module.css'
 import { FaqEditor, Field, Grid, Input, ListEditor, PageHead, RowTools, SaveBar, Section, Switch, Textarea, useSortable } from '@/admin/ui/kit'
 import { MediaPicker } from '@/admin/ui/MediaPicker'
 import type { Media } from '@/server/db/schema'
@@ -29,9 +30,9 @@ export function HomeEditor({ initial, media }: { initial: HomeContent; media: Me
 
       <Section title="ترتيب المشاهد" desc="اسحب لتغيير الترتيب، وأوقف ما لا تريد إظهاره. الافتتاح والتذييل ثابتان. «في القائمة» اسمه في شريط الموقع — اتركه فارغاً ليغيب عنها، والمخفي لا يظهر فيها أبداً.">
         {v.sections.map((x, i) => (
-          <div key={x.key} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '6px 10px', borderRadius: 10, background: 'var(--surface-2)', opacity: x.visible ? 1 : 0.55 }} {...sections.props(i)}>
-            <strong style={{ flex: 1 }}>{i + 1}. {SCENE_LABEL[x.key]}</strong>
-            <Input aria-label={`اسم «${SCENE_LABEL[x.key]}» في القائمة`} placeholder="لا يظهر في القائمة" value={x.menu ?? ''} style={{ maxInlineSize: 180 }}
+          <div key={x.key} className={p.sceneRow} data-off={x.visible ? undefined : '1'} {...sections.props(i)}>
+            <strong>{i + 1}. {SCENE_LABEL[x.key]}</strong>
+            <Input aria-label={`اسم «${SCENE_LABEL[x.key]}» في القائمة`} placeholder="لا يظهر في القائمة" value={x.menu ?? ''}
               onChange={(e) => up((o) => ({ ...o, sections: o.sections.map((y) => (y.key === x.key ? { ...y, menu: e.target.value } : y)) }))} />
             <Switch checked={x.visible} onChange={(b) => up((o) => ({ ...o, sections: o.sections.map((y) => (y.key === x.key ? { ...y, visible: b } : y)) }))} label={x.visible ? 'ظاهر' : 'مخفي'} />
             <RowTools i={i} n={v.sections.length} move={sections.move} />

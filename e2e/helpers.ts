@@ -49,3 +49,27 @@ export async function verifyAt(page: Page, admin: Page, email: string, name: str
   await page.fill('label:has-text("الاسم الكامل") input', name)
   await page.fill('label:has-text("الجوال") input', phone)
 }
+
+/** ما يخرج عن الشاشة على الجوال (يُقيَّم في الصفحة):
+    - عنصر خارج حدود الشاشة وليس داخل حاوية تمرّر أو تقصّ — html يقصّ الأفقي فلا يمكن الوصول إليه؛
+    - عنصر أعرض من حاوية تقصّ فائضها (hidden/clip) فيُقطع داخلها — كبطاقة اتسع عمودها لأعرض ما فيها. */
+export const overflow = () => {
+  const vw = document.documentElement.clientWidth
+  const bad: string[] = []
+  const name = (el: Element) => `${el.tagName}.${String(el.className).slice(0, 30)}`
+  for (const el of document.querySelectorAll('main *')) {
+    const cs = getComputedStyle(el)
+    if (cs.position === 'fixed' || cs.display === 'none') continue
+    const r = el.getBoundingClientRect()
+    if (!r.width || !r.height) continue
+    let sc = el.parentElement, inside = false
+    while (sc && sc !== document.body) { if (['auto', 'scroll', 'hidden', 'clip'].includes(getComputedStyle(sc).overflowX)) { inside = true; break } sc = sc.parentElement }
+    if (!inside && (r.right > vw + 1 || r.left < -1)) bad.push(name(el))
+    if (inside && sc && cs.position !== 'absolute' && !el.closest('[aria-hidden=true], .sr-only, svg')) {
+      const o = getComputedStyle(sc).overflowX
+      const c = sc.getBoundingClientRect()
+      if ((o === 'hidden' || o === 'clip') && r.width > c.width + 2 && (r.right > c.right + 2 || r.left < c.left - 2)) bad.push(`مقصوص ${name(el)}`)
+    }
+  }
+  return { scroll: document.documentElement.scrollWidth - vw, bad: [...new Set(bad)].slice(0, 5) }
+}
