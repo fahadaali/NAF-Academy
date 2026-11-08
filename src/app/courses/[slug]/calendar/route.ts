@@ -1,5 +1,5 @@
 /* ملف تقويم للدورة (Google / Outlook / Apple): حدث لكل جلسة مجدولة (مباشرة أو حضورية)،
-   وإن لم تكن للدورة جلسات فحدث واحد بموعدها. يُتاح للعموم ما دامت الدورة ظاهرة، وللمسجّل فيها دائماً. */
+   وإن لم تكن للدورة جلسات فحدث واحد بموعدها. يُتاح للعموم ما دامت الدورة عامة ظاهرة (أو برمز معاينتها)، وللمسجّل فيها دائماً. */
 import { and, eq, inArray, isNull } from 'drizzle-orm'
 import { db, schema as s } from '@/server/db'
 import { currentLearner } from '@/server/learner-auth'
@@ -16,7 +16,10 @@ const H = 3600e3
 export async function GET(req: Request, ctx: { params: Promise<{ slug: string }> }) {
   const [c] = await db.select().from(s.courses).where(and(eq(s.courses.slug, (await ctx.params).slug), isNull(s.courses.deletedAt)))
   if (!c) return new Response('Not found', { status: 404 })
-  if (!isPublic(liveStatus(c.status, c.publishAt))) {
+  /* للعموم: الدورة العامة الظاهرة (كصفحتها)، أو حامل رمز معاينتها؛ والبرنامج الخاص لمسجّليه وحدهم */
+  const t = new URL(req.url).searchParams.get('t')
+  const shown = (c.visibility === 'public' && isPublic(liveStatus(c.status, c.publishAt))) || (!!t && t === c.previewToken)
+  if (!shown) {
     const me = await currentLearner()
     const [en] = me ? await db.select().from(s.enrollments).where(and(eq(s.enrollments.courseId, c.id), eq(s.enrollments.learnerId, me.id), eq(s.enrollments.status, 'active'))) : []
     if (!hasAccess(en)) return new Response('Not found', { status: 404 })

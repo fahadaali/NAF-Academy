@@ -2,15 +2,18 @@
 .cap { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
 .cap span { font-size: 14px; font-weight: 700; color: var(--text-soft); }
 .cap strong { font-size: 24px; font-weight: 900; color: var(--text); }
-.plot { position: relative; display: flex; align-items: flex-end; gap: 2px; }
+/* --plot ارتفاع الرسم (خاصية المكوّن)، وفوق الأعمدة 22px لعلامة الذروة */
+.plot { position: relative; display: flex; align-items: flex-end; gap: 2px; block-size: var(--plot, 160px); padding-block-start: 22px; }
 .grid, .base { position: absolute; inset-inline: 0; block-size: 0; border-block-start: 1px dashed var(--line); pointer-events: none; }
+.grid { inset-block-end: 50%; }
 .base { inset-block-end: 0; border-block-start: 1px solid var(--line-strong); }
 .col { position: relative; flex: 1 1 0; block-size: 100%; display: flex; align-items: flex-end; min-inline-size: 0; cursor: default; }
-.bar { display: block; inline-size: 100%; min-block-size: 0; background: var(--chart-1); border-radius: 4px 4px 0 0; transition: opacity var(--t-base) var(--ease-move); }
+.bar { display: block; inline-size: 100%; block-size: calc(var(--v, 0) * 100%); min-block-size: 0; background: var(--chart-1); border-radius: 4px 4px 0 0; transition: opacity var(--t-base) var(--ease-move); }
 .plot:hover .col[data-on='0'] .bar { opacity: 0.45; }
 .tip { position: absolute; inset-block-start: 0; transform: translateX(50%); display: grid; gap: 2px; padding: 8px 12px; border-radius: var(--radius-s); background: var(--surface); border: 1px solid var(--line-strong); box-shadow: var(--shadow-2); white-space: nowrap; pointer-events: none; z-index: 2; font-size: 12.5px; color: var(--muted); }
 .tip strong { font-size: 15px; color: var(--text); }
-.peak { position: absolute; transform: translate(50%, -4px); font-size: 12px; font-weight: 700; color: var(--text-soft); pointer-events: none; white-space: nowrap; }
+/* الذروة فوق عمودها: --x موضعه، و--v نسبته من ارتفاع الأعمدة (الرسم بلا الهامش العلوي) */
+.peak { position: absolute; inset-inline-start: calc(var(--x) * 100%); inset-block-end: calc(var(--v) * (100% - 22px)); transform: translate(50%, -4px); font-size: 12px; font-weight: 700; color: var(--text-soft); pointer-events: none; white-space: nowrap; }
 .axis { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); }
 .table summary { font-size: 13px; color: var(--muted); cursor: pointer; }
 .table table { inline-size: 100%; margin-block-start: 8px; font-size: 13px; border-collapse: collapse; }

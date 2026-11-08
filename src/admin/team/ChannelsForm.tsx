@@ -5,6 +5,7 @@ import type { ChannelSettings, ChannelState } from '@/server/notify/channels'
 import { saveChannels } from './actions'
 import { PageHead, Section, Switch } from '@/admin/ui/kit'
 import s from '@/admin/sales/sales.module.css'
+import p from '@/admin/ui/panel.module.css'
 
 const LABEL = { resend: 'Resend', taqnyat: 'تقنيات', webpush: 'Web Push (VAPID)', outbox: 'صندوق تجريبي (تطوير)' } as const
 
@@ -37,7 +38,7 @@ export function ChannelsForm({ initial, email, sms, push }: { initial: ChannelSe
       {card('الجوال', sms, v.smsEnabled, saved.smsEnabled, (b) => setV({ ...v, smsEnabled: b }), ['من لوحة تقنيات: أنشئ مفتاح API واعتمد اسم المرسل.', 'أضف في البيئة: TAQNYAT_API_KEY و SMS_SENDER.', 'أعد النشر ثم فعّل هنا.'])}
       {card('إشعارات المتصفح', push, v.pushEnabled, saved.pushEnabled, (b) => setV({ ...v, pushEnabled: b }), ['ولّد زوج مفاتيح VAPID مرة واحدة: node scripts/vapid.mjs', 'العام والعنوان في wrangler.jsonc (vars)، والخاص VAPID_PRIVATE_KEY سرّاً في لوحة Cloudflare (مثل العنوان: mailto:academy@naflaw.sa).', 'أعد النشر ثم فعّل هنا واحفظ — يظهر للمتدرب شريط «فعّل التنبيهات» وزره في ملفه.'])}
       {!saved.emailEnabled && !saved.smsEnabled && <p className={s.warn} role="note">⚠︎ لا قناة دخول مفعّلة — الشراء متوقف والدخول للمتدربين مقفل حتى يُفعَّل البريد ويُحفظ.</p>}
-      {msg && <p role="status" style={{ fontWeight: 600, color: msg.ok ? 'var(--success)' : 'var(--danger)', marginBlockEnd: 12 }}>{msg.t}</p>}
+      {msg && <p role="status" className={p.status} data-ok={msg.ok ? '1' : '0'}>{msg.t}</p>}
       <button className="btn" onClick={async () => {
         const r = await saveChannels(v)
         if (r.ok) { setSaved(v); setMsg({ ok: true, t: 'حُفظت' }); router.refresh() } else setMsg({ ok: false, t: r.error ?? 'تعذّر' })

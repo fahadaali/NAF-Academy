@@ -38,6 +38,30 @@ export async function getObject(key: string): Promise<Uint8Array | null> {
   }
 }
 
+/** جسم الملف تدفّقاً (لا يُحمَّل كاملاً في الذاكرة) مع حجمه ووسمه إن عُرفا — لتقديم الوسائط */
+export type ObjectStream = { body: ReadableStream<Uint8Array>; size?: number; etag?: string }
+
+type R2Body = { body: ReadableStream<Uint8Array>; size?: number; httpEtag?: string }
+
+export async function getObjectStream(key: string): Promise<ObjectStream | null> {
+  if (!keyOk(key)) return null
+  const r2 = cfEnv()?.MEDIA
+  if (r2) {
+    const o = (await r2.get(key)) as unknown as R2Body | null
+    return o ? { body: o.body, size: o.size, etag: o.httpEtag } : null
+  }
+  try {
+    const [{ stat }, { createReadStream }, { Readable }] = await Promise.all([import('node:fs/promises'), import('node:fs'), import('node:stream')])
+    const p = await fsSafe(key)
+    const st = await stat(p)
+    if (!st.isFile()) return null
+    const body = Readable.toWeb(createReadStream(p)) as unknown as ReadableStream<Uint8Array>
+    return { body, size: st.size, etag: `"${st.size.toString(36)}-${Math.floor(st.mtimeMs).toString(36)}"` }
+  } catch {
+    return null
+  }
+}
+
 export async function deleteObject(key: string) {
   if (!keyOk(key)) return
   const r2 = cfEnv()?.MEDIA

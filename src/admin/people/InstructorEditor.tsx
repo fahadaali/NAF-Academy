@@ -8,6 +8,7 @@ import type { Errors, InstructorInput } from '@/admin/schemas'
 import { Field, Grid, Input, ListEditor, PageHead, SaveBar, Section, Segmented, Switch, Textarea, RowTools, useSortable } from '@/admin/ui/kit'
 import { MediaPicker } from '@/admin/ui/MediaPicker'
 import { useCan } from '@/admin/ui/perms'
+import p from '@/admin/ui/panel.module.css'
 
 export function InstructorEditor({ id, initial, media }: { id: string | null; initial: InstructorInput; media: Media[] }) {
   const write = useCan()('content.write')
@@ -49,14 +50,14 @@ export function InstructorEditor({ id, initial, media }: { id: string | null; in
       </Section>
       <Section title="روابط">
         {v.links.map((l, i) => (
-          <div key={i} style={{ display: 'flex', gap: 8 }} {...links.props(i)}>
+          <div key={i} className={p.hstack} {...links.props(i)}>
             <Input placeholder="التسمية (لينكدإن)" value={l.label} onChange={(e) => set('links', v.links.map((x, k) => (k === i ? { ...x, label: e.target.value } : x)))} />
             <Input dir="ltr" placeholder="https://" value={l.url} onChange={(e) => set('links', v.links.map((x, k) => (k === i ? { ...x, url: e.target.value } : x)))} />
             <RowTools i={i} n={v.links.length} move={links.move} onRemove={() => set('links', v.links.filter((_, k) => k !== i))} />
           </div>
         ))}
-        {errors[Object.keys(errors).find((k) => k.startsWith('links')) ?? ''] && <span style={{ color: 'var(--danger)', fontSize: 13 }}>رابط غير صالح</span>}
-        <button type="button" className="btn ghost" style={{ justifySelf: 'start' }} onClick={() => set('links', [...v.links, { label: '', url: '' }])}>+ رابط</button>
+        {errors[Object.keys(errors).find((k) => k.startsWith('links')) ?? ''] && <span className={p.err}>رابط غير صالح</span>}
+        <button type="button" className={`btn ghost ${p.start}`} onClick={() => set('links', [...v.links, { label: '', url: '' }])}>+ رابط</button>
       </Section>
       <SaveBar readOnly={write ? undefined : 'للعرض فقط — التعديل لمن يملك صلاحية المحتوى'} dirty={JSON.stringify(v) !== saved} saving={saving} message={msg} onSave={save}
         extra={id ? <button type="button" className="btn ghost" onClick={async () => { if (confirm('نقل المدرب إلى المحذوفات؟')) { await trash('instructor', id); router.push('/admin/instructors') } }}>حذف</button> : null} />

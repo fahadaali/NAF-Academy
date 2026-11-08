@@ -46,3 +46,34 @@ export function parseBody(text: string, contentType: string): MoyasarBody | null
 
 /** أحداث الدفع التي تستدعي التحقق من الدفعة لدى ميسر (ومنها «payment_faild» كما تكتبها ميسر) */
 export const PAYMENT_EVENTS = new Set(['payment_paid', 'payment_failed', 'payment_faild', 'payment_captured', 'payment_authorized', 'payment_refunded', 'payment_voided'])
+
+/* ───── ما يصل بلا السرّ لا يُوثق به ─────
+   طلب التحقق من الرابط قد يصل بلا السرّ فيُقبل رمزه — لكنه لا يحلّ محل رمز موقّع حديث، والسجل يُبقي الموقّع
+   فلا يُغرقه سيل طلبات مجهولة (والمسار يحدّ عددها لكل عنوان). */
+
+export type VerifyCode = { code: string; at: string; signed: boolean }
+export type WebhookLogHit = { at: string; signed: boolean }
+
+/** صلاحية رمز التحقق في لوحة ميسر */
+export const VERIFY_TTL_MS = 30 * 60e3
+/** أقصى ما يبقى في السجل من الطلبات غير الموقّعة */
+export const UNSIGNED_LOG_MAX = 3
+
+/** هل يُحفظ الرمز الجديد؟ غير الموقّع لا يستبدل رمزاً موقّعاً ما زال صالحاً */
+export function acceptVerify(prev: VerifyCode | null | undefined, next: VerifyCode, now = Date.now()): boolean {
+  if (next.signed || !prev?.signed) return true
+  return now - Date.parse(prev.at) >= VERIFY_TTL_MS
+}
+
+/** السجل الأحدث أولاً بحدّ max، وغير الموقّع منه لا يتجاوز UNSIGNED_LOG_MAX — فيبقى أثر الإشعارات الحقيقية */
+export function mergeLog<T extends WebhookLogHit>(prev: unknown, hit: T, max: number): T[] {
+  const list = [hit, ...(Array.isArray(prev) ? (prev as T[]) : [])]
+  const out: T[] = []
+  let unsigned = 0
+  for (const h of list) {
+    if (out.length >= max) break
+    if (!h.signed && ++unsigned > UNSIGNED_LOG_MAX) continue
+    out.push(h)
+  }
+  return out
+}

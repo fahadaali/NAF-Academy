@@ -68,11 +68,15 @@ export async function channelOpen(c: Channel) {
 
 type Message = { channel: Channel; to: string; subject?: string; text: string; html?: string; kind: string; secret?: string; headers?: Record<string, string>; attachments?: { filename: string; content: Uint8Array }[] }
 
-/** يرسل ويسجّل. السرّ (مثل رمز التحقق) يُخفى من السجل في الإنتاج. */
+/** السرّ (رمز تحقق أو رابط موقّع) يُخفى مما يُحفظ في السجل — في العنوان والنص معاً */
+export function maskSecret(text: string, secret: string | undefined, keep = false): string {
+  return secret && !keep ? text.replaceAll(secret, '••••••') : text
+}
+
+/** يرسل ويسجّل. السرّ يُخفى من السجل في الإنتاج (عنواناً ونصاً)؛ وفي التطوير يبقى ظاهراً للصندوق التجريبي. */
 export async function send(m: Message): Promise<{ ok: boolean; error?: string; id: string; suppressed?: boolean }> {
   const st = channelState(m.channel)
-  const logBody = m.secret && !dev() ? m.text.replaceAll(m.secret, '••••••') : m.text
-  const row = { id: randomUUID(), channel: m.channel, to: m.to, subject: m.subject ?? '', body: logBody, kind: m.kind, provider: st.provider ?? 'none' }
+  const row = { id: randomUUID(), channel: m.channel, to: m.to, subject: maskSecret(m.subject ?? '', m.secret, dev()), body: maskSecret(m.text, m.secret, dev()), kind: m.kind, provider: st.provider ?? 'none' }
   /* عنوان ارتدّ ارتداداً دائماً أو اشتكى: لا يُرسل إليه (يحمي سمعة النطاق) */
   if (m.channel === 'email') {
     const [sup] = await db.select().from(s.mailSuppressions).where(eq(s.mailSuppressions.email, m.to.trim().toLowerCase()))

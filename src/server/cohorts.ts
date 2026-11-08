@@ -1,14 +1,21 @@
 import 'server-only'
 /* الدفعات على الخادم — المقاعد المشغولة لكل دفعة، ومواعيد جلساتها. */
-import { and, count, eq, gt, inArray, isNull, or, sum } from 'drizzle-orm'
+import { and, count, eq, gt, inArray, isNull, or, sql, sum } from 'drizzle-orm'
 import { db, schema as s } from './db'
 import { inList } from './db/limits'
 import type { CohortLite } from '@/lib/cohorts'
 import type { CohortRow } from './db/schema'
 
-/** دعوة تحجز مقعداً: لم تُقبل ولم تُلغَ ولم تنتهِ (قرار المالك) */
+/** دعوة تحجز مقعداً: لم تُقبل ولم تُلغَ ولم تنتهِ (قرار المالك) — ولم يسجّل صاحب بريدها في الدورة بطريق آخر
+    (شراء، مقعد مؤسسة، عقد، تسجيل مباشر) بتسجيل ساري الوصول؛ وإلا عُدّ مرتين حتى تنتهي مدتها.
+    استعلام فرعي مرتبط بمعامل واحد (لا قوائم — حدّ D1). */
 export const inviteHolds = (now = new Date().toISOString()) =>
-  and(isNull(s.invitations.acceptedAt), isNull(s.invitations.revokedAt), gt(s.invitations.expiresAt, now))
+  and(
+    isNull(s.invitations.acceptedAt), isNull(s.invitations.revokedAt), gt(s.invitations.expiresAt, now),
+    sql`not exists (select 1 from "enrollments" ie inner join "learners" il on il."id" = ie."learner_id"
+      where il."email" = ${s.invitations.email} and ie."course_id" = ${s.invitations.courseId} and ie."status" = 'active'
+      and (ie."access_until" is null or ie."access_until" > ${now}))`,
+  )
 
 /** تسجيل يشغل مقعداً: نشط وساري الوصول — المنتهي وصوله يجدّد دون أن يأخذ مقعداً (قرار المالك) */
 export const holdsSeat = (now = new Date().toISOString()) =>
@@ -49,9 +56,11 @@ export async function cohortSeatsUsed(c: Pick<CohortRow, 'id' | 'seatsTaken'>) {
   return c.seatsTaken + e.n + g.n + Number(p.n ?? 0) + i.n
 }
 
-/** مواعيد جلسات الدفعة لكل درس */
+/** مواعيد جلسات الدفعة لكل درس — الدفعة في المحذوفات لا مواعيد لها: مسجّلها يتبع مواعيد الدروس نفسها
+    (القاعدة نفسها في learnerCourse والمحرّك والتقويم والانضمام) */
 export async function sessionsOf(cohortId: string | null | undefined) {
   if (!cohortId) return null
-  const rows = await db.select().from(s.cohortSessions).where(eq(s.cohortSessions.cohortId, cohortId))
-  return new Map(rows.map((r) => [r.lessonId, r]))
+  const rows = await db.select({ x: s.cohortSessions }).from(s.cohortSessions).innerJoin(s.cohorts, eq(s.cohorts.id, s.cohortSessions.cohortId))
+    .where(and(eq(s.cohortSessions.cohortId, cohortId), isNull(s.cohorts.deletedAt)))
+  return new Map(rows.map(({ x }) => [x.lessonId, x]))
 }

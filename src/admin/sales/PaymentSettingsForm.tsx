@@ -6,6 +6,7 @@ import type { GatewayStatus } from '@/server/payments/gateway'
 import { savePaymentSettings } from './actions'
 import { Field, Grid, Input, PageHead, SaveBar, Section, Switch, Textarea } from '@/admin/ui/kit'
 import s from './sales.module.css'
+import p from '@/admin/ui/panel.module.css'
 import { PAY_METHOD_LABEL } from '@/lib/enums'
 import { History } from '@/admin/ui/History'
 
@@ -86,7 +87,7 @@ export function PaymentSettingsForm({ initial, status, verification, hits = [] }
       )}
 
       <Section title="وسائل الدفع والحجز">
-        <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
+        <div className={p.options}>
           {(Object.keys(METHOD) as PaymentSettings['methods']).map((m) => (
             <Switch key={m} checked={v.methods.includes(m)} onChange={(b) => up((o) => ({ ...o, methods: b ? [...o.methods, m] : o.methods.filter((x) => x !== m) }))} label={METHOD[m]} />
           ))}
@@ -96,7 +97,7 @@ export function PaymentSettingsForm({ initial, status, verification, hits = [] }
           <Field label="مهلة حجز المقعد (دقيقة)" hint="المقعد محجوز للمشتري حتى يدفع"><Input type="number" dir="ltr" min={10} max={120} value={v.holdMinutes} onChange={(e) => up((o) => ({ ...o, holdMinutes: Number(e.target.value) }))} /></Field>
           <Field label="ضريبة القيمة المضافة %" hint="الأسعار شاملة الضريبة"><Input type="number" dir="ltr" value={v.vatRate} onChange={(e) => up((o) => ({ ...o, vatRate: Number(e.target.value) }))} /></Field>
           <Field label="بادئة الطلبات / الفواتير" error={errors.orderPrefix || errors.invoicePrefix}>
-            <div style={{ display: 'flex', gap: 6 }}>
+            <div className={p.pair}>
               <Input dir="ltr" value={v.orderPrefix} onChange={(e) => up((o) => ({ ...o, orderPrefix: e.target.value.toUpperCase() }))} />
               <Input dir="ltr" value={v.invoicePrefix} onChange={(e) => up((o) => ({ ...o, invoicePrefix: e.target.value.toUpperCase() }))} />
             </div>

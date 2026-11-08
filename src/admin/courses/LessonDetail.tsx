@@ -11,6 +11,7 @@ import { streamCaptionAdd, streamCaptionAuto, streamCaptionsOf, streamStatus, up
 import { CAPTION_LANGS } from '@/lib/captions'
 import type { Caption, Slides } from '@/lib/learning-types'
 import d from './lesson.module.css'
+import p from '@/admin/ui/panel.module.css'
 import { StreamUpload } from './StreamUpload'
 import { fileSize } from '@/lib/files'
 
@@ -312,7 +313,7 @@ function QuizBuilder({ value: q, onChange, err }: { value: Quiz; onChange: (q: Q
             <select className={d.kind} value={x.kind} aria-label="نوع السؤال" onChange={(e) => { const k = e.target.value as QuizQuestion['kind']; setQ(i, k === 'truefalse' ? blank(k) : { kind: k, correct: k === 'multi' ? x.correct : x.correct.slice(0, 1) }) }}>
               {KIND.map((k) => <option key={k.value} value={k.value}>{k.label}</option>)}
             </select>
-            <span style={{ flex: 1 }} />
+            <span className={p.spacer} />
             {/* وزن السؤال في الدرجة (يحسبه التصحيح منذ البداية) */}
             <label className={d.points}><Input type="number" dir="ltr" min={1} max={100} value={x.points ?? 1} aria-label="نقاط السؤال" onChange={(e) => setQ(i, { points: Math.max(1, Math.min(100, Number(e.target.value) || 1)) })} /> نقطة</label>
             <RowTools i={i} n={q.questions.length} move={move} onRemove={() => set({ questions: q.questions.filter((_, k) => k !== i) })} />

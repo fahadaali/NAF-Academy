@@ -92,7 +92,7 @@ export function LearnersBoard({ courseId, title, enrolls, interest, cohorts = []
           </tbody>
         </table></div>
       )}
-      <h2 style={{ fontSize: 20, margin: '30px 0 12px', display: 'flex', justifyContent: 'space-between' }}>
+      <h2 className={`${p.title} ${p.between}`}>
         المهتمون وقوائم الانتظار <span className="num">({interest.length})</span>
       </h2>
       {interest.length === 0 ? <div className={p.empty}>لا أحد بعد.</div> : (
@@ -101,7 +101,7 @@ export function LearnersBoard({ courseId, title, enrolls, interest, cohorts = []
             <thead><tr><th>الاسم</th><th>البريد</th><th>النوع</th><th>التاريخ</th></tr></thead>
             <tbody>{interest.map((i) => <tr key={i.id}><td>{i.name || '—'}</td><td className={p.ltr}>{i.email}</td><td>{KIND[i.kind]}</td><td className={`${p.muted} num`}>{when(i.createdAt)}</td></tr>)}</tbody>
           </table></div>
-          <button className="btn ghost" style={{ marginBlockStart: 12 }} onClick={() => downloadCsv('interest.csv', [['الاسم', 'البريد', 'الجوال', 'النوع', 'التاريخ'], ...interest.map((i) => [i.name, i.email, i.phone, KIND[i.kind], i.createdAt])])}>تصدير المهتمين</button>
+          <button className={`btn ghost ${p.gapStart}`} onClick={() => downloadCsv('interest.csv', [['الاسم', 'البريد', 'الجوال', 'النوع', 'التاريخ'], ...interest.map((i) => [i.name, i.email, i.phone, KIND[i.kind], i.createdAt])])}>تصدير المهتمين</button>
         </>
       )}
     </>

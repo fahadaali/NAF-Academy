@@ -23,7 +23,7 @@ export default async function Submissions({ searchParams }: { searchParams: Prom
             <article key={sub.id} className={r.card}>
               <div className={r.head}>
                 <div><strong>{learner.name || learner.email}</strong><div className={r.meta}>{course} · {lesson}</div></div>
-                <div style={{ display: 'grid', justifyItems: 'end', gap: 4 }}><Badge tone={TONE[sub.status]}>{LABEL[sub.status]}</Badge><span className={`${r.meta} num`}>{when(sub.createdAt)}</span></div>
+                <div className={r.state}><Badge tone={TONE[sub.status]}>{LABEL[sub.status]}</Badge><span className={`${r.meta} num`}>{when(sub.createdAt)}</span></div>
               </div>
               {sub.assetId && <a className={r.file} href={`/admin/files/${sub.assetId}`}>⇩ {file ?? 'الملف'}</a>}
               {sub.note && <p className={r.body}>{sub.note}</p>}

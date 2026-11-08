@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { generateBatch, saveCoupon, type CouponInput } from './actions'
 import { DateTime, Field, Grid, Input, Money, PageHead, SaveBar, Section, Segmented, Switch } from '@/admin/ui/kit'
 import p from '@/admin/ui/panel.module.css'
+import s from './sales.module.css'
 
 type Opt = { id: string; title: string }
 
@@ -41,7 +42,7 @@ export function CouponEditor({ id, initial, courses, tracks }: { id: string | nu
   return (
     <>
       <PageHead title={id ? v.code : 'كوبون جديد'} actions={id ? <History entity="coupon" id={id} current={v} onRestore={(x) => { setV(x); setMsg({ ok: true, text: 'حُمّلت النسخة — راجعها ثم احفظ' }) }} /> : null} sub={batch ? 'دفعة أكواد فريدة لاستخدام واحد لكل كود — للمؤسسات والمنح' : 'رابط التطبيق التلقائي: /courses?coupon=' + (v.code || 'CODE')} />
-      {!id && <div style={{ marginBlockEnd: 16 }}><Switch checked={batch} onChange={setBatch} label="توليد دفعة أكواد لمؤسسة" /></div>}
+      {!id && <div className={p.gapEnd}><Switch checked={batch} onChange={setBatch} label="توليد دفعة أكواد لمؤسسة" /></div>}
       <Section title="الخصم">
         <Grid>
           <Field label={batch ? 'بادئة الأكواد' : 'الرمز'} error={errors.code} hint={batch ? 'مثل: ARAMCO ← ARAMCO-7KQ2XM' : 'حروف إنجليزية وأرقام'}><Input dir="ltr" value={v.code} onChange={(e) => set('code', e.target.value.toUpperCase())} /></Field>
@@ -74,8 +75,8 @@ export function CouponEditor({ id, initial, courses, tracks }: { id: string | nu
       </Section>
       {codes.length > 0 && (
         <Section title="الأكواد المولّدة" desc="انسخها وأرسلها للمؤسسة — كل كود لاستخدام واحد">
-          <textarea readOnly dir="ltr" rows={8} value={codes.join('\n')} style={{ inlineSize: '100%', fontFamily: 'monospace', padding: 12, borderRadius: 10, border: '1px solid var(--line-strong)', background: 'var(--bg)', color: 'var(--text)' }} />
-          <button className="btn ghost" style={{ justifySelf: 'start' }} onClick={() => navigator.clipboard?.writeText(codes.join('\n'))}>نسخ الكل</button>
+          <textarea readOnly dir="ltr" rows={8} value={codes.join('\n')} className={s.codes} />
+          <button className={`btn ghost ${p.start}`} onClick={() => navigator.clipboard?.writeText(codes.join('\n'))}>نسخ الكل</button>
         </Section>
       )}
       <SaveBar dirty={batch ? codes.length === 0 : JSON.stringify(v) !== saved} saving={saving} message={msg} onSave={save} />
@@ -93,7 +94,7 @@ export function Chips({ items, on, toggle, error }: { items: Opt[]; on: string[]
           </button>
         ))}
       </div>
-      {error && <span style={{ color: 'var(--danger)', fontSize: 13, fontWeight: 600 }}>{error}</span>}
+      {error && <span className={p.errStrong}>{error}</span>}
     </div>
   )
 }

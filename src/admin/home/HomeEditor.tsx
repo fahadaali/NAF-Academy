@@ -60,7 +60,7 @@ export function HomeEditor({ initial, media }: { initial: HomeContent; media: Me
         {v.ladder.steps.map((st, i) => {
           const set = (patch: Partial<typeof st>) => up((o) => ({ ...o, ladder: { ...o.ladder, steps: o.ladder.steps.map((x, k) => (k === i ? { ...x, ...patch } : x)) } }))
           return (
-            <div key={i} style={{ display: 'grid', gap: 12, padding: 16, borderRadius: 14, background: 'var(--surface-2)' }}>
+            <div key={i} className={p.tileLg}>
               <Grid>
                 <Field label={`الدرجة ${i + 1} — التسمية`}><Input value={st.name} onChange={(e) => set({ name: e.target.value })} /></Field>
                 <Field label="الاسم" hint={`يظهر: ${plain(st.title)}`}><Input value={st.title} onChange={(e) => set({ title: e.target.value })} /></Field>
@@ -85,19 +85,19 @@ export function HomeEditor({ initial, media }: { initial: HomeContent; media: Me
 
       <Section title="الأرقام" desc="تتصاعد عند الظهور">
         {v.stats.map((st, i) => (
-          <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center' }} {...stats.props(i)}>
-            <Input aria-label="الرقم" style={{ maxInlineSize: 120 }} dir="ltr" type="number" value={st.value} onChange={(e) => up((o) => ({ ...o, stats: o.stats.map((x, k) => (k === i ? { ...x, value: Number(e.target.value) } : x)) }))} />
-            <Input aria-label="اللاحقة" style={{ maxInlineSize: 80 }} placeholder="+ أو ٪" value={st.suffix ?? ''} onChange={(e) => up((o) => ({ ...o, stats: o.stats.map((x, k) => (k === i ? { ...x, suffix: e.target.value } : x)) }))} />
+          <div key={i} className={p.hstack} {...stats.props(i)}>
+            <Input aria-label="الرقم" className={p.fitS} dir="ltr" type="number" value={st.value} onChange={(e) => up((o) => ({ ...o, stats: o.stats.map((x, k) => (k === i ? { ...x, value: Number(e.target.value) } : x)) }))} />
+            <Input aria-label="اللاحقة" className={p.fitXs} placeholder="+ أو ٪" value={st.suffix ?? ''} onChange={(e) => up((o) => ({ ...o, stats: o.stats.map((x, k) => (k === i ? { ...x, suffix: e.target.value } : x)) }))} />
             <Input aria-label="التسمية" placeholder="التسمية" value={st.label} onChange={(e) => up((o) => ({ ...o, stats: o.stats.map((x, k) => (k === i ? { ...x, label: e.target.value } : x)) }))} />
             <RowTools i={i} n={v.stats.length} move={stats.move} onRemove={() => up((o) => ({ ...o, stats: o.stats.filter((_, k) => k !== i) }))} />
           </div>
         ))}
-        <button type="button" className="btn ghost" style={{ justifySelf: 'start' }} onClick={() => up((o) => ({ ...o, stats: [...o.stats, { value: 0, label: '' }] }))}>+ رقم</button>
+        <button type="button" className={`btn ghost ${p.start}`} onClick={() => up((o) => ({ ...o, stats: [...o.stats, { value: 0, label: '' }] }))}>+ رقم</button>
       </Section>
 
       <Section title="آراء المتدربين" desc="اقتباسات حقيقية بإذن أصحابها — يغيب المشهد ما دامت القائمة فارغة">
         {v.voices.map((x, i) => (
-          <div key={i} style={{ display: 'grid', gap: 10, padding: 12, borderRadius: 12, background: 'var(--surface-2)' }}>
+          <div key={i} className={p.tile}>
             <Textarea rows={2} aria-label="نص الرأي" placeholder="نص الرأي" value={x.quote} onChange={(e) => up((o) => ({ ...o, voices: o.voices.map((y, k) => (k === i ? { ...y, quote: e.target.value } : y)) }))} />
             <Grid cols={3}>
               <Input aria-label="الاسم" placeholder="الاسم" value={x.name} onChange={(e) => up((o) => ({ ...o, voices: o.voices.map((y, k) => (k === i ? { ...y, name: e.target.value } : y)) }))} />
@@ -107,12 +107,12 @@ export function HomeEditor({ initial, media }: { initial: HomeContent; media: Me
             <MediaPicker label="الصورة (اختيارية)" value={x.photoId} onChange={(photoId) => up((o) => ({ ...o, voices: o.voices.map((y, k) => (k === i ? { ...y, photoId } : y)) }))} library={media} ratio="1 / 1" />
           </div>
         ))}
-        <button type="button" className="btn ghost" style={{ justifySelf: 'start' }} disabled={v.voices.length >= 12} onClick={() => up((o) => ({ ...o, voices: [...o.voices, { quote: '', name: '', role: '', photoId: null }] }))}>+ رأي</button>
+        <button type="button" className={`btn ghost ${p.start}`} disabled={v.voices.length >= 12} onClick={() => up((o) => ({ ...o, voices: [...o.voices, { quote: '', name: '', role: '', photoId: null }] }))}>+ رأي</button>
       </Section>
 
       <Section title="الجهات الشريكة" desc="شعار ورابط اختياري لكل جهة — يغيب المشهد ما دامت القائمة فارغة">
         {v.partners.map((x, i) => (
-          <div key={i} style={{ display: 'grid', gap: 10, padding: 12, borderRadius: 12, background: 'var(--surface-2)' }}>
+          <div key={i} className={p.tile}>
             <Grid cols={3}>
               <Input aria-label="اسم الجهة" placeholder="اسم الجهة" value={x.name} onChange={(e) => up((o) => ({ ...o, partners: o.partners.map((y, k) => (k === i ? { ...y, name: e.target.value } : y)) }))} />
               <Input aria-label="الرابط" placeholder="https://… (اختياري)" dir="ltr" value={x.url} onChange={(e) => up((o) => ({ ...o, partners: o.partners.map((y, k) => (k === i ? { ...y, url: e.target.value.trim() } : y)) }))} />
@@ -121,7 +121,7 @@ export function HomeEditor({ initial, media }: { initial: HomeContent; media: Me
             <MediaPicker label="الشعار (PNG شفاف يُفضَّل)" value={x.logoId} onChange={(logoId) => up((o) => ({ ...o, partners: o.partners.map((y, k) => (k === i ? { ...y, logoId } : y)) }))} library={media} ratio="3 / 1" />
           </div>
         ))}
-        <button type="button" className="btn ghost" style={{ justifySelf: 'start' }} disabled={v.partners.length >= 24} onClick={() => up((o) => ({ ...o, partners: [...o.partners, { name: '', logoId: null, url: '' }] }))}>+ جهة</button>
+        <button type="button" className={`btn ghost ${p.start}`} disabled={v.partners.length >= 24} onClick={() => up((o) => ({ ...o, partners: [...o.partners, { name: '', logoId: null, url: '' }] }))}>+ جهة</button>
       </Section>
 
       <Section title="الأسئلة الشائعة" desc="أسئلة عامة عن الأكاديمية (أسئلة كل دورة في صفحتها) — يغيب المشهد ما دامت فارغة">

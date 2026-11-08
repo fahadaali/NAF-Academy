@@ -23,7 +23,7 @@ export default async function CouponPage({ params }: { params: Promise<{ id: str
   return (
     <>
       <CouponEditor key={c.updatedAt} id={id} courses={courses} tracks={tracks} initial={{ code, label, kind, value, scope, courseIds, trackIds, startsAt, endsAt, maxUses, maxPerLearner, minAmount, emailDomain, stackWithSale, active }} />
-      <h2 style={{ fontSize: 20, margin: '30px 0 12px' }}>سجل الاستخدام <span className="num">({uses.length})</span></h2>
+      <h2 className={p.title}>سجل الاستخدام <span className="num">({uses.length})</span></h2>
       {uses.length === 0 ? <div className={p.empty}>لم يُستخدم بعد.</div> : (
         <div className={p.scroll}><table className={p.table}>
           <thead><tr><th>الطلب</th><th>المتدرب</th><th>الخصم</th><th>الوقت</th></tr></thead>

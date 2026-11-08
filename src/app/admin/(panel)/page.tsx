@@ -36,7 +36,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
       </div>
       <div className={p.cards}>
         <section>
-          <h2 style={{ fontSize: 18, marginBlockEnd: 10 }}>تبدأ قريباً</h2>
+          <h2 className={p.h2}>تبدأ قريباً</h2>
           <div className={p.scroll}><table className={p.table}><tbody>
             {upcoming.length === 0 && <tr><td className={p.muted}>لا مواعيد قادمة.</td></tr>}
             {upcoming.map((c) => (
@@ -48,13 +48,13 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
           </tbody></table></div>
         </section>
         <section>
-          <h2 style={{ fontSize: 18, marginBlockEnd: 10 }}>آخر التعديلات</h2>
+          <h2 className={p.h2}>آخر التعديلات</h2>
           <div className={p.scroll}><table className={p.table}><tbody>
             {log.map((e) => (
               <tr key={e.id}><td><strong>{e.actor}</strong> <span className={p.muted}>· {e.summary}</span><div className={`${p.muted} num`}>{new Date(e.at).toLocaleString('ar-SA-u-nu-latn', { timeZone: 'Asia/Riyadh', dateStyle: 'medium', timeStyle: 'short' })}</div></td></tr>
             ))}
           </tbody></table></div>
-          {canAudit && <Link href="/admin/audit" className={p.muted} style={{ display: 'inline-block', marginBlockStart: 8 }}>السجل كاملاً ←</Link>}
+          {canAudit && <Link href="/admin/audit" className={`${p.muted} ${p.more}`}>السجل كاملاً ←</Link>}
         </section>
       </div>
     </>

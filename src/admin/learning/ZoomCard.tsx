@@ -12,7 +12,7 @@ export function ZoomCard({ configured, enabled, problem, hook }: { configured: b
   const can = useCan()('channels.manage')
   const [msg, setMsg] = useState('')
   return (
-    <div className={p.card} style={{ display: 'grid', gap: 8, marginBlockEnd: 18 }}>
+    <div className={`${p.card} ${p.cardStack}`}>
       <strong>تسجيلات Zoom التلقائية</strong>
       {!configured ? <span className={p.muted}>مقفل — {problem}. أنشئ تطبيق Webhook في Zoom بحدث «Recording Completed»، وأضف سرّه إلى البيئة.</span> : (
         <>
@@ -20,7 +20,7 @@ export function ZoomCard({ configured, enabled, problem, hook }: { configured: b
           {can && <Switch checked={enabled} onChange={async (x) => { const r = await setZoom(x); if (!r.ok) setMsg(r.error ?? ''); else router.refresh() }} label={enabled ? 'مفعّل' : 'موقوف'} />}
         </>
       )}
-      {msg && <span role="alert" style={{ color: 'var(--danger)' }}>{msg}</span>}
+      {msg && <span role="alert" className={p.err}>{msg}</span>}
     </div>
   )
 }

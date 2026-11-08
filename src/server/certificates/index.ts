@@ -119,7 +119,13 @@ const hijriAr = (iso: string) => `${formatHijri(iso)} ${new Intl.DateTimeFormat(
 
 const dateEn = (iso: string) => new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Riyadh', day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(iso))
 
-export const verifyUrl = (code: string) => `${siteUrl() ?? ''}/certificates/${code}`
+/** رابط التحقق المطلق — null في الإنتاج بلا SITE_URL: لا يُطبع في ملف يخرج من المنصة (PDF وQR) رابط نسبي لا يُفتح */
+export const absoluteVerifyUrl = (code: string): string | null => {
+  const site = siteUrl()
+  return site ? `${site}/certificates/${code}` : null
+}
+/** للصفحات داخل الموقع: المطلق، أو المسار النسبي (يعمل داخل الموقع نفسه) */
+export const verifyUrl = (code: string) => absoluteVerifyUrl(code) ?? `/certificates/${code}`
 
 /** الهوية للشهادة — شعار الأكاديمية بالنسخة الفاتحة للقالب العاجي والداكنة للكحلي */
 export async function certBrand(tone: CertDesign['tone']): Promise<CertBrand> {
@@ -133,10 +139,13 @@ export async function certBrand(tone: CertDesign['tone']): Promise<CertBrand> {
 
 async function renderPdf(c: typeof s.certificates.$inferSelect, design?: CertDesign) {
   const d = design ?? c.design ?? DEFAULT_DESIGN
+  /* بلا رابط مطلق لا يُولَّد الملف (ولا يُخزَّن) — يُولَّد عند أول تنزيل بعد ضبط SITE_URL، كما تتوقف الرسائل الآلية */
+  const url = absoluteVerifyUrl(c.code ?? '')
+  if (!url) throw new Error('SITE_URL غير مضبوط — لا تُولَّد الشهادة برابط تحقق نسبي')
   return certificatePdf(d, {
     name: c.name, course: c.courseTitle, hours: c.hours, date: dateAr(c.issuedAt ?? nowIso()), hijri: hijriAr(c.issuedAt ?? nowIso()),
     nameEn: c.nameEn, courseEn: c.courseTitleEn, dateEn: dateEn(c.issuedAt ?? nowIso()),
-    code: c.code ?? 'NAF-XXXX-XXXX', verifyUrl: verifyUrl(c.code ?? ''),
+    code: c.code ?? 'NAF-XXXX-XXXX', verifyUrl: url,
   }, await certBrand(d.tone))
 }
 
@@ -180,8 +189,10 @@ export async function certificateByCode(code: string) {
 export async function viewData(c: typeof s.certificates.$inferSelect) {
   const QRCode = (await import('qrcode')).default
   const at = c.issuedAt ?? nowIso()
-  const qrSvg = c.code
-    ? (await QRCode.toString(verifyUrl(c.code), { type: 'svg', margin: 0, errorCorrectionLevel: 'M' })).replace(/fill="#ffffff"/gi, 'fill="transparent"').replace(/#000000/g, 'currentColor')
+  /* QR بالرابط المطلق وحده — رمز يُصوَّر من شاشة أو ورقة لا يفيده مسار نسبي */
+  const abs = c.code ? absoluteVerifyUrl(c.code) : null
+  const qrSvg = abs
+    ? (await QRCode.toString(abs, { type: 'svg', margin: 0, errorCorrectionLevel: 'M' })).replace(/fill="#ffffff"/gi, 'fill="transparent"').replace(/#000000/g, 'currentColor')
     : undefined
   return { name: c.name, course: c.courseTitle, hours: c.hours, date: dateAr(at), hijri: hijriAr(at), code: c.code ?? 'NAF-XXXX-XXXX', qrSvg, nameEn: c.nameEn, courseEn: c.courseTitleEn, dateEn: dateEn(at) }
 }

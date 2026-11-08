@@ -2,11 +2,13 @@ import 'server-only'
 /* التسجيل المباشر بلا طلب ولا دفع — للإضافة الجماعية من اللوحة ولقبول الدعوات (برامج الجامعات والتدريب التعاوني).
    على نمط مقاعد العقود: يُدرج التسجيل ثم يُعدّ، فإن تجاوز المشغول السعة تراجع المتأخر. لا فاتورة (المبلغ صفر). */
 import { randomUUID } from 'node:crypto'
-import { and, eq, isNull } from 'drizzle-orm'
+import { and, count, eq, isNull } from 'drizzle-orm'
 import { db, schema as s } from './db'
 import { audit } from './audit'
 import { accessUntilOf, noRoom, overCapacity, upsertLearner } from './sales'
+import { inviteHolds } from './cohorts'
 import { cohortState, hasAccess } from '@/lib/cohorts'
+import { refreshPublicPages } from './page-cache'
 
 export type DirectLearner = { name: string; email: string; phone?: string; org?: string; nameEn?: string }
 
@@ -17,6 +19,7 @@ export type EnrollResult =
 /**
  * يسجّل المتدرب في الدورة (ودفعتها). `heldSeat`: المقعد محجوز مسبقاً (دعوة) فلا يُفحص المتّسع.
  * المسجّل الساري وصوله يُعاد «already» بلا تغيير، والمنتهي وصوله يُجدَّد تسجيله نفسه.
+ * بيانات المتدرب: الموظف (`grant`) يحدّثها؛ والدعوة (`invite`) تملأ الفارغ فقط — حامل الرابط ليس بالضرورة صاحب الحساب.
  */
 export async function enrollDirect(v: { courseId: string; cohortId?: string | null; learner: DirectLearner; source: 'grant' | 'invite'; by: string; heldSeat?: boolean }): Promise<EnrollResult> {
   const [course] = await db.select().from(s.courses).where(and(eq(s.courses.id, v.courseId), isNull(s.courses.deletedAt)))
@@ -25,8 +28,8 @@ export async function enrollDirect(v: { courseId: string; cohortId?: string | nu
   const cohort = cohorts.find((k) => k.id === v.cohortId) ?? null
   if (cohorts.length && !cohort) return { ok: false, error: 'اختر الدفعة' }
   if (cohort && cohortState({ ...cohort, taken: 0 }) === 'closed') return { ok: false, error: `الدفعة «${cohort.title}» مغلقة أو انتهت` }
-  /* الموظف (أو صاحب الحساب بعد قبول دعوته) يحدّث الاسم والجوال */
-  const learner = await upsertLearner({ name: v.learner.name, email: v.learner.email, phone: v.learner.phone ?? '', org: v.learner.org ?? '', vatNumber: '', nameEn: v.learner.nameEn }, { trusted: true })
+  /* الموظف وحده يحدّث الاسم والجوال (قاعدة upsertLearner)؛ قبول الدعوة يملأ الفارغ فقط */
+  const learner = await upsertLearner({ name: v.learner.name, email: v.learner.email, phone: v.learner.phone ?? '', org: v.learner.org ?? '', vatNumber: '', nameEn: v.learner.nameEn }, { trusted: v.source === 'grant' })
   const [dup] = await db.select().from(s.enrollments).where(and(eq(s.enrollments.learnerId, learner.id), eq(s.enrollments.courseId, course.id), eq(s.enrollments.status, 'active')))
   if (dup && hasAccess(dup)) return { ok: true, status: 'already', enrollmentId: dup.id, learnerId: learner.id }
   const cohortId = cohort?.id ?? null
@@ -34,7 +37,10 @@ export async function enrollDirect(v: { courseId: string; cohortId?: string | nu
   const keeps = !!dup && (!cohorts.length || dup.cohortId === cohortId)
   const check = !keeps && !v.heldSeat
   if (check) {
-    const room = await noRoom(course, cohort, 1)
+    /* دعوته المفتوحة في الدورة (ودفعتها) تحجز مقعده هو — فلا يُعدّ مرتين؛ وبعد إدراج التسجيل تكفّ عن الحجز (inviteHolds) */
+    const [own] = await db.select({ n: count() }).from(s.invitations)
+      .where(and(eq(s.invitations.courseId, course.id), eq(s.invitations.email, learner.email), cohort ? eq(s.invitations.cohortId, cohort.id) : undefined, inviteHolds()))
+    const room = await noRoom(course, cohort, own.n ? 0 : 1)
     if (room) return { ok: false, error: cohort ? `${room} في «${cohort.title}»` : room }
   }
   const accessUntil = await accessUntilOf(course.id, cohortId)
@@ -58,5 +64,6 @@ export async function enrollDirect(v: { courseId: string; cohortId?: string | nu
   await audit(v.by, v.source === 'invite' ? 'accept' : 'enroll', 'enrollment', eid, `${learner.email} ← ${course.title}${cohort ? ` · ${cohort.title}` : ''}`)
   const { onEnrolled } = await import('./notify/engine')
   await onEnrolled(eid)
+  refreshPublicPages()
   return { ok: true, status: dup ? 'renewed' : 'enrolled', enrollmentId: eid, learnerId: learner.id }
 }

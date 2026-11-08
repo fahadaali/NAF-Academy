@@ -39,7 +39,7 @@ export function Library({ items }: { items: Media[] }) {
   return (
     <>
       <PageHead title="مكتبة الصور" sub={`${items.length} صورة${write ? ' — انقر على الصورة لتحديد نقطة التركيز' : ''}`} actions={!write ? null :
-        <label className="btn" aria-disabled={busy > 0} style={{ cursor: 'pointer' }}>
+        <label className={`btn ${s.upload}`} aria-disabled={busy > 0}>
           {busy ? `جارٍ رفع ${busy}…` : 'رفع صور'}
           <input type="file" multiple accept="image/jpeg,image/png,image/webp,image/avif" hidden onChange={(e) => e.target.files?.length && upload(e.target.files)} />
         </label>

@@ -9,9 +9,9 @@ export function PageHead({ title, sub, actions }: { title: string; sub?: string;
     <header className={styles.pageHead}>
       <div>
         <Words as="h1" text={title} />
-        {sub && <p className="rise" style={{ ['--d' as string]: 3 }}>{sub}</p>}
+        {sub && <p className="rise">{sub}</p>}
       </div>
-      {actions && <div className={`${styles.actions} rise`} style={{ ['--d' as string]: 4 }}>{actions}</div>}
+      {actions && <div className={`${styles.actions} rise`}>{actions}</div>}
     </header>
   )
 }

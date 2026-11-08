@@ -66,7 +66,8 @@ export async function requestCode(channel: Channel, raw: string): Promise<{ ok: 
   const text = `رمز الدخول إلى ${brand.name}: ${code}\nصالح عشر دقائق. لا تشاركه مع أحد.`
   const r = await send({
     channel, to: target, kind: 'otp', secret: code, text,
-    subject: channel === 'email' ? `رمز الدخول: ${code}` : undefined,
+    /* الرمز في النص وحده لا في العنوان: العنوان يظهر في إشعارات الجوال وقوائم البريد وسجلات المزوّد */
+    subject: channel === 'email' ? `رمز الدخول إلى ${brand.name}` : undefined,
     html: channel === 'email' ? brandEmail({ site, brand, title: 'رمز الدخول', lead: `استخدم هذا الرمز لإكمال الدخول إلى ${brand.name}.`, code, note: 'صالح عشر دقائق. إن لم تطلبه فتجاهل هذه الرسالة.' }) : undefined,
   })
   if (r.suppressed) return { ok: false, error: 'تعذّر إيصال البريد إلى هذا العنوان سابقاً — ادخل برقم الجوال أو تواصل معنا ليُعاد تفعيله' }

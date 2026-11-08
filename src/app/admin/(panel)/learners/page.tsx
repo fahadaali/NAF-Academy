@@ -17,7 +17,7 @@ export default async function Learners({ searchParams }: { searchParams: Promise
         actions={<ExportLearners rows={rows.map((r) => [r.l.name, r.l.email, r.l.phone, r.l.org, r.active, r.certs, r.lastEnrolled ?? '', r.l.createdAt])} />} />
       <form className={p.toolbar} role="search">
         <input className={p.search} type="search" name="q" defaultValue={sp.q ?? ''} placeholder="ابحث بالاسم أو البريد أو الجوال أو الجهة" aria-label="بحث" />
-        <select className={p.search} name="c" defaultValue={sp.c ?? ''} aria-label="الدورة" style={{ minInlineSize: 200 }}>
+        <select className={`${p.search} ${p.filter}`} name="c" defaultValue={sp.c ?? ''} aria-label="الدورة">
           <option value="">كل الدورات</option>
           {courses.map((c) => <option key={c.id} value={c.id}>{c.title}</option>)}
         </select>
@@ -42,7 +42,7 @@ export default async function Learners({ searchParams }: { searchParams: Promise
         </table></div>
       )}
       {pages > 1 && (
-        <nav className={p.toolbar} aria-label="الصفحات" style={{ marginBlockStart: 16 }}>
+        <nav className={`${p.toolbar} ${p.pager}`} aria-label="الصفحات">
           {page > 0 && <Link className="btn ghost" href={link(page - 1)}>السابق</Link>}
           <span className={`${p.muted} num`}>صفحة {page + 1} من {pages}</span>
           {page + 1 < pages && <Link className="btn ghost" href={link(page + 1)}>التالي</Link>}

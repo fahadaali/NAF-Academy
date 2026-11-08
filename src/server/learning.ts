@@ -1,9 +1,10 @@
 import 'server-only'
 /* خدمة التعلّم — تجمع الدورة للمتدرب مع حالة كل درس، ولا تُخرج إلا ما يحق له رؤيته:
    رابط الجلسة لا يظهر إلا للمسجّل في نافذتها، وإجابات الاختبار لا تخرج قبل التسليم. */
-import { and, asc, desc, eq, isNull } from 'drizzle-orm'
+import { randomUUID } from 'node:crypto'
+import { and, asc, desc, eq, isNull, sql } from 'drizzle-orm'
 import { db, schema as s } from './db'
-import { availability, dripBase, joinWindow, progressPct, publicQuiz, type Availability, type JoinState } from '@/lib/learning'
+import { availability, dripBase, joinWindow, previewOpen, progressPct, publicQuiz, type Availability, type JoinState } from '@/lib/learning'
 import type { LessonFull, LearnerRow } from './db/schema'
 import type { PublicQuiz } from '@/lib/learning-types'
 import { playbackUrl } from './stream'
@@ -37,13 +38,15 @@ export async function learnerCourse(slug: string, learner: LearnerRow | null) {
   const done = new Set([...prog.filter((p) => p.completedAt).map((p) => p.lessonId), ...att.map((a) => a.lessonId)])
   /* دفعة في المحذوفات: المتدرب يبقى بمواعيد دروسه (لا تُعرض دفعة محذوفة) */
   const [cohort] = row?.cohortId ? await db.select().from(s.cohorts).where(and(eq(s.cohorts.id, row.cohortId), isNull(s.cohorts.deletedAt))) : []
-  const acc = availability(ordered.map((l) => ({ id: l.id, type: l.type, drip: l.drip, preview: l.preview, startsAt: l.startsAt })), {
+  /* المعاينة لغير المسجّل: للدورة العامة الظاهرة وحدها */
+  const previews = previewOpen(course)
+  const acc = availability(ordered.map((l) => ({ id: l.id, type: l.type, drip: l.drip, preview: l.preview && previews, startsAt: l.startsAt })), {
     enrolledAt: enrollment ? dripBase(enrollment.createdAt, cohort?.startsAt) : null, sequential: course.sequential, completed: done,
   })
   const modules: ModuleState[] = mods.map((m) => ({
     id: m.id, title: m.title,
     lessons: ordered.filter((l) => l.moduleId === m.id).map((l) => ({
-      id: l.id, title: l.title, type: l.type, minutes: l.minutes, preview: l.preview, access: acc.get(l.id)!, done: done.has(l.id), startsAt: l.startsAt,
+      id: l.id, title: l.title, type: l.type, minutes: l.minutes, preview: l.preview && previews, access: acc.get(l.id)!, done: done.has(l.id), startsAt: l.startsAt,
     })),
   }))
   const pct = progressPct(ordered.map((l) => l.id), done)
@@ -108,4 +111,25 @@ export async function lessonView(slug: string, lessonId: string, learner: Learne
     ticket: enrolled && learner && l.type === 'onsite' ? ticketToken(learner.id, l.id) : null,
     attended: !!att, done: ctx.done.has(l.id),
   }
+}
+
+/** محاولة الاختبار المفتوحة، أو تُفتح جديدة. الإنشاء ذرّي في جملة واحدة (INSERT … SELECT … WHERE):
+    لا محاولة مفتوحة ولا ناجحة، والعدد دون الحد — فطلبان متوازيان لا يفتحان محاولتين ولا يتجاوزان الحد */
+export async function openAttempt(learnerId: string, lessonId: string, max: number | null): Promise<{ ok: true; id: string; startedAt: string } | { ok: false; error: string }> {
+  const openOne = async () => (await db.select().from(s.quizAttempts)
+    .where(and(eq(s.quizAttempts.learnerId, learnerId), eq(s.quizAttempts.lessonId, lessonId), isNull(s.quizAttempts.submittedAt)))
+    .orderBy(asc(s.quizAttempts.startedAt), asc(s.quizAttempts.id)).limit(1))[0]
+  const open = await openOne()
+  if (open) return { ok: true, id: open.id, startedAt: open.startedAt }
+  const id = randomUUID()
+  const startedAt = new Date().toISOString()
+  const mine = sql`"learner_id" = ${learnerId} and "lesson_id" = ${lessonId}`
+  await db.run(sql`insert into "quiz_attempts" ("id", "learner_id", "lesson_id", "started_at")
+    select ${id}, ${learnerId}, ${lessonId}, ${startedAt}
+    where not exists (select 1 from "quiz_attempts" where ${mine} and ("submitted_at" is null or "passed" = 1))
+    ${max !== null ? sql`and (select count(*) from "quiz_attempts" where ${mine}) < ${max}` : sql``}`)
+  const now = await openOne()
+  if (now) return { ok: true, id: now.id, startedAt: now.startedAt }
+  const [passed] = await db.select({ id: s.quizAttempts.id }).from(s.quizAttempts).where(and(eq(s.quizAttempts.learnerId, learnerId), eq(s.quizAttempts.lessonId, lessonId), eq(s.quizAttempts.passed, true))).limit(1)
+  return { ok: false, error: passed ? 'اجتزت هذا الاختبار' : 'استنفدت المحاولات المتاحة' }
 }

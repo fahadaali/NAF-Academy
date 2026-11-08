@@ -186,6 +186,7 @@ export async function reorder(entity: 'course' | 'track' | 'instructor', ids: st
 
 export async function saveTrack(id: string | null, raw: TrackInput): Promise<Result> {
   const admin = await requirePermission('content.write')
+  if (id !== null && !idInput.safeParse(id).success) return { ok: false, errors: {}, message: 'المسار غير موجود' }
   const p = trackInput.safeParse(raw)
   if (!p.success) return { ok: false, errors: errorsOf(p.error), message: 'راجع الحقول المعلّمة' }
   const tid = id ?? randomUUID()
@@ -202,6 +203,7 @@ export async function saveTrack(id: string | null, raw: TrackInput): Promise<Res
 
 export async function saveInstructor(id: string | null, raw: InstructorInput): Promise<Result> {
   const admin = await requirePermission('content.write')
+  if (id !== null && !idInput.safeParse(id).success) return { ok: false, errors: {}, message: 'المدرب غير موجود' }
   const p = instructorInput.safeParse(raw)
   if (!p.success) return { ok: false, errors: errorsOf(p.error), message: 'راجع الحقول المعلّمة' }
   const iid = id ?? randomUUID()
@@ -263,6 +265,12 @@ export async function trash(entity: Entity, id: string): Promise<{ ok: boolean; 
   if (!before) return { ok: false, error: 'العنصر غير موجود' }
   await db.update(t).set({ deletedAt: now() }).where(eq(t.id, id))
   await audit(admin.name, 'trash', entity, id, 'نُقل إلى المحذوفات', before)
+  /* دعوات الدفعة المفتوحة: رابطها لا يُقبل بلا دفعتها، وتبقى حاجزة مقعداً في الدورة — تُلغى (ولا يعيدها الاسترجاع؛ يُعاد إرسال الدعوة) */
+  if (entity === 'cohort') {
+    const revoked = await db.update(s.invitations).set({ revokedAt: now(), updatedAt: now() })
+      .where(and(eq(s.invitations.cohortId, id), isNull(s.invitations.acceptedAt), isNull(s.invitations.revokedAt))).returning({ id: s.invitations.id })
+    if (revoked.length) await audit(admin.name, 'revoke', 'cohort', id, `أُلغيت ${revoked.length} دعوة مفتوحة مع حذف الدفعة`)
+  }
   refresh()
   return { ok: true }
 }

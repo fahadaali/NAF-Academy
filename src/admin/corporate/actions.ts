@@ -11,11 +11,16 @@ import { setSetting } from '@/server/settings'
 import { upsertLearner } from '@/server/sales'
 import { CORP_STATUS } from '@/server/db/schema'
 
+/** معرّفات الكتابة تُفحص قبل أي استعلام */
+const validId = (v: unknown): v is string => z.string().uuid().safeParse(v).success
+
 const refresh = () => { revalidatePath('/admin/corporate'); revalidatePath('/admin/organizations', 'layout'); revalidatePath('/learn', 'layout') }
 
 export async function updateRequest(id: string, raw: { status: string; notes: string }): Promise<{ ok: boolean }> {
   const st = await requirePermission('corporate.manage')
-  const v = z.object({ status: z.enum(CORP_STATUS), notes: z.string().max(5000) }).parse(raw)
+  const p = z.object({ status: z.enum(CORP_STATUS), notes: z.string().max(5000) }).safeParse(raw)
+  if (!validId(id) || !p.success) return { ok: false }
+  const v = p.data
   await db.update(s.corporateRequests).set({ ...v, updatedAt: new Date().toISOString() }).where(eq(s.corporateRequests.id, id))
   await audit(st.name, 'update', 'corporate_request', id, v.status)
   refresh()
@@ -37,6 +42,7 @@ const orgInput = z.object({ name: z.string().trim().min(2, 'الاسم مطلو�
 
 export async function saveOrganization(id: string | null, raw: unknown): Promise<{ ok: boolean; id?: string; error?: string }> {
   const st = await requirePermission('corporate.manage')
+  if (id !== null && !validId(id)) return { ok: false, error: 'طلب غير صالح' }
   const p = orgInput.safeParse(raw)
   if (!p.success) return { ok: false, error: p.error.issues[0]?.message }
   const oid = id ?? randomUUID()
@@ -50,6 +56,7 @@ export async function saveOrganization(id: string | null, raw: unknown): Promise
 /** إنشاء حساب مؤسسة من طلب، بنطاق بريد المتواصل إن كان بريداً مؤسسياً */
 export async function organizationFromRequest(requestId: string): Promise<{ ok: boolean; id?: string }> {
   const st = await requirePermission('corporate.manage')
+  if (!validId(requestId)) return { ok: false }
   const [r] = await db.select().from(s.corporateRequests).where(eq(s.corporateRequests.id, requestId))
   if (!r) return { ok: false }
   if (r.organizationId) return { ok: true, id: r.organizationId }
@@ -69,6 +76,7 @@ export async function organizationFromRequest(requestId: string): Promise<{ ok: 
 
 export async function addOrgMember(orgId: string, raw: { email: string; name: string; role: 'manager' | 'member' }): Promise<{ ok: boolean; error?: string }> {
   const st = await requirePermission('corporate.manage')
+  if (!validId(orgId)) return { ok: false, error: 'طلب غير صالح' }
   const p = z.object({ email: z.string().trim().toLowerCase().email('بريد غير صالح'), name: z.string().trim().max(120), role: z.enum(['manager', 'member']) }).safeParse(raw)
   if (!p.success) return { ok: false, error: p.error.issues[0]?.message }
   const [o] = await db.select().from(s.organizations).where(eq(s.organizations.id, orgId))
@@ -82,6 +90,7 @@ export async function addOrgMember(orgId: string, raw: { email: string; name: st
 
 export async function removeOrgMember(orgId: string, learnerId: string) {
   const st = await requirePermission('corporate.manage')
+  if (!validId(orgId) || !validId(learnerId)) return { ok: false }
   await db.delete(s.orgMembers).where(and(eq(s.orgMembers.orgId, orgId), eq(s.orgMembers.learnerId, learnerId)))
   await audit(st.name, 'unmember', 'organization', orgId, learnerId)
   refresh()
@@ -90,6 +99,7 @@ export async function removeOrgMember(orgId: string, learnerId: string) {
 
 export async function archiveOrganization(id: string) {
   const st = await requirePermission('corporate.manage')
+  if (!validId(id)) return { ok: false }
   await db.update(s.organizations).set({ deletedAt: new Date().toISOString() }).where(eq(s.organizations.id, id))
   await audit(st.name, 'trash', 'organization', id, '')
   refresh()

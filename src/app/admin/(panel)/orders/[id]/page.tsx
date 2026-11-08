@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation'
 import { orderDetail } from '@/admin/sales/data'
 import { Badge, PageHead } from '@/admin/ui/kit'
-import { METHOD_LABEL, ORDER_LABEL, ORDER_TONE, sar, when } from '@/admin/sales/labels'
+import { METHOD_LABEL, ORDER_LABEL, PAYMENT_LABEL, ORDER_TONE, sar, when } from '@/admin/sales/labels'
 import { CancelPending, RefundPanel, ResendOrder, ResyncWafeq, SeatRow } from '@/admin/sales/OrderTools'
 import s from '@/admin/sales/sales.module.css'
 import p from '@/admin/ui/panel.module.css'
@@ -83,7 +83,7 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
           <h2>الخط الزمني</h2>
           <ol className={s.timeline}>
             {log.map((x) => <li key={x.id}><span><strong>{x.summary}</strong><br /><span className={`${p.muted} num`}>{when(x.at)} · {x.actor}</span></span></li>)}
-            {pays.map((x) => <li key={x.id}><span>دفعة {x.status} · {x.method} <span className="num">{sar(x.amount)}</span>{x.message && ` — ${x.message}`}<br /><span className={`${p.muted} num`}>{when(x.createdAt)} · {x.gateway} {x.gatewayId}</span></span></li>)}
+            {pays.map((x) => <li key={x.id}><span>دفعة {PAYMENT_LABEL[x.status] ?? x.status} · {x.method} <span className="num">{sar(x.amount)}</span>{x.message && ` — ${x.message}`}<br /><span className={`${p.muted} num`}>{when(x.createdAt)} · {x.gateway} {x.gatewayId}</span></span></li>)}
             {refunds.map((x) => <li key={x.id}><span>استرداد <span className="num">{sar(x.amount)}</span> — {x.reason}<br /><span className={`${p.muted} num`}>{when(x.createdAt)} · {x.by}</span></span></li>)}
           </ol>
         </section>

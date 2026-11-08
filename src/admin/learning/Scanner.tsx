@@ -73,7 +73,7 @@ export function Scanner({ initial }: { initial: string }) {
         : cam === 'unsupported' ? <p className={r.meta}>المتصفح لا يدعم المسح المباشر — امسح الرمز بكاميرا الجوال فتُفتح هذه الصفحة بالتذكرة.</p>
         : <button className="btn ghost" onClick={() => setCam(typeof window !== 'undefined' && window.BarcodeDetector ? 'on' : 'unsupported')}>تشغيل الكاميرا</button>}
       <form className={r.actions} onSubmit={(e) => { e.preventDefault(); const t = tokenOf(String(new FormData(e.currentTarget).get('t') ?? '')); if (t) void confirm(t) }}>
-        <input name="t" className={r.text} style={{ minBlockSize: 44, flex: 1 }} dir="ltr" placeholder="أو الصق رابط التذكرة" aria-label="رابط التذكرة" />
+        <input name="t" className={`${r.text} ${r.ticket}`} dir="ltr" placeholder="أو الصق رابط التذكرة" aria-label="رابط التذكرة" />
         <button className="btn ghost" disabled={busy}>تحقّق</button>
       </form>
     </div>

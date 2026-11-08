@@ -17,3 +17,4 @@
 .actions { display: flex; gap: 8px; }
 .error { color: var(--danger); font-weight: 600; margin-block-end: 12px; }
 @media (max-width: 1000px) { .layout { grid-template-columns: minmax(0, 1fr); } .panel { position: static; } }
+.upload { cursor: pointer; }

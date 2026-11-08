@@ -43,7 +43,7 @@ export function CoursesTable({ courses, tracks, media }: { courses: CourseRow[];
             <button key={s} className={p.chip} aria-pressed={status === s} onClick={() => setStatus(s)}>{STATUS_LABEL[s]} <span className="num">{n}</span></button>
           ))}
         </div>
-        <select aria-label="المسار" className={p.search} style={{ minInlineSize: 180 }} value={track} onChange={(e) => setTrack(e.target.value)}>
+        <select aria-label="المسار" className={`${p.search} ${p.filter}`} value={track} onChange={(e) => setTrack(e.target.value)}>
           <option value="all">كل المسارات</option>
           {tracks.map((t) => <option key={t.id} value={t.id}>{t.title}</option>)}
         </select>
@@ -61,10 +61,10 @@ export function CoursesTable({ courses, tracks, media }: { courses: CourseRow[];
                 <tr key={c.id} {...(filtering || !write ? {} : props(i))}>
                   <td>
                     <div className={p.cellRow}>
-                      {!filtering && write && <span style={{ cursor: 'grab', color: 'var(--muted)' }} aria-hidden="true">⋮⋮</span>}
+                      {!filtering && write && <span className={p.grip} aria-hidden="true">⋮⋮</span>}
                       <span className={p.thumb}>
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        {cover ? <img src={urlOf(cover)} alt="" style={{ inlineSize: '100%', blockSize: '100%', objectFit: 'cover' }} /> : t?.glyph}
+                        {cover ? <img src={urlOf(cover)} alt="" /> : t?.glyph}
                       </span>
                       <div>
                         <Link href={`/admin/courses/${c.id}`} className={p.rowLink}>{c.title}</Link>
@@ -75,8 +75,7 @@ export function CoursesTable({ courses, tracks, media }: { courses: CourseRow[];
                   <td>
                     {write && <select
                       aria-label="الحالة"
-                      className={p.search}
-                      style={{ minInlineSize: 0, minBlockSize: 34, fontSize: 13 }}
+                      className={`${p.search} ${p.searchSm}`}
                       value={c.status}
                       onChange={(e) => {
                         const s = e.target.value as CourseStatus
@@ -86,7 +85,7 @@ export function CoursesTable({ courses, tracks, media }: { courses: CourseRow[];
                     >
                       {STATUS_ORDER.map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
                     </select>}
-                    <div style={{ marginBlockStart: 4 }}><Badge tone={c.status}>{STATUS_LABEL[c.status]}</Badge></div>
+                    <div className={p.below}><Badge tone={c.status}>{STATUS_LABEL[c.status]}</Badge></div>
                   </td>
                   <td className={p.muted}>{modeLabel[c.mode]}</td>
                   <td className={`${p.muted} num`}>{c.startsAt ? formatDay(c.startsAt) : '—'}</td>
@@ -94,7 +93,7 @@ export function CoursesTable({ courses, tracks, media }: { courses: CourseRow[];
                     {c.free ? 'مجاني' : <>{formatAmount(c.price)}{c.compareAt ? <>{' '}<s className={p.muted}>{formatAmount(c.compareAt)}</s></> : null}</>}
                   </td>
                   <td>
-                    <div className={p.cellRow} style={{ gap: 2, justifyContent: 'end' }}>
+                    <div className={`${p.cellRow} ${p.tools}`}>
                       {!filtering && write && <>
                         <button className={p.iconBtn} aria-label="أعلى" disabled={i === 0} onClick={() => move(i, i - 1)}>↑</button>
                         <button className={p.iconBtn} aria-label="أسفل" disabled={i === list.length - 1} onClick={() => move(i, i + 1)}>↓</button>

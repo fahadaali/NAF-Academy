@@ -82,9 +82,13 @@ export async function sendTest(event: EventKey, t: Template, to: string, channel
   const st = await requirePermission('notify.manage')
   const site = siteUrl()
   if (!site) return { ok: false, error: 'SITE_URL غير مضبوط' }
+  /* القناة والحدث قيم معدودة — لا يصل send() غيرهما */
+  if (!EVENTS.includes(event) || !z.enum(['email', 'sms']).safeParse(channel).success) return { ok: false, error: 'رسالة أو قناة غير صالحة' }
   const dest = z.string().trim().min(5).max(200).safeParse(to)
   if (!dest.success) return { ok: false, error: 'وجهة غير صالحة' }
-  const c = await compose(event, tpl.parse(t), site)
+  const body = tpl.safeParse(t)
+  if (!body.success) return { ok: false, error: body.error.issues[0]?.message ?? 'قالب غير صالح' }
+  const c = await compose(event, body.data, site)
   const r = channel === 'email'
     ? await send({ channel, to: dest.data, subject: `[تجربة] ${c.subject}`, text: c.text, html: c.html, kind: 'test' })
     : await send({ channel, to: dest.data, text: c.sms, kind: 'test' })
