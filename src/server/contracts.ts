@@ -18,6 +18,11 @@ export function contractState(c: Pick<ContractRow, 'status' | 'startsAt' | 'ends
   return 'active'
 }
 
+/** هل الدورة في نطاق العقد؟ «كل الدورات» = العامة وحدها، والخاص بالاسم في نطاق «دورات محددة» */
+export function inContract(c: Pick<ContractRow, 'scope' | 'courseIds'>, course: { id: string; visibility: 'public' | 'private' }) {
+  return c.scope === 'courses' ? c.courseIds.includes(course.id) : course.visibility !== 'private'
+}
+
 export async function contractUsed(contractId: string) {
   const [r] = await db.select({ n: count() }).from(s.enrollments).where(and(eq(s.enrollments.contractId, contractId), eq(s.enrollments.status, 'active')))
   return r.n
@@ -38,6 +43,8 @@ export async function assignContractSeat(contractId: string, v: { email: string;
   if (c.scope === 'courses' && !c.courseIds.includes(v.courseId)) return { ok: false, error: 'الدورة خارج نطاق العقد' }
   const [course] = await db.select().from(s.courses).where(and(eq(s.courses.id, v.courseId), isNull(s.courses.deletedAt)))
   if (!course || course.status === 'archived' || course.status === 'draft') return { ok: false, error: 'الدورة غير متاحة' }
+  /* البرنامج الخاص لا يدخل في «كل الدورات» — يشمله العقد إن سمّاه صراحة فقط */
+  if (!inContract(c, course)) return { ok: false, error: 'البرنامج الخاص خارج نطاق العقد' }
   /* الدورة ذات الدفعات: دفعة منها لم تُغلق ولم تنتهِ */
   const cohorts = await db.select().from(s.cohorts).where(and(eq(s.cohorts.courseId, course.id), isNull(s.cohorts.deletedAt)))
   const cohort = cohorts.find((k) => k.id === v.cohortId) ?? null
