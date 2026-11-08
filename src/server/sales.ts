@@ -16,6 +16,7 @@ import { livePromotions, promosFor } from './promotions'
 import { cohortSeatsUsed, holdsSeat, inviteHolds } from './cohorts'
 import { accessUntilFor, cohortState, hasAccess } from '@/lib/cohorts'
 import type { CohortRow } from './db/schema'
+import { refreshPublicPages } from './page-cache'
 
 const nowIso = () => new Date().toISOString()
 const secretToken = () => randomBytes(18).toString('base64url')
@@ -286,7 +287,10 @@ export async function finalizeOrder(orderId: string, info: { method: OrderRow['m
     .where(and(eq(s.orders.id, orderId), isNull(s.orders.fulfilledAt), inArray(s.orders.status, ['paid', 'partially_refunded']),
       or(isNull(s.orders.fulfillingAt), lt(s.orders.fulfillingAt, stale))))
     .returning()
-  if (mine) await fulfill(mine)
+  if (mine) {
+    await fulfill(mine)
+    refreshPublicPages()
+  }
   return claimed.length ? 'done' : 'already'
 }
 
@@ -590,6 +594,7 @@ export async function refundOrder(orderId: string, amount: number, reason: strin
       await audit(by, 'cancel', 'order', orderId, `${held.number}: أُلغي ${moved.length} تسجيل جُدّد بلا مقابل بعد هذا الطلب`)
     }
   }
+  if (cancelEnrollments) refreshPublicPages()
   await audit(by, 'refund', 'order', orderId, `${held.number} · ${(amount / 100).toFixed(2)} ر.س · ${reason}`)
   /* وافق: الإشعار الدائن وصرف المبلغ — قبل إشعار المشتري ليُرفق PDF وافق */
   const { syncNow } = await import('./wafeq/sync')

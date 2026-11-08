@@ -8,9 +8,17 @@
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
   "assets": { "directory": ".open-next/assets", "binding": "ASSETS" },
   "d1_databases": [
-    { "binding": "DB", "database_name": "naf_academy", "database_id": "b12360ab-1ce4-4ec0-96a4-5d1355cd95ff", "migrations_dir": "migrations" }
+    { "binding": "DB", "database_name": "naf_academy", "database_id": "b12360ab-1ce4-4ec0-96a4-5d1355cd95ff", "migrations_dir": "migrations" },
+    // ذاكرة الصفحات (OpenNext): وسوم الإبطال في القاعدة نفسها — جدول revalidations (الترحيل 0018)
+    { "binding": "NEXT_TAG_CACHE_D1", "database_name": "naf_academy", "database_id": "b12360ab-1ce4-4ec0-96a4-5d1355cd95ff" }
   ],
-  "r2_buckets": [{ "binding": "MEDIA", "bucket_name": "naf-academy-media" }],
+  "r2_buckets": [
+    { "binding": "MEDIA", "bucket_name": "naf-academy-media" },
+    // ذاكرة الصفحات (OpenNext): الصفحات المولّدة في الدلو نفسه تحت incremental-cache/ — لا مورد جديد
+    { "binding": "NEXT_INC_CACHE_R2_BUCKET", "bucket_name": "naf-academy-media" }
+  ],
+  // تجديد الصفحة بعد مهلتها: طلب من العامل إلى نفسه (طابور OpenNext في الذاكرة)
+  "services": [{ "binding": "WORKER_SELF_REFERENCE", "service": "naf-academy" }],
   // الرسائل الآلية: جدولة وإرسال كل 5 دقائق (scripts/cf-config.mjs يولّد معالج scheduled)
   "triggers": { "crons": ["*/5 * * * *"] },
   // القيم النصية (غير السرّية) هنا وحدها: كل نشر يستبدل متغيرات النص بما في هذا الملف،

@@ -9,6 +9,7 @@ import { audit } from './audit'
 import { upsertLearner, accessUntilOf, noRoom, overCapacity } from './sales'
 import { cohortState, hasAccess } from '@/lib/cohorts'
 import type { ContractRow } from './db/schema'
+import { refreshPublicPages } from './page-cache'
 
 /** الحالة الفعلية الآن: الساري بعد نهايته «منتهٍ» */
 export function contractState(c: Pick<ContractRow, 'status' | 'startsAt' | 'endsAt'>, now = new Date()): ContractRow['status'] | 'upcoming' {
@@ -75,5 +76,6 @@ export async function assignContractSeat(contractId: string, v: { email: string;
   await audit(by, 'assign', 'contract', c.id, `مقعد ← ${learner.email} · ${course.title}`)
   const { onEnrolled } = await import('./notify/engine')
   await onEnrolled(eid)
+  refreshPublicPages()
   return { ok: true }
 }

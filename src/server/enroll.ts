@@ -8,6 +8,7 @@ import { audit } from './audit'
 import { accessUntilOf, noRoom, overCapacity, upsertLearner } from './sales'
 import { inviteHolds } from './cohorts'
 import { cohortState, hasAccess } from '@/lib/cohorts'
+import { refreshPublicPages } from './page-cache'
 
 export type DirectLearner = { name: string; email: string; phone?: string; org?: string; nameEn?: string }
 
@@ -63,5 +64,6 @@ export async function enrollDirect(v: { courseId: string; cohortId?: string | nu
   await audit(v.by, v.source === 'invite' ? 'accept' : 'enroll', 'enrollment', eid, `${learner.email} ← ${course.title}${cohort ? ` · ${cohort.title}` : ''}`)
   const { onEnrolled } = await import('./notify/engine')
   await onEnrolled(eid)
+  refreshPublicPages()
   return { ok: true, status: dup ? 'renewed' : 'enrolled', enrollmentId: eid, learnerId: learner.id }
 }

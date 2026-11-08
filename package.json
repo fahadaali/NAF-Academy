@@ -19,7 +19,7 @@
     "db:generate": "drizzle-kit generate",
     "cf:build": "node scripts/cf-config.mjs create && opennextjs-cloudflare build; s=$?; node scripts/cf-config.mjs remove; exit $s",
     "cf:preview": "node scripts/cf-config.mjs create && opennextjs-cloudflare build && opennextjs-cloudflare preview; s=$?; node scripts/cf-config.mjs remove; exit $s",
-    "cf:deploy": "node scripts/cf-config.mjs create && opennextjs-cloudflare build && opennextjs-cloudflare deploy; s=$?; node scripts/cf-config.mjs remove; exit $s",
+    "cf:deploy": "node scripts/cf-config.mjs create && opennextjs-cloudflare build && wrangler deploy; s=$?; node scripts/cf-config.mjs remove; exit $s",
     "db:migrate:remote": "wrangler d1 migrations apply naf_academy --remote",
     "db:seed:remote": "tsx scripts/export-seed.ts && wrangler d1 execute naf_academy --remote --file=.data/seed.sql",
     "db:seed:local-d1": "tsx scripts/export-seed.ts && wrangler d1 execute naf_academy --local --file=.data/seed.sql",
