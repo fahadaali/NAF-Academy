@@ -51,13 +51,16 @@ export async function placeOrderAction(slug: string, raw: unknown): Promise<Plac
     for (const i of p.error.issues) fields[i.path.join('.')] ??= i.message
     return { ok: false, error: 'راجع البيانات المعلّمة', fields }
   }
-  /* متى فُتح الدخول صار التحقق من البريد شرطاً — والبريد بريد الحساب لا ما يكتبه المتصفح */
+  /* الشراء يتطلب حساباً متحقَّقاً منه دائماً — الدورة والاختبارات لا تُفتح إلا بحساب.
+     بلا قناة دخول مفتوحة لا يستطيع المشتري الدخول بعد الدفع، فيُوقف الشراء بدل أن يمرّ بلا حساب.
+     والبريد بريد الحساب لا ما يكتبه المتصفح */
   const me = await currentLearner()
-  const verify = (await channelOpen('email')) || (await channelOpen('sms'))
-  if (verify && !me) return { ok: false, error: 'تحقّق من بريدك أولاً' }
-  const buyer = me ? { ...p.data.buyer, email: me.email } : p.data.buyer
-  /* صاحب الحساب المتحقَّق منه وحده يحدّث اسمه وجواله — الشراء بلا تحقق يملأ الفارغ فقط */
-  const r = await placeOrder({ slug, tierId: p.data.tierId, cohortId: p.data.cohortId, quantity: p.data.quantity, code: p.data.code || undefined, buyer, attendSelf: p.data.attendSelf, trusted: !!me })
+  if (!me) {
+    const login = (await channelOpen('email')) || (await channelOpen('sms'))
+    return { ok: false, error: login ? 'تحقّق من بريدك أولاً' : 'التسجيل الإلكتروني يُفتح قريباً — سجّل اهتمامك ونبلغك' }
+  }
+  const buyer = { ...p.data.buyer, email: me.email }
+  const r = await placeOrder({ slug, tierId: p.data.tierId, cohortId: p.data.cohortId, quantity: p.data.quantity, code: p.data.code || undefined, buyer, attendSelf: p.data.attendSelf, trusted: true })
   if (!r.ok) return { ok: false, error: r.error }
   const q = `t=${r.order.token}`
   return { ok: true, url: r.free ? `/orders/${r.order.number}?${q}` : `/orders/${r.order.number}/pay?${q}` }
