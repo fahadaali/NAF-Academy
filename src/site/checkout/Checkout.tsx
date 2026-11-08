@@ -81,6 +81,8 @@ export function Checkout({ slug, title, tiers, cohorts = [], initialCohort = nul
   const [b, setB] = useState(learner ? { ...learner, name: realName(learner) } : { name: '', email: '', phone: '', org: '', vatNumber: '' })
   const [business, setBusiness] = useState(!!learner?.vatNumber)
   const mustVerify = channels.length > 0 && !me
+  /* بلا قناة دخول لا يُنشأ حساب، فلا شراء — الدورة والاختبارات تتطلب الدخول */
+  const noLogin = channels.length === 0 && !me
   const [attendSelf, setAttendSelf] = useState(true)
   const [agree, setAgree] = useState(false)
   const [fields, setFields] = useState<Record<string, string>>({})
@@ -99,7 +101,7 @@ export function Checkout({ slug, title, tiers, cohorts = [], initialCohort = nul
   }, [slug, tierId, qty, applied, b.email])
 
   const free = q.total === 0
-  const canPay = free || salesOpen
+  const canPay = (free || salesOpen) && !noLogin
   const set = (k: keyof typeof b, v: string) => { setB((o) => ({ ...o, [k]: v })); setFields((f) => ({ ...f, [`buyer.${k}`]: '' })) }
   const nextRule = groupRules.find((r) => r.minQty > qty)
 
@@ -182,7 +184,9 @@ export function Checkout({ slug, title, tiers, cohorts = [], initialCohort = nul
 
         <section className={s.step}>
           <h2><span className="num">{n0 + 3}</span> بياناتك</h2>
-          {mustVerify ? (
+          {noLogin ? (
+            <p className={s.hint}>التسجيل يتطلب حساباً تدخل به إلى الدورة واختباراتها، والدخول للمتدربين يُفعَّل قريباً — سجّل اهتمامك أدناه ونبلغك.</p>
+          ) : mustVerify ? (
             <>
               <p className={s.hint}>تحقّق من بريدك برمز يصلك فوراً — يصير هو حسابك، وتجد فيه دوراتك وفواتيرك.</p>
               <CodeLogin compact channels={channels} onDone={(l) => { setMe(l); setB({ ...l, name: realName(l) }); setBusiness(!!l.vatNumber) }} />
@@ -233,7 +237,7 @@ export function Checkout({ slug, title, tiers, cohorts = [], initialCohort = nul
             </button>
           ) : (
             <div className={s.locked} role="status">
-              <strong>الدفع الإلكتروني يُفتح قريباً</strong>
+              <strong>{noLogin ? 'التسجيل الإلكتروني يُفتح قريباً' : 'الدفع الإلكتروني يُفتح قريباً'}</strong>
               <span>سجّل اهتمامك أدناه ونبلغك فور فتح التسجيل.</span>
             </div>
           )}
