@@ -1,6 +1,7 @@
 import 'server-only'
 /* طبقة القراءة للواجهة العامة — تحوّل صفوف القاعدة إلى نماذج العرض في content/types. */
-import { and, asc, count, desc, eq, inArray, isNull } from 'drizzle-orm'
+import { cache } from 'react'
+import { and, asc, count, desc, eq, gt, inArray, isNull, sum } from 'drizzle-orm'
 import { db, schema as s } from './db'
 import { getSetting } from './settings'
 import type { CohortView, Course, Instructor, MediaView, Pricing, Promo, Track } from '@/content/types'
@@ -10,7 +11,7 @@ import { corporate as seedCorporate, hero as seedHero, ladder as seedLadder, sta
 import { isPublic, liveStatus, publicOrder } from '@/lib/course-meta'
 import { priceView } from '@/lib/pricing'
 import { cohortState, leadCohort, statusWithCohorts, type CohortLite } from '@/lib/cohorts'
-import { cohortsOf, inviteHolds } from './cohorts'
+import { cohortsOf, holdsSeat, inviteHolds } from './cohorts'
 import { livePromotions, promosFor } from './promotions'
 import type { CourseRow, InstructorRow, LessonRow, Media, ModuleRow, TierRow, TrackRow } from './db/schema'
 import { inList } from '@/server/db/limits'
@@ -87,22 +88,42 @@ export async function mediaViews(ids: (string | null | undefined)[]): Promise<Ma
   return out
 }
 
-/** كل ما تحتاجه الواجهة العامة دفعة واحدة */
-export async function catalog(now = new Date()) {
-  const [trackRows, courseRows, instRows, links, enrolled, granted, tierRows, invited] = await Promise.all([
+/** كل ما تحتاجه الواجهة العامة دفعة واحدة — مرة لكل طلب (generateMetadata والصفحة والغلاف يتشاركونه) */
+export function catalog(now?: Date) {
+  return now ? buildCatalog(now) : catalogNow()
+}
+const catalogNow = cache(() => buildCatalog(new Date()))
+
+async function buildCatalog(now: Date) {
+  const iso = now.toISOString()
+  /* المقاعد بقاعدة الشراء نفسها (seatsUsed/cohortSeatsUsed): التسجيل الساري الوصول، ومقاعد المؤسسات غير المخصّصة،
+     والدعوات المفتوحة، والطلبات المعلّقة السارية — فـ«مكتملة/مفتوحة» وتوفّر JSON-LD يطابقان ما يقبله الدفع */
+  const [trackRows, courseRows, instRows, links, enrolled, granted, tierRows, invited, pending] = await Promise.all([
     db.select().from(s.tracks).where(isNull(s.tracks.deletedAt)).orderBy(asc(s.tracks.sortOrder)),
     db.select().from(s.courses).where(isNull(s.courses.deletedAt)).orderBy(asc(s.courses.sortOrder)),
     db.select().from(s.instructors).where(isNull(s.instructors.deletedAt)).orderBy(asc(s.instructors.sortOrder)),
     db.select().from(s.courseInstructors).orderBy(asc(s.courseInstructors.sortOrder)),
-    db.select({ courseId: s.enrollments.courseId, n: count() }).from(s.enrollments).where(eq(s.enrollments.status, 'active')).groupBy(s.enrollments.courseId),
+    db.select({ courseId: s.enrollments.courseId, n: count() }).from(s.enrollments).where(holdsSeat(iso)).groupBy(s.enrollments.courseId),
     db.select({ courseId: s.seatGrants.courseId, n: count() }).from(s.seatGrants).innerJoin(s.orders, eq(s.orders.id, s.seatGrants.orderId))
       .where(and(isNull(s.seatGrants.enrollmentId), inArray(s.orders.status, ['paid', 'partially_refunded']))).groupBy(s.seatGrants.courseId),
     db.select().from(s.priceTiers).orderBy(asc(s.priceTiers.sortOrder)),
-    db.select({ courseId: s.invitations.courseId, n: count() }).from(s.invitations).where(inviteHolds()).groupBy(s.invitations.courseId),
+    db.select({ courseId: s.invitations.courseId, n: count() }).from(s.invitations).where(inviteHolds(iso)).groupBy(s.invitations.courseId),
+    db.select({ courseId: s.orderItems.courseId, cohortId: s.orderItems.cohortId, n: sum(s.orderItems.quantity) }).from(s.orderItems)
+      .innerJoin(s.orders, eq(s.orders.id, s.orderItems.orderId))
+      .where(and(eq(s.orders.status, 'pending'), gt(s.orders.expiresAt, iso))).groupBy(s.orderItems.courseId, s.orderItems.cohortId),
   ])
   const [promoRows, cohortMap] = await Promise.all([livePromotions(now), cohortsOf(courseRows.map((c) => c.id))])
   const booked = new Map<string, number>()
-  for (const r of [...enrolled, ...granted, ...invited]) booked.set(r.courseId, (booked.get(r.courseId) ?? 0) + r.n)
+  const add = (m: Map<string, number>, k: string, n: number) => m.set(k, (m.get(k) ?? 0) + n)
+  for (const r of [...enrolled, ...granted, ...invited]) add(booked, r.courseId, r.n)
+  /* المعلّقة: في سعة الدورة دائماً (كما seatsUsed)، وفي سعة دفعتها إن اختيرت (cohortsOf لا يعدّها) */
+  const pendingByCohort = new Map<string, number>()
+  for (const r of pending) {
+    const n = Number(r.n ?? 0)
+    if (r.courseId) add(booked, r.courseId, n)
+    if (r.cohortId) add(pendingByCohort, r.cohortId, n)
+  }
+  for (const list of cohortMap.values()) for (const k of list) k.taken += pendingByCohort.get(k.id) ?? 0
   const m = await mediaMap([...trackRows.map((t) => t.coverId), ...courseRows.map((c) => c.coverId), ...instRows.flatMap((p) => [p.photoId, p.sceneId])])
   const trackSlug = new Map(trackRows.map((t) => [t.id, t.slug]))
   const instSlug = new Map(instRows.map((p) => [p.id, p.slug]))
@@ -132,21 +153,20 @@ function withNewScenes(saved: HomeContent['sections']): HomeContent['sections'] 
   return at < 0 ? [...known, ...missing] : [...known.slice(0, at), ...missing, ...known.slice(at)]
 }
 
-export async function homeContent(): Promise<HomeContent> {
-  const [row] = await db.select().from(s.settings).where(eq(s.settings.key, 'home'))
-  const v = (row?.value ?? {}) as Partial<HomeContent>
+/** محتوى الرئيسية — مرة لكل طلب (الغلاف والصفحة و404). عبر getSetting: قبل التهيئة (لا جداول) يُعرض الافتراضي لا 500 */
+export const homeContent = cache(async (): Promise<HomeContent> => {
+  const v = (await getSetting<Partial<HomeContent> | undefined>('home', undefined)) ?? {}
   /* قاعدة فارغة (أول نشر) تُعرض بالمحتوى المبدئي بدل أن تنكسر */
   return {
     hero: seedHero, ladder: seedLadder, stats: seedStats, corporate: seedCorporate, ...DEFAULT_HOME, ...v,
     heads: { ...DEFAULT_HOME.heads, ...(v.heads ?? {}) },
     sections: withNewScenes(v.sections ?? DEFAULT_HOME.sections).map((x) => ({ ...x, menu: x.menu ?? DEFAULT_MENU[x.key] })),
   } as HomeContent
-}
+})
 
-/** محتوى الصفحات العامة (الدورات، المسارات، الدخول، السياسات، وصف الموقع) — من اللوحة */
-export async function pagesContent(): Promise<PagesContent> {
-  return mergePages(await getSetting<Partial<PagesContent> | undefined>('pages', undefined))
-}
+/** محتوى الصفحات العامة (الدورات، المسارات، الدخول، السياسات، وصف الموقع) — من اللوحة، مرة لكل طلب */
+export const pagesContent = cache(async (): Promise<PagesContent> =>
+  mergePages(await getSetting<Partial<PagesContent> | undefined>('pages', undefined)))
 
 export type PublicTier = { id: string; name: string; description: string; price: number; compareAt: number | null; features: string[]; highlight: boolean }
 
@@ -171,9 +191,15 @@ export type CourseDetail = {
 export type PublicLesson = Omit<LessonRow, 'video' | 'recording' | 'joinUrl' | 'streamUid' | 'thumbnailUrl' | 'quiz' | 'assignment' | 'attachments' | 'zoomMeetingId'>
 const publicLesson = ({ video: _v, recording: _r, joinUrl: _j, streamUid: _u, thumbnailUrl: _t, quiz: _q, assignment: _a, attachments: _f, zoomMeetingId: _z, ...l }: LessonRow): PublicLesson => l
 
-/** صفحة الدورة — المسودة والمؤرشفة والخاصة لا تظهر إلا برمز المعاينة */
-export async function courseDetail(slug: string, preview?: string, now = new Date()): Promise<CourseDetail | null> {
-  const { tracks, instructors, rows, courses } = await catalog(now)
+/** صفحة الدورة — المسودة والمؤرشفة والخاصة لا تظهر إلا برمز المعاينة. مرة لكل طلب (generateMetadata والصفحة وصورة المشاركة) */
+export function courseDetail(slug: string, preview?: string, now?: Date): Promise<CourseDetail | null> {
+  return now ? buildCourseDetail(slug, preview, now) : courseDetailNow(slug, preview)
+}
+const courseDetailNow = cache((slug: string, preview: string | undefined) => buildCourseDetail(slug, preview))
+
+async function buildCourseDetail(slug: string, preview?: string, at?: Date): Promise<CourseDetail | null> {
+  const now = at ?? new Date()
+  const { tracks, instructors, rows, courses } = await catalog(at)
   const hit = rows.find((x) => x.row.slug === slug)
   if (!hit) return null
   const visible = (hit.row.visibility === 'public' && isPublic(hit.view.status)) || (preview && preview === hit.row.previewToken)
@@ -211,19 +237,19 @@ export async function courseDetail(slug: string, preview?: string, now = new Dat
   }
 }
 
-export async function trackDetail(slug: string) {
+export const trackDetail = cache(async (slug: string) => {
   const { tracks, courses, instructors } = await catalog()
   const track = tracks.find((t) => t.slug === slug)
   if (!track) return null
   return { track, courses: courses.filter((c) => c.track === slug), instructors }
-}
+})
 
-export async function instructorDetail(slug: string) {
+export const instructorDetail = cache(async (slug: string) => {
   const { instructors, courses, tracks } = await catalog()
   const person = instructors.find((p) => p.slug === slug)
   if (!person) return null
   return { person, courses: courses.filter((c) => c.instructors?.includes(slug)), tracks, instructors }
-}
+})
 
 export async function mediaByKey(key: string) {
   const [row] = await db.select().from(s.media).where(and(eq(s.media.key, key), isNull(s.media.deletedAt)))
