@@ -1,6 +1,7 @@
 'use server'
 /* إجراءات اللوحة — كل إجراء: جلسة ← تحقق ← كتابة ← سجل ← إعادة توليد الصفحات العامة. */
 import { randomUUID } from 'node:crypto'
+import { syncCourseLessons } from '@/server/stream-videos'
 import { revalidatePath } from 'next/cache'
 import { and, count, eq, gt, isNotNull, isNull } from 'drizzle-orm'
 import { imageSize } from 'image-size'
@@ -95,6 +96,8 @@ export async function saveCourse(id: string | null, raw: CourseInput, opts: { co
   }
   const dropLessons = [...oldLessonIds].filter((x) => !keepLessons.has(x))
   if (dropLessons.length) await db.delete(s.lessons).where(inList(s.lessons.id, dropLessons))
+  /* نسخة حالة Stream على الدروس تتبع مصدر الفيديو المحفوظ */
+  await syncCourseLessons(cid).catch((e) => console.error('stream sync', (e as Error).message))
   const dropMods = [...oldModIds].filter((x) => !keepMods.has(x))
   if (dropMods.length) await db.delete(s.modules).where(inList(s.modules.id, dropMods))
   /* الباقات تُحدَّث بمعرّفاتها حتى لا تنقطع صلتها بالطلبات السابقة */

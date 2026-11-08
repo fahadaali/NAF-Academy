@@ -79,8 +79,12 @@
 
 **الفيديو — Cloudflare Stream**
 1. Cloudflare ← **Stream** ← فعّل الخدمة. `CF_ACCOUNT_ID` من صفحة الحساب (Account ID في الشريط الجانبي).
-2. **My Profile ← API Tokens ← Create Token ← Custom:** صلاحية Account ← Stream ← Edit ← `CF_STREAM_TOKEN`.
-3. `CF_STREAM_CUSTOMER` = الجزء بعد `customer-` في رابط أي فيديو في Stream (Embed).
+2. **My Profile ← API Tokens ← Create Token ← Custom:** صلاحية Account ← Stream ← Edit ← `CF_STREAM_API_TOKEN` (الاسم القديم `CF_STREAM_TOKEN` يُقرأ أيضاً).
+3. `CF_STREAM_CUSTOMER_CODE` = الجزء بعد `customer-` في رابط أي فيديو في Stream (Embed) — والقديم `CF_STREAM_CUSTOMER` يُقرأ أيضاً.
+4. من اللوحة: **الجلسات والحضور ← Cloudflare Stream ← تفعيل إشعار Stream** — يسجّل `/api/stream/webhook` لدى Stream ويحفظ سرّ التوقيع في القاعدة
+   دون عرضه (أو أضفه بنفسك سرّاً باسم `CF_STREAM_WEBHOOK_SECRET`). بدونه تتحدّث حالة المعالجة بالسؤال كل 5 دقائق.
+5. الرفع من محرّر الدرس (فيديو ← Cloudflare Stream ← رفع فيديو): كل فيديو بروابط موقّعة (`requireSignedURLs`) ونطاق المنصة وحده (`allowedOrigins`)،
+   والتنزيل لا يُفعَّل. المشاهدة برمز ساعتين يُطلب بعد التحقق من تسجيل المتدرب.
 
 **تسجيلات Zoom التلقائية — marketplace.zoom.us** (تحتاج Stream)
 1. zoom.us ← Settings ← Recording: فعّل **Cloud recording**.

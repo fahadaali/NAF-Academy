@@ -155,7 +155,7 @@ export type CourseDetail = {
   groupRules: { minQty: number; percent: number }[]
   track?: Track
   instructors: Instructor[]
-  curriculum: (ModuleRow & { lessons: LessonRow[] })[]
+  curriculum: (ModuleRow & { lessons: PublicLesson[] })[]
   related: Course[]
   /** كل المدربين — لبطاقات الدورات ذات الصلة */
   people: Instructor[]
@@ -164,6 +164,10 @@ export type CourseDetail = {
   blocks: Block[]
   blockMedia: Map<string, MediaView>
 }
+
+/** الدرس كما يظهر في صفحة الدورة العامة — بلا مصدر الفيديو ومعرّف Stream والروابط ومحتوى الاختبار والواجب */
+export type PublicLesson = Omit<LessonRow, 'video' | 'recording' | 'joinUrl' | 'streamUid' | 'thumbnailUrl' | 'quiz' | 'assignment' | 'attachments' | 'zoomMeetingId'>
+const publicLesson = ({ video: _v, recording: _r, joinUrl: _j, streamUid: _u, thumbnailUrl: _t, quiz: _q, assignment: _a, attachments: _f, zoomMeetingId: _z, ...l }: LessonRow): PublicLesson => l
 
 /** صفحة الدورة — المسودة والمؤرشفة لا تظهر إلا برمز المعاينة */
 export async function courseDetail(slug: string, preview?: string, now = new Date()): Promise<CourseDetail | null> {
@@ -194,7 +198,8 @@ export async function courseDetail(slug: string, preview?: string, now = new Dat
     groupRules: rules.map(({ minQty, percent }) => ({ minQty, percent })).sort((a, b) => a.minQty - b.minQty),
     track: tracks.find((t) => t.slug === hit.view.track),
     instructors: (hit.view.instructors ?? []).map((sl) => instructors.find((i) => i.slug === sl)).filter((x): x is Instructor => !!x),
-    curriculum: mods.map((md) => ({ ...md, lessons: les.filter((l) => l.moduleId === md.id) })),
+    /* المنهج العام بلا مصادر المحتوى: لا فيديو ولا معرّف Stream ولا روابط انضمام ولا اختبارات */
+    curriculum: mods.map((md) => ({ ...md, lessons: les.filter((l) => l.moduleId === md.id).map(publicLesson) })),
     related: courses.filter((c) => c.track === hit.view.track && c.slug !== slug).slice(0, 3),
     people: instructors,
     reviews: {

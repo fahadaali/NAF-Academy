@@ -7,10 +7,11 @@ import type { CourseInput } from '@/admin/schemas'
 import type { Chapter, Quiz, QuizQuestion } from '@/lib/learning-types'
 import { EMPTY_ASSIGNMENT, EMPTY_QUIZ } from '@/lib/learning-types'
 import { DateTime, Field, Grid, Input, RowTools, Segmented, Switch, Textarea } from '@/admin/ui/kit'
-import { streamCaptionAdd, streamCaptionAuto, streamCaptionsOf, streamStatus, streamUpload, uploadCaption, uploadLessonFile } from '@/admin/learning/actions'
+import { streamCaptionAdd, streamCaptionAuto, streamCaptionsOf, streamStatus, uploadCaption, uploadLessonFile } from '@/admin/learning/actions'
 import { CAPTION_LANGS } from '@/lib/captions'
 import type { Caption } from '@/lib/learning-types'
 import d from './lesson.module.css'
+import { StreamUpload } from './StreamUpload'
 import { fileSize } from '@/lib/files'
 
 type Lesson = CourseInput['curriculum'][number]['lessons'][number]
@@ -28,7 +29,7 @@ export function LessonDetail({ value: l, onChange, err, cohorts = 0 }: { value: 
   const session = l.type === 'live' || l.type === 'onsite'
   return (
     <div className={d.panel}>
-      {l.type === 'video' && <VideoField label="مصدر الفيديو" value={l.video ?? { provider: 'none' }} onChange={(video) => onChange({ video })} error={err('video.uid') ?? err('video.url')} />}
+      {l.type === 'video' && <VideoField label="مصدر الفيديو" lessonId={l.id} value={l.video ?? { provider: 'none' }} onChange={(video) => onChange({ video })} error={err('video.uid') ?? err('video.url')} />}
       {l.type === 'video' && <Chapters value={l.chapters ?? []} onChange={(chapters) => onChange({ chapters })} />}
       {l.type === 'video' && l.video?.provider === 'url' && <Captions value={l.captions ?? []} onChange={(captions) => onChange({ captions })} />}
       {l.type === 'video' && l.video?.provider === 'stream' && /^[a-f0-9]{32}$/.test(l.video.uid) && <StreamCaptions uid={l.video.uid} />}
@@ -84,8 +85,7 @@ export function LessonDetail({ value: l, onChange, err, cohorts = 0 }: { value: 
   )
 }
 
-export function VideoField({ label, hint, value, onChange, error }: { label: string; hint?: string; value: Video; onChange: (v: Video) => void; error?: string }) {
-  const [busy, setBusy] = useState('')
+export function VideoField({ label, hint, value, onChange, error, lessonId }: { label: string; hint?: string; value: Video; onChange: (v: Video) => void; error?: string; /** لفيديو الدرس وحده: يُعلَّم الدرس المحفوظ بحالة الرفع */ lessonId?: string | null }) {
   /* حالة ربط Stream — مقفل حتى تُضاف مفاتيحه، فيُقال ذلك قبل محاولة الرفع */
   const [stream, setStream] = useState<{ configured: boolean; problem?: string } | null>(null)
   useEffect(() => {
@@ -94,35 +94,23 @@ export function VideoField({ label, hint, value, onChange, error }: { label: str
     streamStatus().then((s) => live && setStream(s)).catch((e) => console.error('stream status', e))
     return () => { live = false }
   }, [value.provider, stream])
-  const file = useRef<HTMLInputElement>(null)
-  const upload = async (f: File) => {
-    setBusy('جارٍ تجهيز الرفع…')
-    const r = await streamUpload()
-    if (!r.ok) { setBusy(r.error); return }
-    const fd = new FormData()
-    fd.append('file', f)
-    setBusy('جارٍ الرفع إلى Stream…')
-    const up = await fetch(r.uploadURL, { method: 'POST', body: fd })
-    if (!up.ok) { setBusy('فشل الرفع'); return }
-    onChange({ provider: 'stream', uid: r.uid })
-    setBusy('رُفع — يعالجه Stream خلال دقائق')
-  }
   return (
     <Field label={label} hint={hint} error={error}>
       <Segmented value={value.provider} onChange={(p) => onChange(p === 'none' ? { provider: 'none' } : p === 'url' ? { provider: 'url', url: '' } : { provider: 'stream', uid: '' })}
         options={[{ value: 'none', label: 'بلا' }, { value: 'stream', label: 'Cloudflare Stream' }, { value: 'url', label: 'رابط مباشر' }]} />
       {value.provider === 'url' && <Input dir="ltr" value={value.url} placeholder="https://…/video.mp4" onChange={(e) => onChange({ provider: 'url', url: e.target.value })} />}
       {value.provider === 'stream' && (
-        <div className={d.row}>
-          <Input dir="ltr" value={value.uid} placeholder="معرّف الفيديو (32 حرفاً)" onChange={(e) => onChange({ provider: 'stream', uid: e.target.value.trim() })} />
-          <input ref={file} type="file" accept="video/*" hidden onChange={(e) => e.target.files?.[0] && upload(e.target.files[0])} />
-          <button type="button" className="btn ghost" onClick={() => file.current?.click()} disabled={stream?.configured === false} aria-disabled={stream?.configured === false}>رفع فيديو</button>
-        </div>
+        <>
+          <StreamUpload uid={value.uid} lessonId={lessonId} disabled={stream?.configured === false} onUploaded={(uid) => onChange({ provider: 'stream', uid })} />
+          <details className={d.note}>
+            <summary>معرّف الفيديو في Stream</summary>
+            <Input dir="ltr" value={value.uid} placeholder="معرّف الفيديو (32 حرفاً)" onChange={(e) => onChange({ provider: 'stream', uid: e.target.value.trim() })} />
+          </details>
+        </>
       )}
       {value.provider === 'stream' && stream?.configured === false && (
         <span className={d.note} role="status">Stream غير مربوط: {stream.problem}. لن يُشغَّل الفيديو حتى تُضاف المفاتيح — استعمل «رابط مباشر» إلى ذلك الحين.</span>
       )}
-      {busy && <span className={d.note} role="status">{busy}</span>}
     </Field>
   )
 }

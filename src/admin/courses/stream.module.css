@@ -1,0 +1,25 @@
+/* رفع Stream — شريط التقدّم يتحرك بـ transform (scaleX) وحده، بلا transition لأنه يُحدَّث مع كل دفعة */
+.box { display: grid; gap: 8px; justify-items: start; }
+.progress { display: grid; gap: 6px; inline-size: 100%; padding: 12px 14px; border-radius: var(--radius-s); background: var(--surface); border: 1px solid var(--line); }
+.head { display: flex; align-items: center; gap: 10px; }
+.name { flex: 1; min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; font-size: 14px; }
+.cancel { font-size: 13px; font-weight: 700; color: var(--danger); padding: 4px 8px; border-radius: 8px; transition: background-color var(--t-fast) var(--ease-out); }
+.cancel:hover { background: color-mix(in srgb, var(--danger) 10%, transparent); }
+.track { block-size: 8px; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
+.fill { display: block; block-size: 100%; inline-size: 100%; background: var(--accent); transform: scaleX(var(--p, 0)); transform-origin: right; }
+:global([dir='ltr']) .fill { transform-origin: left; }
+.meta { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 999px; font-size: 13px; font-weight: 700; background: var(--surface-2); color: var(--text-soft); }
+.badge i { inline-size: 8px; block-size: 8px; border-radius: 50%; background: var(--muted); }
+.badge[data-state='processing'] i, .badge[data-state='pending'] i { background: var(--accent); animation: pulse var(--t-pulse) var(--ease-blink) infinite; }
+.badge[data-state='ready'] { color: var(--success); background: color-mix(in srgb, var(--success) 12%, transparent); }
+.badge[data-state='ready'] i { background: var(--success); }
+.badge[data-state='error'] { color: var(--danger); background: color-mix(in srgb, var(--danger) 10%, transparent); }
+.badge[data-state='error'] i { background: var(--danger); }
+.note { font-size: 13px; color: var(--muted); }
+@keyframes pulse { 50% { opacity: 0.3; } }
+@media (prefers-reduced-motion: reduce) { .badge i { animation: none !important; } }
+@media (pointer: coarse) { .cancel { min-block-size: 40px; } }
+.card { display: grid; gap: 10px; margin-block-end: 18px; }
+.start { justify-self: start; }
+.alert { color: var(--danger); font-weight: 600; }

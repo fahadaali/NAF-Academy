@@ -54,7 +54,7 @@ export async function learnerCourse(slug: string, learner: LearnerRow | null) {
 }
 
 export type LessonView = {
-  lesson: Omit<LessonFull, 'quiz' | 'joinUrl' | 'video' | 'recording'>
+  lesson: Omit<LessonFull, 'quiz' | 'joinUrl' | 'video' | 'recording' | 'streamUid' | 'thumbnailUrl'>
   access: Availability
   enrolled: boolean
   player: { kind: 'stream' | 'url' | 'none'; src: string | null; resumeAt: number; duration: number; captions: { src: string; lang: string; label: string }[] }
@@ -100,7 +100,8 @@ export async function lessonView(slug: string, lessonId: string, learner: Learne
     quiz = { ...publicQuiz(l.quiz, `${learner.id}:${l.id}:${used}`), attemptId, used, best, lastPassed: attempts.find((a) => a.submittedAt)?.passed ?? null }
   }
   const [att] = learner ? await db.select().from(s.attendance).where(and(eq(s.attendance.learnerId, learner.id), eq(s.attendance.lessonId, l.id))) : []
-  const { quiz: _q, joinUrl: _j, video: _v, recording: _r, ...safe } = l
+  /* لا يخرج مصدر الفيديو ولا معرّف Stream ولا صورته غير الموقّعة — المشغّل يأخذ الرابط الموقّع وحده */
+  const { quiz: _q, joinUrl: _j, video: _v, recording: _r, streamUid: _u, thumbnailUrl: _t, ...safe } = l
   return {
     ctx, lesson: safe, access, enrolled, player, recording, quiz,
     join: joinWindow(l.startsAt, l.endsAt),
