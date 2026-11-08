@@ -145,7 +145,7 @@ export function AssignmentPanel({ slug, lessonId, accept, maxMb }: { slug: strin
         }}>
           <label className={s.drop}>
             <input type="file" name="file" required accept={accept.map((x) => `.${x}`).join(',')} />
-            <span>اختر ملف الواجب <em>({accept.join('، ')} — حتى {maxMb} م.ب)</em></span>
+            <span>اختر ملف الواجب <em>({accept.map((x, i) => <span key={x}>{i ? '، ' : ''}<bdi>{x}</bdi></span>)} — حتى {maxMb} م.ب)</em></span>
           </label>
           <textarea name="note" rows={2} placeholder="ملاحظة للمدرب (اختياري)" className={s.note} />
           {err && <p className={s.err}>{err}</p>}
