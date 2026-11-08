@@ -17,7 +17,9 @@ export type PriceView = {
 const within = (t: number, start?: string | null, end?: string | null) =>
   (!start || Date.parse(start) <= t) && (!end || Date.parse(end) > t)
 
-/** سعر العرض العام على السعر الأصلي */
+/** سعر العرض العام على السعر الأصلي. النسبة مقيّدة بـ 90%، والمبلغ الثابت قد يبلغ الصفر (لا سالب) — فيصير الطلب مجانياً
+    بلا فاتورة، ومقعداً واحداً للزائر كأي طلب بإجمالي صفر (placeOrder). لا حدّ أدنى مصطنع (ريال مثلاً) لأنه يُصدر فاتورة
+    بمبلغ لم يقصده أحد؛ ومن أراد خصماً لا يجعلها مجانية يضبط المبلغ دون السعر. */
 export const promoPrice = (base: number, p: Pick<Promo, 'kind' | 'value'>) =>
   Math.max(0, p.kind === 'percent' ? Math.round(base * (1 - Math.max(0, Math.min(90, p.value)) / 100)) : base - p.value)
 

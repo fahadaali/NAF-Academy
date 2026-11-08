@@ -69,7 +69,9 @@ async function findCoupon(code: string) {
   return row ?? null
 }
 
-/** الاستخدامات = المسترد فعلاً + الطلبات المعلّقة السارية التي تحمل الكوبون (حتى لا يُتجاوز الحد بالتوازي) */
+/** الاستخدامات = المسترد فعلاً + الطلبات المعلّقة السارية التي تحمل الكوبون (حتى لا يُتجاوز الحد بالتوازي).
+    الحد يعدّ الطلبات لا المقاعد (كوبون جهة لمرة واحدة يخدم طلب فريقها المدفوع) — وثغرة «كوبون 100% لخمسين مقعداً»
+    مسدودة بأن الطلب بإجمالي صفر مقعد واحد للزائر (placeOrder). */
 async function couponUses(couponId: string, email?: string) {
   const now = nowIso()
   const [t] = await db.select({ n: count() }).from(s.couponRedemptions).where(eq(s.couponRedemptions.couponId, couponId))
