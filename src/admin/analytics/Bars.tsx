@@ -16,12 +16,12 @@ export function Bars({ title, data, height = 160, total }: { title: string; data
   return (
     <figure className={`${b.fig} reveal`}>
       <figcaption className={b.cap}><span>{title}</span><strong className="num" data-count>{total}</strong></figcaption>
-      <div className={b.plot} style={{ blockSize: height, paddingBlockStart: 22 }} onMouseLeave={() => setHover(null)} aria-hidden="true">
-        <i className={b.grid} style={{ insetBlockEnd: '50%' }} />
+      <div className={b.plot} style={{ ['--plot' as string]: `${height}px` }} onMouseLeave={() => setHover(null)} aria-hidden="true">
+        <i className={b.grid} />
         <i className={b.base} />
         {data.map((d, i) => (
           <div key={d.key} className={b.col} data-on={hover === i ? '1' : '0'} onMouseEnter={() => setHover(i)} style={{ ['--k' as string]: i / Math.max(1, data.length - 1) }}>
-            <span className={b.bar} style={{ blockSize: `${(d.value / max) * 100}%` }} />
+            <span className={b.bar} style={{ ['--v' as string]: d.value / max }} />
           </div>
         ))}
         {h && (
@@ -30,7 +30,7 @@ export function Bars({ title, data, height = 160, total }: { title: string; data
           </div>
         )}
         {data[peak]?.value > 0 && hover === null && (
-          <span className={`${b.peak} num`} style={{ insetInlineStart: `${((peak + 0.5) / data.length) * 100}%`, insetBlockEnd: `calc(${(data[peak].value / max) * 100}% * ${(height - 22) / height})` }}>{data[peak].display}</span>
+          <span className={`${b.peak} num`} style={{ ['--x' as string]: (peak + 0.5) / data.length, ['--v' as string]: data[peak].value / max }}>{data[peak].display}</span>
         )}
       </div>
       <div className={`${b.axis} num`} aria-hidden="true"><span>{data[0]?.label}</span><span>{data[data.length - 1]?.label}</span></div>

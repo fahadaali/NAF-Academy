@@ -1,6 +1,7 @@
 .pageHead { display: flex; align-items: end; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-block-end: 28px; }
 .pageHead h1 { font-family: var(--font-display); font-size: clamp(28px, 3vw, 38px); font-weight: 700; }
-.pageHead p { color: var(--muted); margin-block-start: 4px; }
+.pageHead p { color: var(--muted); margin-block-start: 4px; --d: 3; }
+.pageHead > .actions { --d: 4; } /* الوصف ثم الأدوات بعد العنوان (.rise) */
 .actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 
 .section { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-l); margin-block-end: 18px; box-shadow: var(--shadow-1); }

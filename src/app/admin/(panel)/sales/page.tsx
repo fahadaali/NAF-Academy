@@ -30,7 +30,7 @@ export default async function Sales() {
         <div className={s.kpi}><strong className="num" data-count>{o.interested}</strong><span>مهتم وقائمة انتظار</span></div>
       </div>
       <div className={s.chart} role="img" aria-label="الإيراد اليومي آخر 30 يوماً">
-        {days.map((x, i) => <div key={x.d} title={`${x.d}: ${sar(x.v)} ر.س`} style={{ blockSize: `${(x.v / max) * 100}%`, ['--i' as string]: i }} />)}
+        {days.map((x, i) => <div key={x.d} title={`${x.d}: ${sar(x.v)} ر.س`} style={{ ['--v' as string]: x.v / max, ['--i' as string]: i }} />)}
       </div>
       <div className={s.two}>
         <section className={s.panel}>

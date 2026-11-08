@@ -57,10 +57,9 @@ export function FullPreview({ courseId, url, draft, onClose }: { courseId: strin
         <button type="button" className="btn" onClick={onClose}>إغلاق</button>
       </div>
       <div className={f.stage} ref={box}>
-        <div className={f.frameBox} style={{ inlineSize: w * scale, blockSize: h || undefined }}>
+        <div className={f.frameBox} style={{ ['--frame-w' as string]: `${w}px`, ['--frame-s' as string]: scale, ...(h ? { ['--frame-h' as string]: `${h}px` } : {}) }}>
           {rev > 0 && (
             <iframe key={`${rev}-${device}`} title="معاينة الدورة" src={`${url}?draft=1&r=${rev}`} className={f.frame}
-              style={{ inlineSize: w, blockSize: h ? h / scale : undefined, transform: `scale(${scale})` }}
               onLoad={() => setBusy(false)} />
           )}
         </div>

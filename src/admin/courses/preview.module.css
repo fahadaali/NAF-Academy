@@ -3,6 +3,7 @@
 .bar strong { margin-inline-end: auto; }
 .state { font-size: 13px; color: var(--muted); }
 .stage { display: grid; justify-items: center; align-items: start; padding: 16px; overflow: hidden; min-block-size: 0; }
-.frameBox { overflow: hidden; border-radius: var(--radius-m); box-shadow: var(--shadow-2); background: var(--surface); }
-.frame { display: block; border: 0; transform-origin: top right; }
+/* مقاس الجهاز --frame-w (وارتفاعه --frame-h إن قيس) ومعامل التصغير --frame-s من المكوّن — الإطار بالمقاس الحقيقي مصغَّراً داخل صندوقه */
+.frameBox { inline-size: calc(var(--frame-w) * var(--frame-s)); block-size: var(--frame-h, auto); overflow: hidden; border-radius: var(--radius-m); box-shadow: var(--shadow-2); background: var(--surface); }
+.frame { display: block; border: 0; inline-size: var(--frame-w); block-size: calc(var(--frame-h) / var(--frame-s)); transform: scale(var(--frame-s)); transform-origin: top right; }
 :root[dir='ltr'] .frame { transform-origin: top left; }
