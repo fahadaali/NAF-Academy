@@ -176,7 +176,7 @@ export function JoinPanel({ lessonId, startsAt, opensAt, state: initial, compact
   if (compact) return (
     <div className={s.joinLine} data-state={state}>
       <span>{title && <strong>{title}</strong>}
-        {state === 'upcoming' && <small className="num">بعد {d > 0 ? `${d} يوم · ` : ''}{h} ساعة · {m} دقيقة · {sec} ثانية</small>}
+        {state === 'upcoming' && <small className="num" suppressHydrationWarning>بعد {d > 0 ? `${d} يوم · ` : ''}{h} ساعة · {m} دقيقة · {sec} ثانية</small>}
         {state === 'open' && <small>الجلسة مفتوحة الآن</small>}
       </span>
       {state === 'open' ? <a className={`btn ${s.joinNow}`} href={`/learn-go/${lessonId}`}>انضم الآن</a> : <span className={s.joinSoon}>الانضمام قبل الموعد بربع ساعة</span>}
@@ -188,7 +188,7 @@ export function JoinPanel({ lessonId, startsAt, opensAt, state: initial, compact
         <>
           <p className={s.hint}>تبدأ الجلسة بعد</p>
           <div className={`${s.countdown} num`} aria-live="off">
-            {d > 0 && <span><b>{d}</b>يوم</span>}<span><b>{h}</b>ساعة</span><span><b>{m}</b>دقيقة</span><span><b>{sec}</b>ثانية</span>
+            {d > 0 && <span><b suppressHydrationWarning>{d}</b>يوم</span>}<span><b suppressHydrationWarning>{h}</b>ساعة</span><span><b suppressHydrationWarning>{m}</b>دقيقة</span><span><b suppressHydrationWarning>{sec}</b>ثانية</span>
           </div>
           <button className="btn" aria-disabled="true" disabled>يُفعَّل الانضمام قبل الموعد بربع ساعة</button>
         </>
