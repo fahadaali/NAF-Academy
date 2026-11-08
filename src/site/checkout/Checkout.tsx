@@ -156,10 +156,10 @@ export function Checkout({ slug, title, tiers, cohorts = [], initialCohort = nul
             <div className={s.stepper}>
               <button type="button" aria-label="أقل" disabled={qty <= 1} onClick={() => setQty((x) => Math.max(1, x - 1))}>−</button>
               <output className="num" aria-live="polite">{qty}</output>
-              <button type="button" aria-label="أكثر" disabled={qty >= limit} onClick={() => setQty((x) => Math.min(limit, x + 1))}>+</button>
+              <button type="button" aria-label="أكثر" disabled={qty >= limit || free} onClick={() => setQty((x) => Math.min(limit, x + 1))}>+</button>
             </div>
             <span className={s.hint}>
-              {q.groupPercent > 0 ? <>خصم المجموعة <strong className="num">{q.groupPercent}%</strong> مطبّق</> : nextRule ? <>سجّل <span className="num">{nextRule.minQty}</span> مقاعد فأكثر لخصم <span className="num">{nextRule.percent}%</span></> : 'لفريقك؟ زد العدد وخصّص المقاعد لاحقاً'}
+              {free ? (qty > 1 ? 'التسجيل المجاني لمقعد واحد — أنقص العدد، ولمقاعد فريقك تواصل معنا' : 'التسجيل المجاني لمقعد واحد') : q.groupPercent > 0 ? <>خصم المجموعة <strong className="num">{q.groupPercent}%</strong> مطبّق</> : nextRule ? <>سجّل <span className="num">{nextRule.minQty}</span> مقاعد فأكثر لخصم <span className="num">{nextRule.percent}%</span></> : 'لفريقك؟ زد العدد وخصّص المقاعد لاحقاً'}
             </span>
           </div>
           {qty > 1 && (

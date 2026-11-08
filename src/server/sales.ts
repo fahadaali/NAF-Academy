@@ -185,9 +185,13 @@ export async function placeOrder(p: { slug: string; tierId?: string | null; coho
     : []
   if (mine && hasAccess(mine)) return { ok: false, error: p.by ? 'هذا المتدرب مسجّل في الدورة من قبل' : 'أنت مسجّل في هذه الدورة بالفعل — تجدها في «دوراتي»' }
   const renewing = !!mine
+  /* استثناء «التسجيل مغلق» للتجديد الذاتي وحده (مقعد واحد) — لا يُشترى به مقاعد فريق إضافية في دورة أو دفعة مغلقة */
+  const selfRenew = renewing && q.quantity === 1
   const status = resolveStatus(course.status, course.publishAt)
-  if (!p.by && !renewing && status !== 'open') return { ok: false, error: 'التسجيل غير متاح في هذه الدورة الآن' }
+  if (!p.by && !selfRenew && status !== 'open') return { ok: false, error: 'التسجيل غير متاح في هذه الدورة الآن' }
   if (p.code && q.couponError) return { ok: false, error: q.couponError }
+  /* الطلب المجاني (دورة مجانية، أو كوبون 100%، أو عرض يصفّر السعر) مقعد واحد للزائر — مقاعد الفريق بطلب مدفوع أو عقد مؤسسة */
+  if (!p.by && q.total === 0 && q.quantity > 1) return { ok: false, error: 'التسجيل المجاني لمقعد واحد — لمقاعد فريقك تواصل معنا' }
   /* الدورة ذات الدفعات: دفعة من دفعاتها، مفتوحة للزائر (والموظف يسجّل في أي دفعة غير منتهية).
      المجدِّد يبقى في دفعته إن لم يختر غيرها */
   const cohortRows = await courseCohortRows(course.id)
@@ -196,7 +200,7 @@ export async function placeOrder(p: { slug: string; tierId?: string | null; coho
     cohort = cohortRows.find((k) => k.id === (p.cohortId ?? (renewing ? mine.cohortId : null))) ?? null
     if (!cohort) return { ok: false, error: 'اختر الدفعة' }
     const st = cohortState({ ...cohort, taken: 0 })
-    const stays = renewing && cohort.id === mine.cohortId
+    const stays = selfRenew && cohort.id === mine.cohortId
     if (!stays && (st === 'closed' || (!p.by && st !== 'open'))) return { ok: false, error: `التسجيل في «${cohort.title}» غير متاح الآن` }
   }
   /* مقعد المجدِّد قائم إن بقي في دفعته (أو في دورة بلا دفعات) — فلا يُحسب من السعة */
