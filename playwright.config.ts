@@ -39,6 +39,7 @@ export default defineConfig({
       CRON_SECRET: 'e2e-cron-secret-e2e-cron-secret',
       PAYMENTS_GATEWAY: 'mock',
       STREAM_MOCK: '1',
+      WAFEQ_MOCK: '1',
       STREAM_MOCK_TUS_ABOVE: '2000000',
       SITE_URL: BASE,
       NEXT_TELEMETRY_DISABLED: '1',

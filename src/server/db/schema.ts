@@ -2,6 +2,7 @@
    المبالغ بالهللة. التواريخ نص ISO. القوائم JSON. الحذف ناعم (deletedAt). */
 import { sql } from 'drizzle-orm'
 import { index, integer, primaryKey, real, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core'
+import { WAFEQ_STATUS, WAFEQ_STEPS } from '../../lib/wafeq'
 
 export const STREAM_STATUS = ['pending', 'processing', 'ready', 'error'] as const
 const id = () => text('id').primaryKey()
@@ -465,9 +466,23 @@ export const invoices = sqliteTable('invoices', {
   vat: integer('vat').notNull(),
   qr: text('qr').notNull(),
   issuedAt: text('issued_at').notNull(),
+  /* ── وافق: المستند الرسمي متى رُبط (src/server/wafeq) — off: لم يُطلب، والمحلي احتياط ── */
+  wafeqStatus: text('wafeq_status', { enum: WAFEQ_STATUS }).notNull().default('off'),
+  wafeqStep: text('wafeq_step', { enum: WAFEQ_STEPS }).notNull().default('contact'),
+  wafeqContactId: text('wafeq_contact_id'),
+  wafeqId: text('wafeq_id'),
+  wafeqNumber: text('wafeq_number'),
+  wafeqPaymentId: text('wafeq_payment_id'),
+  /** حالة الإبلاغ للهيئة كما أعادها وافق (PENDING / CLEARED / REPORTED …) */
+  wafeqTax: text('wafeq_tax'),
+  wafeqError: text('wafeq_error').notNull().default(''),
+  wafeqAttempts: integer('wafeq_attempts').notNull().default(0),
+  wafeqNextAt: text('wafeq_next_at'),
+  wafeqAt: text('wafeq_at'),
 }, (t) => [
   /* فاتورة ضريبية واحدة لكل طلب (الإشعارات الدائنة متعددة) */
   uniqueIndex('invoices_one_per_order').on(t.orderId).where(sql`kind = 'invoice'`),
+  index('invoices_wafeq_idx').on(t.wafeqStatus, t.wafeqNextAt),
 ])
 
 export const ENROLL_SOURCE = ['purchase', 'free', 'grant', 'manual', 'seat', 'invite'] as const

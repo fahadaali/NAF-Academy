@@ -9,7 +9,8 @@ import { pick } from '@/lib/brand'
 import { formatAmount } from '@/lib/pricing'
 import type { schema } from '../db'
 
-type Invoice = typeof schema.invoices.$inferSelect
+/** الملف المحلي لا يقرأ حقول وافق */
+type Invoice = Omit<typeof schema.invoices.$inferSelect, `wafeq${string}`>
 
 /* ألوان الوثيقة: مرآة لرموز الهوية (PDF لا يقرأ متغيرات CSS) */
 const C = { ink: '#14202b', soft: '#36424e', muted: '#5b6470', line: '#e3dccb', gold: '#a5813f', plate: '#f6f2e8' }

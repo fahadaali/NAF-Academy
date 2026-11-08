@@ -26,6 +26,7 @@ import { chunksOf, inList } from '@/server/db/limits'
 import { hasAccess, leadCohort, statusWithCohorts, withSession } from '@/lib/cohorts'
 import { cohortsOf, holdsSeat, sessionsOf } from '../cohorts'
 import { livePromotions, promosFor } from '../promotions'
+import { WAFEQ_MAIL_WAIT_MIN } from '@/lib/wafeq'
 
 /** مفتوحة الآن؟ «المجدولة» تُفتح بنفسها عند موعد نشرها — كما تراها الواجهة */
 /** والخاصة لا «يُفتح» تسجيلها للعموم — فلا رسائل «فُتح التسجيل» ولا «العرض ينتهي» عنها */
@@ -643,16 +644,22 @@ export async function dispatch(now: Date, opt: { limit?: number; keys?: string[]
       })
       /* الفاتورة أو الإشعار الدائن مرفقاً PDF — فشل توليده لا يمنع الرسالة */
       let attachments: { filename: string; content: Uint8Array }[] | undefined
+      let wait = false
       if ((ev === 'order_paid' || ev === 'refund_issued') && n.ref?.orderId) {
         try {
           const [o] = await db.select().from(s.orders).where(eq(s.orders.id, String(n.ref.orderId)))
           const [inv] = o ? await db.select().from(s.invoices).where(and(eq(s.invoices.orderId, o.id), eq(s.invoices.kind, ev === 'order_paid' ? 'invoice' : 'credit_note'))).orderBy(desc(s.invoices.issuedAt)).limit(1) : []
           if (o && inv) {
-            const { invoiceFile } = await import('../invoices')
-            attachments = [{ filename: `${inv.number}.pdf`, content: await invoiceFile(inv, { orderNumber: o.number, vatRate: o.vatRate }) }]
+            const { officialFile } = await import('../invoices')
+            const f = await officialFile(inv, { orderNumber: o.number, vatRate: o.vatRate })
+            /* فاتورة وافق (الرسمية) قيد المزامنة: تنتظر الرسالة قليلاً، ثم تخرج بالمحلية بعد السقف */
+            if (f.wait && now.getTime() - Date.parse(n.createdAt) < WAFEQ_MAIL_WAIT_MIN * MIN) {
+              wait = true
+            } else attachments = [{ filename: `${inv.number}.pdf`, content: f.bytes }]
           }
         } catch (e) { console.error('invoice attachment', e) }
       }
+      if (wait) { await finish('pending', { error: 'بانتظار فاتورة وافق', sendAt: iso(new Date(now.getTime() + 5 * MIN)) }); out.retry++; continue }
       r = await send({ channel: 'email', to: n.to, subject: fill(tpl.subject, v), text, html, kind: ev, attachments, headers: unsub ? { 'List-Unsubscribe': `<${unsub.replace('/unsubscribe?', '/api/unsubscribe?')}>`, 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' } : undefined })
     } else if (n.channel === 'push') {
       r = await sendPushTo(n.learnerId!, { title: fill(tpl.subject, v), body: fill(tpl.sms.trim() ? tpl.sms : tpl.heading, v).replace(/\s*https?:\/\/\S+/g, '').slice(0, 200), url: v.link ?? `${site}/learn`, tag: n.key.split(':').slice(0, 2).join(':'), icon: pushIcon }, ev)

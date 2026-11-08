@@ -6,6 +6,7 @@ import { envVar } from '@/server/runtime'
 import { autoMigrate } from '@/server/setup'
 import { streamState } from '@/server/stream'
 import { refreshUnsettled } from '@/server/stream-videos'
+import { retryWafeq } from '@/server/wafeq/sync'
 
 export const dynamic = 'force-dynamic'
 
@@ -25,9 +26,12 @@ export async function POST(req: Request) {
   let migrated: Awaited<ReturnType<typeof autoMigrate>> = null
   try { migrated = await autoMigrate() } catch (e) { console.error('auto-migrate', e) }
   if (migrated?.error) console.error('auto-migrate', migrated.error)
+  /* وافق: المستندات المعلّقة قبل الرسائل — فيخرج بريد «تم الدفع» بفاتورتها الرسمية */
+  let wafeq: Awaited<ReturnType<typeof retryWafeq>> | null = null
+  try { wafeq = await retryWafeq(now) } catch (e) { console.error('wafeq retry', (e as Error).message) }
   const r = await runNotifications(now)
   /* فيديوهات Stream العالقة في الانتظار أو المعالجة — احتياط إن لم يصل Webhook الاكتمال */
   let stream = 0
   if (streamState().configured) try { stream = await refreshUnsettled() } catch (e) { console.error('stream refresh', (e as Error).message) }
-  return Response.json({ ...r, migrated, stream })
+  return Response.json({ ...r, migrated, stream, wafeq })
 }

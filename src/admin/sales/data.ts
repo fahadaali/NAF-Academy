@@ -97,3 +97,14 @@ export async function courseLearners(courseId: string) {
     .where(and(eq(s.cohorts.courseId, courseId), isNull(s.cohorts.deletedAt))).orderBy(asc(s.cohorts.sortOrder))
   return { enrolls, interest, cohorts }
 }
+
+/** طابور وافق: المكتمل والمعلّق والفاشل، وآخر ما فشل — لصفحة الإعداد */
+export async function wafeqQueue() {
+  await requirePermission('payments.manage')
+  const rows = await db.select({ st: s.invoices.wafeqStatus, n: count() }).from(s.invoices)
+    .where(inArray(s.invoices.wafeqStatus, ['pending', 'running', 'failed', 'done'])).groupBy(s.invoices.wafeqStatus)
+  const by = Object.fromEntries(rows.map((r) => [r.st, r.n])) as Record<string, number>
+  const failed = await db.select({ id: s.invoices.id, number: s.invoices.number, orderId: s.invoices.orderId, error: s.invoices.wafeqError })
+    .from(s.invoices).where(eq(s.invoices.wafeqStatus, 'failed')).orderBy(desc(s.invoices.issuedAt)).limit(10)
+  return { counts: { done: by.done ?? 0, pending: (by.pending ?? 0) + (by.running ?? 0), failed: by.failed ?? 0 }, failed }
+}

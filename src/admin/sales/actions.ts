@@ -16,6 +16,9 @@ import { normalizeCode } from '@/lib/quote'
 import { COUPON_KIND, COUPON_SCOPE } from '@/server/db/schema'
 import { errorsOf, type Result } from '@/admin/schemas'
 import { chunksOf } from '@/server/db/limits'
+import type { WafeqSettings } from '@/lib/wafeq'
+import { wafeqCatalog, wafeqSettings, wafeqState, type WafeqCatalog } from '@/server/wafeq/client'
+import { resyncInvoice } from '@/server/wafeq/sync'
 
 const iso = z.string().datetime({ offset: true }).nullable()
 
@@ -235,4 +238,59 @@ export async function resendOrderEmail(orderId: string): Promise<{ ok: boolean; 
   await audit(admin.name, 'resend', 'order', orderId, 'إعادة إرسال تأكيد الطلب')
   revalidatePath(`/admin/orders/${orderId}`)
   return r.ok ? { ok: true } : { ok: false, error: 'تعذّر الإرسال — راجع قنوات الرسائل وطابور الرسائل' }
+}
+
+/* ───────── وافق (الفوترة المحاسبية) ───────── */
+
+const wafeqId = z.string().trim().max(80).regex(/^[\w-]*$/, 'معرّف غير صالح')
+const wafeqInput = z.object({
+  enabled: z.boolean(),
+  reportToTax: z.boolean(),
+  revenueAccount: wafeqId,
+  discountAccount: wafeqId,
+  taxRate: wafeqId,
+  paidThrough: z.object({ gateway: wafeqId, bank_transfer: wafeqId, cash: wafeqId }),
+  language: z.enum(['ar', 'en']),
+})
+
+export async function saveWafeqSettings(raw: WafeqSettings): Promise<Result> {
+  const admin = await requirePermission('payments.manage')
+  const p = wafeqInput.safeParse(raw)
+  if (!p.success) return { ok: false, errors: errorsOf(p.error), message: 'راجع الحقول' }
+  if (p.data.enabled) {
+    const st = wafeqState(p.data)
+    if (!st.active) return { ok: false, errors: { enabled: st.problem ?? 'غير جاهز' }, message: 'لا يمكن التفعيل قبل اكتمال الربط' }
+  }
+  const before = await wafeqSettings()
+  await setSetting('wafeq', p.data)
+  await audit(admin.name, before.enabled !== p.data.enabled ? (p.data.enabled ? 'enable' : 'disable') : 'update', 'wafeq', 'settings',
+    before.enabled !== p.data.enabled ? (p.data.enabled ? 'تفعيل الربط مع وافق' : 'إيقاف الربط مع وافق') : 'إعدادات وافق', p.data)
+  revalidatePath('/admin/settings/payments')
+  return { ok: true, id: 'wafeq' }
+}
+
+/** اختبار الاتصال وجلب الحسابات ونسب الضريبة لقوائم الإعداد */
+export async function wafeqCatalogAction(): Promise<{ ok: true; catalog: WafeqCatalog } | { ok: false; error: string }> {
+  await requirePermission('payments.manage')
+  if (!wafeqState({ ...(await wafeqSettings()), enabled: true }).keyed) return { ok: false, error: 'أضف WAFEQ_API_KEY في بيئة الخادم أولاً' }
+  try {
+    return { ok: true, catalog: await wafeqCatalog() }
+  } catch (e) {
+    return { ok: false, error: (e as Error).message }
+  }
+}
+
+/** إعادة مزامنة فاتورة أو إشعار دائن مع وافق (ما فشل أو صدر قبل الربط) */
+export async function resyncWafeq(invoiceId: string): Promise<{ ok: boolean; error?: string }> {
+  const admin = await requirePermission('sales.orders')
+  if (typeof invoiceId !== 'string' || invoiceId.length > 64) return { ok: false, error: 'مستند غير صالح' }
+  const [inv] = await db.select({ orderId: s.invoices.orderId, number: s.invoices.number }).from(s.invoices).where(eq(s.invoices.id, invoiceId))
+  if (!inv) return { ok: false, error: 'المستند غير موجود' }
+  if (!wafeqState(await wafeqSettings()).active) return { ok: false, error: 'الربط مع وافق غير مفعّل' }
+  const r = await resyncInvoice(invoiceId)
+  await audit(admin.name, 'wafeq_resync', 'order', inv.orderId, `إعادة مزامنة ${inv.number} مع وافق`)
+  revalidatePath(`/admin/orders/${inv.orderId}`)
+  if (r === 'done') return { ok: true }
+  const [after] = await db.select({ e: s.invoices.wafeqError }).from(s.invoices).where(eq(s.invoices.id, invoiceId))
+  return { ok: false, error: r === 'pending' ? `لم تكتمل — ستُعاد تلقائياً${after?.e ? `: ${after.e}` : ''}` : after?.e || 'تعذّرت المزامنة' }
 }
