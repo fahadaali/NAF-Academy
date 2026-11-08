@@ -9,9 +9,44 @@ import s from './sales.module.css'
 import { PAY_METHOD_LABEL } from '@/lib/enums'
 import { History } from '@/admin/ui/History'
 
+export type Verify = { code: string; at: string; signed: boolean }
+export type WebhookHit = { at: string; type: string; keys: string[]; code: string | null; signed: boolean; result: string }
+
+const time = (iso: string) => new Intl.DateTimeFormat('ar-SA-u-nu-latn', { dateStyle: 'short', timeStyle: 'short', timeZone: 'Asia/Riyadh' }).format(new Date(iso))
+
+/** رمز تحقق ميسر وما وصل منها — ظاهر دائماً، حتى يُعرف إن لم يصل شيء */
+function WebhookBox({ verification, hits }: { verification?: Verify | null; hits: WebhookHit[] }) {
+  return (
+    <div className={s.verify} role="status">
+      <strong>إشعارات ميسر (Webhook)</strong>
+      {verification ? (
+        <>
+          <p>رمز التحقق — أدخله في لوحة ميسر في «التحقق من الإشعار». وصل {time(verification.at)}، وصالح 30 دقيقة.</p>
+          <code className={`${s.code} num`} dir="ltr">{verification.code}</code>
+          {!verification.signed && <p className={s.warn}>لم يصل معه السرّ المطابق: تأكد أن «Secret Token» في ميسر هو نفسه MOYASAR_WEBHOOK_SECRET في Cloudflare، وإلا رُفضت إشعارات الدفع.</p>}
+        </>
+      ) : (
+        <p>لا رمز تحقق حالياً. في لوحة ميسر اضغط «إعادة إرسال الرمز»، ثم حدّث هذه الصفحة بعد ثوانٍ.</p>
+      )}
+      {hits.length > 0 ? (
+        <div className={s.hits}>
+          <span>آخر ما وصل من ميسر:</span>
+          <ul>
+            {hits.map((h, i) => (
+              <li key={i}><span className="num" dir="ltr">{time(h.at)}</span> — {h.result}{h.type ? <> · <code dir="ltr">{h.type}</code></> : null}{h.keys.length ? <> · الحقول: <code dir="ltr">{h.keys.join(', ')}</code></> : null}</li>
+            ))}
+          </ul>
+        </div>
+      ) : (
+        <p className={s.warn}>لم يصل أي طلب من ميسر إلى المنصة بعد. تأكد أن الرابط في ميسر هو <code dir="ltr">/api/payments/webhook</code> على نطاق المنصة، وأن حماية Cloudflare (Bot Fight Mode) لا تحجبه.</p>
+      )}
+    </div>
+  )
+}
+
 const METHOD: Record<PaymentSettings['methods'][number], string> = PAY_METHOD_LABEL
 
-export function PaymentSettingsForm({ initial, status, verification }: { initial: PaymentSettings; status: GatewayStatus; verification?: { code: string; at: string; signed: boolean } | null }) {
+export function PaymentSettingsForm({ initial, status, verification, hits = [] }: { initial: PaymentSettings; status: GatewayStatus; verification?: Verify | null; hits?: WebhookHit[] }) {
   const router = useRouter()
   const [v, setV] = useState(initial)
   const [saved, setSaved] = useState(JSON.stringify(initial))
@@ -36,14 +71,7 @@ export function PaymentSettingsForm({ initial, status, verification }: { initial
       </div>
       {errors.enabled && <p className={s.err}>{errors.enabled}</p>}
 
-      {verification && (
-        <div className={s.verify} role="status">
-          <strong>رمز التحقق من إشعار ميسر</strong>
-          <p>أدخله في لوحة ميسر ← الإعدادات ← الإشعارات ← «التحقق من الإشعار». وصل {new Intl.DateTimeFormat('ar-SA-u-nu-latn', { timeStyle: 'short', timeZone: 'Asia/Riyadh' }).format(new Date(verification.at))}، وصالح 30 دقيقة.</p>
-          <code className={`${s.code} num`} dir="ltr">{verification.code}</code>
-          {!verification.signed && <p className={s.warn}>لم يصل معه السرّ المطابق: تأكد أن «Secret Token» في ميسر هو نفسه قيمة MOYASAR_WEBHOOK_SECRET في Cloudflare، وإلا رُفضت إشعارات الدفع بعد التحقق.</p>}
-        </div>
-      )}
+      <WebhookBox verification={verification} hits={hits} />
 
       {!status.configured && (
         <Section title="خطوات الربط" desc="تُضاف في متغيّرات البيئة على الخادم، ولا تُكتب في اللوحة حفاظاً عليها">
