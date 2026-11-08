@@ -15,7 +15,8 @@ function parse(perms: string | null) {
 const GLOBAL = ['site.write', 'sales.read', 'sales.orders', 'sales.refund', 'sales.coupons', 'payments.manage', 'channels.manage', 'messages.read', 'trash.purge', 'team.manage', 'notify.manage', 'certificates.templates', 'corporate.manage', 'analytics.read']
 const LABELS = Object.fromEntries(PERM_GROUPS.flatMap((g) => g.perms)) as Record<string, string>
 
-export function PermsDialog({ userId, role, perms, name, onDone }: { userId: string; role: string; perms: string | null; name: string; onDone: () => void }) {
+/** canGrant: ما يملكه المحرّر نفسه — غيره لا يُمنح ولا يُفكّ حجبه (الخادم يرفض ما يتجاوزه) */
+export function PermsDialog({ userId, role, perms, name, onDone, canGrant = () => true }: { userId: string; role: string; perms: string | null; name: string; onDone: () => void; canGrant?: (p: Perm) => boolean }) {
   const dlg = useRef<HTMLDialogElement>(null)
   const base = roleDefaults(role)
   const init = parse(perms)
@@ -51,7 +52,7 @@ export function PermsDialog({ userId, role, perms, name, onDone }: { userId: str
               return (
                 <div key={k} className={t.perm} data-on={eff ? '1' : '0'}>
                   <span>{label}<small className={t.muted}>{inRole ? 'في الدور' : 'ليست في الدور'}</small></span>
-                  <select aria-label={label} value={st[k]} onChange={(e) => setSt((o) => ({ ...o, [k]: e.target.value as State }))}>
+                  <select aria-label={label} value={st[k]} disabled={!canGrant(k as Perm)} onChange={(e) => setSt((o) => ({ ...o, [k]: e.target.value as State }))}>
                     <option value="role">حسب الدور ({inRole ? 'مسموح' : 'ممنوع'})</option>
                     {!inRole && <option value="grant">منح</option>}
                     {inRole && <option value="deny">حجب</option>}
@@ -68,7 +69,7 @@ export function PermsDialog({ userId, role, perms, name, onDone }: { userId: str
         {err && <p className={t.err} role="alert">{err}</p>}
         <div className={t.dActions}>
           <button type="button" className="btn" onClick={save}>حفظ الصلاحيات</button>
-          <button type="button" className="btn ghost" onClick={() => setSt(Object.fromEntries(Object.keys(st).map((k) => [k, 'role'])))}>كما في الدور</button>
+          <button type="button" className="btn ghost" onClick={() => setSt(Object.fromEntries(Object.keys(st).map((k) => [k, canGrant(k as Perm) ? 'role' : st[k]])))}>كما في الدور</button>
           <button type="button" className="btn ghost" onClick={() => dlg.current?.close()}>إلغاء</button>
         </div>
       </dialog>

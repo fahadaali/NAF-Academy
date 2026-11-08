@@ -27,51 +27,78 @@ export async function memberByEmail(email: string): Promise<MemberRow | undefine
 
 export type LoginResult = { ok: true; next: 'panel' | '2fa' } | { ok: false; error: string }
 
-const WRONG = 'البريد أو كلمة المرور غير صحيحة'
+/* رسالة واحدة لكل إخفاق قبل التحقق من كلمة المرور (بريد غير موجود، كلمة خاطئة، حساب مقفل) — فلا يُستدلّ على وجود الحساب ولا على قفله */
+export const WRONG = 'البريد أو كلمة المرور غير صحيحة — وبعد محاولات خاطئة متكررة يُقفل الدخول مؤقتاً'
 
-export async function loginWithPassword(email: string, password: string): Promise<LoginResult> {
+/** محاولة خاطئة (كلمة مرور أو رمز): الزيادة في SQL ذرّياً، والقفل من العدد الراجع — فالطلبات المتوازية تُحتسب كلها */
+export async function recordFailure(userId: string, nowMs = Date.now()): Promise<number> {
+  const [r] = await db.update(s.members).set({ failedLogins: sql`${s.members.failedLogins} + 1` })
+    .where(eq(s.members.userId, userId)).returning({ n: s.members.failedLogins })
+  const n = r?.n ?? 0
+  const until = lockAfter(n, nowMs)
+  /* القفل لا يقصر بطلب متأخر: الأبعد يبقى */
+  if (until !== null) await db.update(s.members).set({ lockedUntil: sql`max(coalesce(${s.members.lockedUntil}, 0), ${until})` }).where(eq(s.members.userId, userId))
+  return n
+}
+
+export type PasswordCheck = { ok: false; error: string } | { ok: true; member: MemberRow; twoStep: boolean }
+
+/** الخطوة الأولى بلا كوكيز (تُختبر وحدها): كلمة المرور، والقفل، والإيقاف.
+    عدّاد الأخطاء لا يُصفَّر هنا لمن فعّل التحقق الثنائي — يُصفَّر بعد اجتياز الخطوة الثانية وحدها،
+    وإلا لكفى التناوب (كلمة مرور صحيحة + رموز خاطئة) لتخمين الرمز بلا قفل. */
+export async function checkPassword(email: string, password: string): Promise<PasswordCheck> {
   const m = await memberByEmail(email)
-  if (!m || !m.passwordHash) {
+  const locked = !!m?.lockedUntil && m.lockedUntil > now()
+  if (!m || !m.passwordHash || locked) {
+    /* الزمن نفسه، والرسالة نفسها، ولا تحقق من كلمة المرور أثناء القفل (فلا يصير القفل كاشفاً لصحتها) */
     await verifyPassword(password, await dummyHash())
     return { ok: false, error: WRONG }
   }
-  if (m.lockedUntil && m.lockedUntil > now()) {
-    const mins = Math.ceil((m.lockedUntil - now()) / 60)
-    return { ok: false, error: `محاولات خاطئة كثيرة — الحساب مقفل ${mins} دقيقة` }
-  }
   if (!(await verifyPassword(password, m.passwordHash))) {
-    const failures = m.failedLogins + 1
-    await db.update(s.members).set({ failedLogins: failures, lockedUntil: lockAfter(failures, Date.now()) }).where(eq(s.members.userId, m.userId))
+    await recordFailure(m.userId)
     return { ok: false, error: WRONG }
   }
   if (!m.isActive) return { ok: false, error: 'هذا الحساب موقوف — تواصل مع مالك المنصة' }
-  await db.update(s.members).set({ failedLogins: 0, lockedUntil: null }).where(eq(s.members.userId, m.userId))
-  if (m.totpEnabledAt && m.totpSecret) {
-    await createStep(m.userId, m.sessionVersion)
+  const twoStep = !!(m.totpEnabledAt && m.totpSecret)
+  if (!twoStep) await db.update(s.members).set({ failedLogins: 0, lockedUntil: null }).where(eq(s.members.userId, m.userId))
+  return { ok: true, member: m, twoStep }
+}
+
+export async function loginWithPassword(email: string, password: string): Promise<LoginResult> {
+  const r = await checkPassword(email, password)
+  if (!r.ok) return r
+  if (r.twoStep) {
+    await createStep(r.member.userId, r.member.sessionVersion)
     return { ok: true, next: '2fa' }
   }
-  await createSession(m.userId, m.sessionVersion)
+  await createSession(r.member.userId, r.member.sessionVersion)
   return { ok: true, next: 'panel' }
+}
+
+/** الخطوة الثانية بلا كوكيز: رمز تطبيق المصادقة لعضو اجتاز كلمة المرور بنسخة حسابه */
+export async function checkSecondStep(userId: string, version: number, code: string, nowMs = Date.now()): Promise<{ ok: boolean; error?: string }> {
+  const [m] = await db.select().from(s.members).where(eq(s.members.userId, userId))
+  if (!m || !m.isActive || m.sessionVersion !== version || !m.totpSecret || !m.totpEnabledAt) return { ok: false, error: 'ادخل بكلمة المرور من جديد' }
+  if (m.lockedUntil && m.lockedUntil > Math.floor(nowMs / 1000)) return { ok: false, error: 'محاولات خاطئة كثيرة — انتظر قليلاً' }
+  const step = await verifyTotp(m.totpSecret, code, nowMs, m.totpLastStep)
+  if (step === null) {
+    await recordFailure(m.userId, nowMs)
+    return { ok: false, error: 'رمز غير صحيح' }
+  }
+  /* الخطوة لا تُقبل مرتين: الشرط في التحديث نفسه — وتصفير العدّاد هنا وحده بعد الخطوتين */
+  const [used] = await db.update(s.members).set({ totpLastStep: step, failedLogins: 0, lockedUntil: null })
+    .where(and(eq(s.members.userId, m.userId), sql`coalesce(${s.members.totpLastStep}, -1) < ${step}`)).returning()
+  if (!used) return { ok: false, error: 'استُخدم هذا الرمز — انتظر الرمز التالي' }
+  return { ok: true }
 }
 
 /** الخطوة الثانية: رمز تطبيق المصادقة */
 export async function finishSecondStep(code: string): Promise<{ ok: boolean; error?: string }> {
   const p = await pendingStep()
   if (!p) return { ok: false, error: 'انتهت مهلة الخطوة — ادخل بكلمة المرور من جديد' }
-  const [m] = await db.select().from(s.members).where(eq(s.members.userId, p.userId))
-  if (!m || !m.isActive || m.sessionVersion !== p.version || !m.totpSecret || !m.totpEnabledAt) return { ok: false, error: 'ادخل بكلمة المرور من جديد' }
-  if (m.lockedUntil && m.lockedUntil > now()) return { ok: false, error: 'محاولات خاطئة كثيرة — انتظر قليلاً' }
-  const step = await verifyTotp(m.totpSecret, code, Date.now(), m.totpLastStep)
-  if (step === null) {
-    const failures = m.failedLogins + 1
-    await db.update(s.members).set({ failedLogins: failures, lockedUntil: lockAfter(failures, Date.now()) }).where(eq(s.members.userId, m.userId))
-    return { ok: false, error: 'رمز غير صحيح' }
-  }
-  /* الخطوة لا تُقبل مرتين: الشرط في التحديث نفسه */
-  const [used] = await db.update(s.members).set({ totpLastStep: step, failedLogins: 0, lockedUntil: null })
-    .where(and(eq(s.members.userId, m.userId), sql`coalesce(${s.members.totpLastStep}, -1) < ${step}`)).returning()
-  if (!used) return { ok: false, error: 'استُخدم هذا الرمز — انتظر الرمز التالي' }
-  await createSession(m.userId, m.sessionVersion)
+  const r = await checkSecondStep(p.userId, p.version, code)
+  if (!r.ok) return r
+  await createSession(p.userId, p.version)
   return { ok: true }
 }
 

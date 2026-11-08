@@ -19,7 +19,7 @@ const SetupPassword = ({ value, onChange }: { value: string; onChange: (v: strin
   <label className={st.field}>
     <span>كلمة مرور الإعداد</span>
     <input type="password" name="setup-password" autoComplete="off" required value={value} onChange={(e) => onChange(e.target.value)} />
-    <small>قيمة <code>ADMIN_PASSWORD</code> التي أضفتها في Cloudflare ← Variables and Secrets</small>
+    <small>قيمة <code>ADMIN_PASSWORD</code> التي أضفتها في Cloudflare ← Variables and Secrets (16 حرفاً على الأقل)</small>
   </label>
 )
 

@@ -1,8 +1,10 @@
 /* أحداث البريد من Resend — التسليم والفتح والنقر والارتداد والشكوى، تُربط بسجل الرسائل بمعرّف المزوّد.
-   الارتداد الدائم والشكوى يكتمان العنوان. مقفل بلا RESEND_WEBHOOK_SECRET. */
+   الارتداد الدائم والشكوى يكتمان العنوان. مقفل بلا RESEND_WEBHOOK_SECRET.
+   الحدث المكرر (svix-id نفسه — إعادة إرسال أو إعادة تشغيل) يُقرّ بلا معالجة. */
 import { eq, sql } from 'drizzle-orm'
 import { db, schema as s } from '@/server/db'
 import { envVar } from '@/server/runtime'
+import { firstSeen, forgetSeen, REPLAY_WINDOW } from '@/server/ratelimit'
 import { mailEvent, verifySvix } from '@/lib/svix'
 
 export const dynamic = 'force-dynamic'
@@ -11,8 +13,21 @@ export async function POST(req: Request) {
   const secret = envVar('RESEND_WEBHOOK_SECRET') ?? ''
   if (!secret) return new Response('Not found', { status: 404 })
   const body = await req.text()
-  const ok = verifySvix(secret, { id: req.headers.get('svix-id'), ts: req.headers.get('svix-timestamp'), sig: req.headers.get('svix-signature') }, body)
-  if (!ok) return new Response('Bad signature', { status: 401 })
+  const id = req.headers.get('svix-id')
+  const ok = verifySvix(secret, { id, ts: req.headers.get('svix-timestamp'), sig: req.headers.get('svix-signature') }, body)
+  if (!ok || !id) return new Response('Bad signature', { status: 401 })
+  const key = `svix:${id.slice(0, 120)}`
+  if (!(await firstSeen(key, REPLAY_WINDOW))) return Response.json({ ok: true, duplicate: true })
+  try {
+    return await handle(body)
+  } catch (e) {
+    /* لم يُعالَج: يُقبل إن أعاد المزوّد إرساله */
+    await forgetSeen(key)
+    throw e
+  }
+}
+
+async function handle(body: string): Promise<Response> {
   let j: { type?: string; created_at?: string; data?: { email_id?: string; to?: string[]; bounce?: { type?: string } } }
   try { j = JSON.parse(body) } catch { return new Response('Bad request', { status: 400 }) }
   const ev = mailEvent(j.type ?? '', j.data?.bounce?.type)

@@ -33,7 +33,7 @@ export default defineConfig({
     reuseExistingServer: !process.env.CI,
     env: {
       DATABASE_URL: 'file:.data/e2e.db',
-      ADMIN_PASSWORD: 'e2e-pass-123',
+      ADMIN_PASSWORD: 'e2e-setup-pass-1234567',
       ADMIN_SECRET: 'e2e-admin-secret-e2e-admin-secret-xx',
       LEARNER_SECRET: 'e2e-learner-secret-e2e-learner-secret',
       CRON_SECRET: 'e2e-cron-secret-e2e-cron-secret',

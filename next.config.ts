@@ -8,6 +8,9 @@ const security = [
   { key: 'Permissions-Policy', value: 'camera=(self), microphone=(), geolocation=(), payment=(self), interest-cohort=()' },
   { key: 'Strict-Transport-Security', value: 'max-age=31536000; includeSubDomains' },
   { key: 'Cross-Origin-Opener-Policy', value: 'same-origin-allow-popups' },
+  /* CSP محافظة: لا إضافات (object/embed)، ولا <base> يحرف الروابط، ولا تضمين من نطاق آخر (مرآة X-Frame-Options).
+     لا تقييد للسكربت والأنماط والإطارات والنماذج: ترطيب Next ومشغّل Stream وتحويلات الدفع تحتاجها كما هي. */
+  { key: 'Content-Security-Policy', value: "object-src 'none'; base-uri 'self'; frame-ancestors 'self'" },
 ]
 
 const nextConfig: NextConfig = {

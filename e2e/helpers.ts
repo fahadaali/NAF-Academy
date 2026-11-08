@@ -1,6 +1,6 @@
 import { expect, type Browser, type Page } from '@playwright/test'
 
-export const ADMIN_PASSWORD = 'e2e-pass-123'
+export const ADMIN_PASSWORD = 'e2e-setup-pass-1234567'
 /** المالك التجريبي الذي ينشئه db-setup محلياً (ADMIN_EMAIL الافتراضي) */
 export const ADMIN_EMAIL = 'admin@academy.local'
 
