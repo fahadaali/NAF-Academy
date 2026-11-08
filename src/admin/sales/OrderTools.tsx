@@ -1,7 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { assignSeat, cancelPending, refundAction, resendOrderEmail } from './actions'
+import { assignSeat, cancelPending, refundAction, resendOrderEmail, resyncWafeq } from './actions'
 import { Field, Input, Switch } from '@/admin/ui/kit'
 import s from './sales.module.css'
 
@@ -62,5 +62,19 @@ export function SeatRow({ grantId }: { grantId: string }) {
       }}>خصّص</button>
       {err && <span className={s.err} style={{ margin: 0 }}>{err}</span>}
     </div>
+  )
+}
+
+/** إعادة مزامنة فاتورة أو إشعار دائن مع وافق */
+export function ResyncWafeq({ invoiceId }: { invoiceId: string }) {
+  const router = useRouter()
+  const [state, setState] = useState('')
+  return (
+    <button type="button" className="btn ghost" disabled={state === '…'} onClick={async () => {
+      setState('…')
+      const r = await resyncWafeq(invoiceId)
+      setState(r.ok ? 'تمت ✓' : r.error ?? 'تعذّر')
+      router.refresh()
+    }}>{state && state !== '…' ? state : 'إعادة المزامنة'}</button>
   )
 }

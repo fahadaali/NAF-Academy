@@ -30,6 +30,7 @@ const groups: { title: string; items: { href: string; label: string; icon: strin
     { href: '/admin/corporate', label: 'طلبات المؤسسات', icon: '▦', perm: 'corporate.manage' },
     { href: '/admin/organizations', label: 'حسابات المؤسسات', icon: '◫', perm: 'corporate.manage' },
     { href: '/admin/settings/payments', label: 'إعدادات الدفع', icon: '⚙', perm: 'payments.manage' },
+    { href: '/admin/settings/wafeq', label: 'وافق — الفوترة', icon: '⇄', perm: 'payments.manage' },
   ] },
   { title: 'الموقع', items: [
     { href: '/admin/brand', label: 'الهوية والشعارات', icon: '◐', perm: 'site.write' },

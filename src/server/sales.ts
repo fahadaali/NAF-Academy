@@ -335,7 +335,10 @@ async function fulfill(order: OrderRow) {
   }
   if (order.total > 0) {
     const [inv] = await db.select({ id: s.invoices.id }).from(s.invoices).where(and(eq(s.invoices.orderId, order.id), eq(s.invoices.kind, 'invoice')))
-    if (!inv) await issueInvoice(order, items, 'invoice')
+    const invId = inv?.id ?? (await issueInvoice(order, items, 'invoice')).id
+    /* وافق: الفاتورة الرسمية تُنشأ وتُبلَّغ وتُسجَّل دفعتها قبل بريد التأكيد — فشله لا يوقف الإتمام (يُعاد دورياً) */
+    const { syncNow } = await import('./wafeq/sync')
+    await syncNow(invId)
   }
   await db.update(s.orders).set({ fulfilledAt: nowIso(), fulfillingAt: null }).where(eq(s.orders.id, order.id))
   /* رسالة الترحيب لكل تسجيل جديد، وتأكيد الطلب بالفاتورة للمشتري (ولو لم يحضر) — فشلها لا يوقف الإتمام */
@@ -357,13 +360,14 @@ async function issueInvoice(order: OrderRow, items: { title: string; tierName: s
   if (kind === 'invoice' && order.groupDiscount) lines.push({ title: 'خصم المقاعد الجماعية', quantity: 1, unit: -order.groupDiscount, total: -order.groupDiscount })
   if (kind === 'invoice' && order.couponDiscount) lines.push({ title: `خصم الكوبون ${order.couponCode}`, quantity: 1, unit: -order.couponDiscount, total: -order.couponDiscount })
   const number = await nextNumber(kind === 'invoice' ? 'invoice' : 'credit', kind === 'invoice' ? settings.invoicePrefix : 'CN')
+  const id = randomUUID()
   await db.insert(s.invoices).values({
-    id: randomUUID(), number, kind, orderId: order.id, refOf: refOf ?? null, seller: settings.seller,
+    id, number, kind, orderId: order.id, refOf: refOf ?? null, seller: settings.seller,
     buyer: { name: order.buyer.name, email: order.buyer.email, org: order.buyer.org, vatNumber: order.buyer.vatNumber },
     lines, total, vat, issuedAt,
     qr: zatcaTlv({ seller: settings.seller.name, vatNumber: settings.seller.vatNumber || '-', timestamp: issuedAt.replace(/\.\d+Z$/, 'Z'), total: kind === 'invoice' ? total : -total, vat: kind === 'invoice' ? vat : -vat }),
   })
-  return number
+  return { id, number }
 }
 
 /* ───────── الدفع عبر البوابة ───────── */
@@ -468,12 +472,15 @@ export async function refundOrder(orderId: string, amount: number, reason: strin
   const refundId = randomUUID()
   await db.insert(s.refunds).values({ id: refundId, orderId, amount, reason, gatewayRefundId: gid, by })
   const [inv] = await db.select().from(s.invoices).where(and(eq(s.invoices.orderId, orderId), eq(s.invoices.kind, 'invoice')))
-  await issueInvoice(held, [], 'credit_note', amount, inv?.number)
+  const cn = await issueInvoice(held, [], 'credit_note', amount, inv?.number)
   if (cancelEnrollments) {
     await db.update(s.enrollments).set({ status: 'canceled', updatedAt: nowIso() }).where(eq(s.enrollments.orderId, orderId))
     await db.delete(s.seatGrants).where(and(eq(s.seatGrants.orderId, orderId), isNull(s.seatGrants.enrollmentId)))
   }
   await audit(by, 'refund', 'order', orderId, `${held.number} · ${(amount / 100).toFixed(2)} ر.س · ${reason}`)
+  /* وافق: الإشعار الدائن وصرف المبلغ — قبل إشعار المشتري ليُرفق PDF وافق */
+  const { syncNow } = await import('./wafeq/sync')
+  await syncNow(cn.id)
   /* إشعار المشتري بالمبلغ والإشعار الدائن — فشله لا يُبطل الاسترداد */
   const { onRefund } = await import('./notify/engine')
   await onRefund(orderId, refundId)

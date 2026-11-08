@@ -2,10 +2,14 @@ import { notFound } from 'next/navigation'
 import { orderDetail } from '@/admin/sales/data'
 import { Badge, PageHead } from '@/admin/ui/kit'
 import { METHOD_LABEL, ORDER_LABEL, ORDER_TONE, sar, when } from '@/admin/sales/labels'
-import { CancelPending, RefundPanel, ResendOrder, SeatRow } from '@/admin/sales/OrderTools'
+import { CancelPending, RefundPanel, ResendOrder, ResyncWafeq, SeatRow } from '@/admin/sales/OrderTools'
 import s from '@/admin/sales/sales.module.css'
 import p from '@/admin/ui/panel.module.css'
 import { staffCan } from '@/server/auth'
+import { wafeqSettings, wafeqState } from '@/server/wafeq/client'
+
+const WAFEQ_LABEL = { off: 'لم تُرسل', pending: 'بانتظار المزامنة', running: 'تُزامَن الآن', done: 'مُزامنة', failed: 'تعذّرت' } as const
+const WAFEQ_TONE = { off: 'draft', pending: 'soon', running: 'soon', done: 'open', failed: 'full' } as const
 
 export default async function OrderPage({ params }: { params: Promise<{ id: string }> }) {
   const d = await orderDetail((await params).id)
@@ -17,6 +21,7 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
   const buyerUrl = `/orders/${o.number}?t=${o.token}`
   /* أدوات الطلب بصلاحيتها: الاسترداد للمالية، والإلغاء وتخصيص المقاعد لمن يدير الطلبات */
   const [canRefund, canOrders] = await Promise.all([staffCan('sales.refund'), staffCan('sales.orders')])
+  const wafeqOn = wafeqState(await wafeqSettings()).active
   return (
     <>
       <PageHead title={`الطلب ${o.number}`} sub={`${when(o.createdAt)} · ${METHOD_LABEL[o.method]}${o.createdBy !== 'web' ? ` · أنشأه ${o.createdBy}` : ''}`}
@@ -41,6 +46,22 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
           {o.refunded > 0 && <div className={s.row}><span>المسترد</span><span className="num">{sar(o.refunded)}</span></div>}
           {invoices.map((inv) => <a key={inv.id} className={p.muted} href={`/orders/${o.number}/invoice/${inv.number}?t=${o.token}`} target="_blank" rel="noreferrer">{inv.kind === 'invoice' ? 'الفاتورة' : 'إشعار دائن'} {inv.number} ↗</a>)}
         </section>
+        {invoices.length > 0 && (wafeqOn || invoices.some((i) => i.wafeqStatus !== 'off')) && (
+          <section className={s.panel}>
+            <h2>وافق</h2>
+            {invoices.map((inv) => (
+              <div key={inv.id} className={s.row}>
+                <span>
+                  {inv.kind === 'invoice' ? 'الفاتورة' : 'إشعار دائن'} <span className="num">{inv.number}</span>{' '}
+                  <Badge tone={WAFEQ_TONE[inv.wafeqStatus]}>{WAFEQ_LABEL[inv.wafeqStatus]}</Badge>
+                  {inv.wafeqTax && <span className={p.muted}> · الهيئة: <span dir="ltr">{inv.wafeqTax}</span></span>}
+                  {inv.wafeqError && inv.wafeqStatus !== 'done' && <><br /><span className={p.muted}>{inv.wafeqError}</span></>}
+                </span>
+                {canOrders && wafeqOn && ['off', 'failed', 'pending'].includes(inv.wafeqStatus) && <ResyncWafeq invoiceId={inv.id} />}
+              </div>
+            ))}
+          </section>
+        )}
         {(o.status === 'paid' || o.status === 'partially_refunded') && left > 0 && canRefund && <RefundPanel orderId={o.id} left={left} />}
         {grants.length > 0 && (
           <section className={s.panel}>

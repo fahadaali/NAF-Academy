@@ -1,6 +1,6 @@
-/* تنزيل الفاتورة PDF — برمز وصول الطلب نفسه، ويُخزَّن الملف بعد أول توليد (الفاتورة لا تتغير) */
+/* تنزيل الفاتورة PDF — برمز وصول الطلب نفسه. فاتورة وافق متى رُبط واكتملت مزامنتها، وإلا المحلية (تُخزَّن بعد أول توليد) */
 import { orderForBuyer } from '@/server/sales'
-import { invoiceFile } from '@/server/invoices'
+import { officialFile } from '@/server/invoices'
 
 export const dynamic = 'force-dynamic'
 
@@ -10,7 +10,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ number: string;
   const o = await orderForBuyer(number, t)
   const invoice = o?.invoices.find((i) => i.number === inv)
   if (!o || !invoice) return new Response('Not found', { status: 404 })
-  const bytes = await invoiceFile(invoice, { orderNumber: number, vatRate: o.order.vatRate })
+  const { bytes } = await officialFile(invoice, { orderNumber: number, vatRate: o.order.vatRate })
   return new Response(bytes as BodyInit, {
     headers: { 'content-type': 'application/pdf', 'cache-control': 'private, no-store', 'content-disposition': `attachment; filename="${invoice.number}.pdf"` },
   })
