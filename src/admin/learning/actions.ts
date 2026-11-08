@@ -9,7 +9,11 @@ import { db, schema as s } from '@/server/db'
 import { courseScope, inScope, requirePermission } from '@/server/auth'
 import { audit } from '@/server/audit'
 import { putObject } from '@/server/storage'
-import { directUpload, streamCaptionGenerate, streamCaptions, streamCaptionUpload, streamState } from '@/server/stream'
+import { directUpload, registerWebhook, streamCaptionGenerate, streamCaptions, streamCaptionUpload, streamMock, streamState, tusCreate } from '@/server/stream'
+import { refreshVideo, saveWebhook, trackUpload } from '@/server/stream-videos'
+import { STREAM_UID } from '@/lib/stream-status'
+import { BASIC_MAX } from '@/lib/tus'
+import { siteUrl } from '@/server/site'
 import { toVtt } from '@/lib/captions'
 import { setZoomEnabled, zoomState } from '@/server/zoom'
 import { readTicket } from '@/server/tickets'
@@ -63,18 +67,63 @@ export async function uploadSlides(form: FormData): Promise<{ ok: true; slides: 
   return { ok: true, slides: { assetId: id, name, size: file.size, pages } }
 }
 
-/** رابط رفع مباشر إلى Stream — مقفل حتى تُضاف المفاتيح */
-export async function streamUpload(): Promise<{ ok: true; uploadURL: string; uid: string } | { ok: false; error: string }> {
-  await requirePermission('content.write')
+const uploadInput = z.object({
+  /* الدرس الذي يُرفع له (قد يكون جديداً لم يُحفظ — فيُربط عند الحفظ) */
+  lessonId: z.string().max(60).nullish(),
+  name: z.string().trim().max(200).default(''),
+  size: z.number().int().positive().max(30 * 1024 ** 3),
+})
+
+/** رابط رفع إلى Stream — طلب واحد للملف الصغير، وtus للكبير. يعود للمتصفح برابط الرفع ومعرّف الفيديو وحدهما (لا مفتاح) */
+export async function streamUpload(raw: unknown): Promise<{ ok: true; uploadURL: string; uid: string; method: 'basic' | 'tus' } | { ok: false; error: string }> {
+  const st = await requirePermission('content.write')
   const state = streamState()
   if (!state.configured) return { ok: false, error: state.problem }
-  const r = await directUpload()
-  return r ? { ok: true, ...r } : { ok: false, error: 'تعذّر إنشاء رابط الرفع من Stream' }
+  const p = uploadInput.safeParse(raw)
+  if (!p.success) return { ok: false, error: 'بيانات الملف غير صالحة' }
+  let lessonId: string | null = null
+  if (p.data.lessonId) {
+    const [l] = await db.select({ id: s.lessons.id, courseId: s.modules.courseId }).from(s.lessons).innerJoin(s.modules, eq(s.modules.id, s.lessons.moduleId)).where(eq(s.lessons.id, p.data.lessonId))
+    if (l && !inScope(await courseScope(st), l.courseId)) return { ok: false, error: 'الدرس خارج نطاقك' }
+    lessonId = l?.id ?? null
+  }
+  const meta = { lessonId, name: p.data.name || 'فيديو' }
+  /* في محاكاة الاختبارات وحدها يمكن خفض حدّ tus لتجربته بملف صغير */
+  const tusAbove = streamMock() && Number(process.env.STREAM_MOCK_TUS_ABOVE) > 0 ? Number(process.env.STREAM_MOCK_TUS_ABOVE) : BASIC_MAX
+  const r = p.data.size > tusAbove ? await tusCreate({ ...meta, size: p.data.size }) : await directUpload(meta)
+  if (!r) return { ok: false, error: 'تعذّر إنشاء رابط الرفع من Stream' }
+  await trackUpload(r.uid, lessonId, meta.name)
+  await audit(st.name, 'upload', 'stream', r.uid, meta.name)
+  return { ok: true, uploadURL: r.uploadURL, uid: r.uid, method: r.method }
+}
+
+/** حالة فيديو في Stream — يسأل Stream ويحدّث السجل والدرس (لمؤشر المعالجة في اللوحة) */
+export async function streamVideoStatus(uid: unknown): Promise<{ ok: true; status: string; pct: number; durationSeconds: number | null; error: string } | { ok: false; error: string }> {
+  await requirePermission('content.read')
+  if (typeof uid !== 'string' || !STREAM_UID.test(uid)) return { ok: false, error: 'معرّف غير صالح' }
+  const info = await refreshVideo(uid)
+  if (!info) return { ok: false, error: 'تعذّر السؤال عن الفيديو' }
+  return { ok: true, status: info.status, pct: info.pct, durationSeconds: info.durationSeconds, error: info.error }
 }
 
 export async function streamStatus() {
   await requirePermission('content.read')
   return streamState()
+}
+
+/** تسجيل Webhook اكتمال المعالجة لدى Stream — السرّ يولّده Cloudflare ويُحفظ في القاعدة ولا يُعرض */
+export async function enableStreamWebhook(): Promise<{ ok: boolean; error?: string }> {
+  const st = await requirePermission('channels.manage')
+  if (!streamState().configured) return { ok: false, error: streamState().problem }
+  const base = siteUrl()
+  if (!base || !/^https:\/\//.test(base) && !streamMock()) return { ok: false, error: 'SITE_URL غير صالح — Stream يحتاج رابطاً عاماً بـ https' }
+  const url = `${base}/api/stream/webhook`
+  const secret = await registerWebhook(url)
+  if (!secret) return { ok: false, error: 'رفض Stream تسجيل الرابط' }
+  await saveWebhook(secret, url)
+  await audit(st.name, 'update', 'settings', 'stream_webhook', `إشعار Stream: ${url}`)
+  revalidatePath('/admin/learning/sessions')
+  return { ok: true }
 }
 
 const reviewInput = z.object({ id: z.string().uuid(), status: z.enum(['accepted', 'revise']), feedback: z.string().trim().max(5000) })

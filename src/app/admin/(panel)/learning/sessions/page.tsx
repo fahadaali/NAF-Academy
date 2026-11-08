@@ -2,17 +2,22 @@ import { missingRecordings, sessionsList } from '@/admin/learning/data'
 import { ZoomCard } from '@/admin/learning/ZoomCard'
 import { zoomEnabled, zoomState } from '@/server/zoom'
 import { siteUrl } from '@/server/site'
+import { StreamCard } from '@/admin/learning/StreamCard'
+import { streamState } from '@/server/stream'
+import { anyUnsettled, recentVideos, webhookView } from '@/server/stream-videos'
 import { Badge, PageHead } from '@/admin/ui/kit'
 import { when } from '@/admin/sales/labels'
 import p from '@/admin/ui/panel.module.css'
 
 export default async function Sessions() {
-  const [rows, missing, enabled] = await Promise.all([sessionsList(), missingRecordings(), zoomEnabled()])
+  const [rows, missing, enabled, videos, hook, busy] = await Promise.all([sessionsList(), missingRecordings(), zoomEnabled(), recentVideos(), webhookView(), anyUnsettled()])
+  const ss = streamState()
   const zs = zoomState()
   const now = new Date().toISOString()
   return (
     <>
       <PageHead title="الجلسات والحضور" sub="الجلسات المباشرة والحضورية من كل الدورات" actions={<a className="btn" href="/admin/checkin">مسح تذاكر الحضور</a>} />
+      <StreamCard configured={ss.configured} problem={ss.configured ? undefined : ss.problem} hook={{ on: hook.on, at: hook.at, fromEnv: hook.fromEnv }} videos={videos} busy={busy} />
       <ZoomCard configured={zs.configured} enabled={enabled} problem={zs.configured ? undefined : zs.problem} hook={`${siteUrl() ?? ''}/api/zoom/webhook`} />
       {missing.length > 0 && (
         <section className={p.block}>

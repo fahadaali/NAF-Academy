@@ -7,6 +7,7 @@ import { envVar } from './runtime'
 import { getSetting, setSetting } from './settings'
 import { audit } from './audit'
 import { streamCopy, streamState } from './stream'
+import { trackUpload } from './stream-videos'
 import { pickRecording, type ZoomFile } from '@/lib/zoom'
 import { inList } from './db/limits'
 
@@ -54,6 +55,7 @@ export async function attachZoomRecording(p: { meetingId: string; startTime: str
     await audit('zoom', 'needs_attention', 'lesson', target.lessonId, `تعذّر نسخ تسجيل «${p.topic}» إلى Stream — أضفه يدوياً`)
     return 'تعذّر النسخ'
   }
+  await trackUpload(uid, null, p.topic)
   const recording = { provider: 'stream' as const, uid }
   if (target.kind === 'cohort') await db.update(s.cohortSessions).set({ recording, updatedAt: new Date().toISOString() }).where(and(eq(s.cohortSessions.cohortId, target.cohortId!), eq(s.cohortSessions.lessonId, target.lessonId)))
   /* «للجلسة تسجيل من قبل» فُحص أعلاه — والتسجيل الفارغ يُخزَّن { provider: 'none' } لا NULL */

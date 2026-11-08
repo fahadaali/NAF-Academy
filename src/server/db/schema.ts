@@ -3,6 +3,7 @@
 import { sql } from 'drizzle-orm'
 import { index, integer, primaryKey, real, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core'
 
+export const STREAM_STATUS = ['pending', 'processing', 'ready', 'error'] as const
 const id = () => text('id').primaryKey()
 const stamps = {
   createdAt: text('created_at').notNull().default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ','now'))`),
@@ -242,7 +243,29 @@ export const lessons = sqliteTable('lessons', {
   captions: text('captions', { mode: 'json' }).$type<Caption[]>().notNull().default(sql`'[]'`),
   /** رقم اجتماع Zoom المستخرج من رابط الانضمام — لإلحاق التسجيل تلقائياً */
   zoomMeetingId: text('zoom_meeting_id'),
+  /* حالة فيديو Stream للدرس — نسخة من stream_videos تُضبط عند الرفع والحفظ وتحديث الحالة (لعرض اللوحة دون استعلام إضافي) */
+  streamUid: text('stream_uid'),
+  streamStatus: text('stream_status', { enum: STREAM_STATUS }),
+  durationSeconds: integer('duration_seconds'),
+  thumbnailUrl: text('thumbnail_url'),
 })
+
+/** كل فيديو رُفع إلى Stream من المنصة — أينما استُعمل (درس، تشويقي، تسجيل). الحالة تُحدَّث من Webhook أو بالسؤال الدوري. */
+export const streamVideos = sqliteTable('stream_videos', {
+  uid: text('uid').primaryKey(),
+  status: text('status', { enum: STREAM_STATUS }).notNull().default('pending'),
+  /** نسبة المعالجة 0–100 أثناء processing */
+  pct: integer('pct').notNull().default(0),
+  durationSeconds: integer('duration_seconds'),
+  /** صورة Stream المصغّرة (للّوحة) — المتدرب يأخذها برمز موقّع */
+  thumbnailUrl: text('thumbnail_url'),
+  error: text('error').notNull().default(''),
+  /** الدرس الذي رُفع له (قد يكون جديداً لم يُحفظ بعد) */
+  lessonId: text('lesson_id'),
+  name: text('name').notNull().default(''),
+  createdAt: text('created_at').notNull().default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ','now'))`),
+  updatedAt: text('updated_at').notNull().default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ','now'))`),
+}, (t) => [index('stream_videos_status').on(t.status)])
 
 /** إعدادات ومحتوى الصفحات (مفتاح ← JSON) */
 export const settings = sqliteTable('settings', {
