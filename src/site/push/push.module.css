@@ -1,0 +1,12 @@
+/* شريط طلب إذن التنبيهات — يلتصق أسفل الشاشة فوق المحتوى */
+.bar {
+  position: fixed; inset-inline: var(--gutter); inset-block-end: var(--gutter); z-index: 40;
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 18px;
+  max-inline-size: 640px; margin-inline: auto; padding: 16px 20px;
+  background: var(--surface); color: var(--text); border: 1px solid var(--line-strong);
+  border-radius: var(--radius-l); box-shadow: var(--shadow-2);
+}
+.text { flex: 1 1 260px; min-inline-size: 0; font-size: var(--fs-small); line-height: var(--lh-body); }
+.actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.actions :global(.btn) { min-block-size: var(--touch-min); }
+.err { flex-basis: 100%; color: var(--danger); font-size: var(--fs-small); }

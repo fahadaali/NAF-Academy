@@ -1,32 +1,20 @@
 'use client'
 /* «فعّل التنبيهات» — إذن المتصفح ثم اشتراك Web Push بمفتاح VAPID العام */
 import { useEffect, useState } from 'react'
-import { removePushSubscription, savePushSubscription } from '@/site/push-actions'
+import { removePushSubscription } from '@/site/push-actions'
+import { pushState, subscribePush, type PushState } from '@/site/push/client'
 import st from './learn.module.css'
-
-const key = (b64: string) => {
-  const s = atob(b64.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - (b64.length % 4)) % 4))
-  return Uint8Array.from(s, (c) => c.charCodeAt(0))
-}
 
 /** `before`: مواعيد تذكير الجلسة على هذه القناة كما ضُبطت في اللوحة، مثل «بساعة وبـ10 دقائق» */
 export function PushToggle({ publicKey, before }: { publicKey: string; before: string }) {
-  const [state, setState] = useState<'loading' | 'unsupported' | 'denied' | 'off' | 'on'>('loading')
+  const [state, setState] = useState<'loading' | PushState>('loading')
   const [msg, setMsg] = useState('')
-  useEffect(() => {
-    if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) return setState('unsupported')
-    if (Notification.permission === 'denied') return setState('denied')
-    navigator.serviceWorker.getRegistration('/').then(async (reg) => setState((await reg?.pushManager.getSubscription()) ? 'on' : 'off')).catch(() => setState('off'))
-  }, [])
+  useEffect(() => { pushState().then(setState) }, [])
   const enable = async () => {
     setMsg('')
-    const perm = await Notification.requestPermission()
-    if (perm !== 'granted') return setState(perm === 'denied' ? 'denied' : 'off')
-    const reg = (await navigator.serviceWorker.getRegistration('/')) ?? (await navigator.serviceWorker.register('/sw.js', { scope: '/' }))
-    await navigator.serviceWorker.ready
-    const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key(publicKey) as BufferSource })
-    const r = await savePushSubscription(sub.toJSON())
-    if (r.ok) setState('on'); else { await sub.unsubscribe(); setMsg(r.error ?? 'تعذّر') }
+    const r = await subscribePush(publicKey)
+    setState(r.state)
+    if (r.error) setMsg(r.error)
   }
   const disable = async () => {
     const reg = await navigator.serviceWorker.getRegistration('/')
