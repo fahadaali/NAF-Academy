@@ -13,10 +13,14 @@
   "r2_buckets": [{ "binding": "MEDIA", "bucket_name": "naf-academy-media" }],
   // الرسائل الآلية: جدولة وإرسال كل 5 دقائق (scripts/cf-config.mjs يولّد معالج scheduled)
   "triggers": { "crons": ["*/5 * * * *"] },
+  // القيم النصية (غير السرّية) هنا وحدها: كل نشر يستبدل متغيرات النص بما في هذا الملف،
+  // فما يُضاف منها في لوحة Cloudflare يُحذف عند النشر التالي (فتُقفل قناة البريد بلا MAIL_FROM).
+  // SMS_SENDER و VAPID_PUBLIC_KEY و VAPID_SUBJECT تُضاف هنا متى رُبطت قنواتها.
   "vars": {
-    "SITE_URL": "https://academy.naflaw.sa"
+    "SITE_URL": "https://academy.naflaw.sa",
+    "MAIL_FROM": "أكاديمية ناف <academy@naflaw.sa>"
   }
-  // الأسرار (wrangler secret put): MOYASAR_SECRET_KEY · MOYASAR_PUBLISHABLE_KEY · MOYASAR_WEBHOOK_SECRET
-  // · RESEND_API_KEY · MAIL_FROM · TAQNYAT_API_KEY · SMS_SENDER · LEARNER_SECRET · ADMIN_SECRET · CRON_SECRET (24 حرفاً على الأقل)
+  // الأسرار (wrangler secret put أو Secret في اللوحة — لا يمسّها النشر): MOYASAR_SECRET_KEY · MOYASAR_PUBLISHABLE_KEY · MOYASAR_WEBHOOK_SECRET
+  // · RESEND_API_KEY · RESEND_WEBHOOK_SECRET · TAQNYAT_API_KEY · LEARNER_SECRET · ADMIN_SECRET · CRON_SECRET (24 حرفاً على الأقل)
   // · ADMIN_PASSWORD (كلمة مرور صفحة الإعداد /setup — ليست كلمة دخول اللوحة)
 }
