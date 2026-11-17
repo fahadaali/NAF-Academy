@@ -181,8 +181,8 @@ export async function certificatePdf(input: CertDesign, d: CertData, brand: Cert
       }
     }
     if (B.hours.show && d.hours > 0) {
-      line(page, design.hoursText.replace(/\{\{\s*hours\s*\}\}/g, String(d.hours)), { x: px(B.hours.x), y: py(B.hours.y), size: B.hours.size, font: f.sans, color: T.soft })
-      if (bi && en.hoursText) line(page, en.hoursText.replace(/\{\{\s*hours\s*\}\}/g, String(d.hours)), { x: px(B.hours.x), y: py(B.hours.y) + B.hours.size * 1.3, size: B.hours.size * 0.85, font: f.sans, color: T.soft, rtl: false })
+      line(page, hoursOf(design.hoursText, d.hours), { x: px(B.hours.x), y: py(B.hours.y), size: B.hours.size, font: f.sans, color: T.soft })
+      if (bi && en.hoursText) line(page, hoursOf(en.hoursText, d.hours), { x: px(B.hours.x), y: py(B.hours.y) + B.hours.size * 1.3, size: B.hours.size * 0.85, font: f.sans, color: T.soft, rtl: false })
     }
     if (B.date.show) {
       line(page, `صدرت في ${d.date}`, { x: px(B.date.x), y: py(B.date.y), size: B.date.size, font: f.sans, color: T.ink })

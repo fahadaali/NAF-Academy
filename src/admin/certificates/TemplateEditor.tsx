@@ -14,6 +14,9 @@ import { MediaPicker } from '@/admin/ui/MediaPicker'
 import { deleteTemplate, duplicateTemplate, previewTemplatePdf, saveTemplate } from './actions'
 import t from './template.module.css'
 
+/** في التخطيط المنقسم موضع النصوص الأفقي يحدده العمودان — السحب يحرّكها رأسياً وحده */
+const COLUMN_BLOCKS = new Set<BlockKey>(['title', 'lead', 'name', 'idNumber', 'course', 'hours', 'date'])
+
 const SAMPLE = { name: 'سارة عبدالله المتدربة', course: 'نظام الإثبات: من النص إلى المرافعة', hours: 12, date: '5 نوفمبر 2026', hijri: '14 جمادى الأولى 1448', code: 'NAF-DEMO-2026', nameEn: 'Sarah Abdullah', courseEn: 'Evidence Law: From Text to Pleading', dateEn: '5 November 2026', idNumber: SAMPLE_ID }
 
 export function TemplateEditor({ id, initial, media, brand }: { id: string | null; initial: { name: string; isDefault: boolean; design: CertDesign }; media: Media[]; brand: BrandView }) {
@@ -28,6 +31,9 @@ export function TemplateEditor({ id, initial, media, brand }: { id: string | nul
   const stage = useRef<HTMLDivElement>(null)
   const drag = useRef<{ k: BlockKey; dx: number; dy: number } | null>(null)
   const d = v.design
+  const splitRef = useRef(false)
+  splitRef.current = d.layout === 'split'
+  const yOnly = (k: BlockKey) => splitRef.current && COLUMN_BLOCKS.has(k)
   const dirty = JSON.stringify(v) !== saved
   const images = media.filter((m) => m.mime === 'image/png' || m.mime === 'image/jpeg')
 
@@ -48,7 +54,7 @@ export function TemplateEditor({ id, initial, media, brand }: { id: string | nul
       const r = stage.current.getBoundingClientRect()
       const x = Math.round((((e.clientX - r.left) / r.width) * 100 - g.dx) * 2) / 2
       const y = Math.round((((e.clientY - r.top) / r.height) * 100 - g.dy) * 2) / 2
-      setBlock(g.k, { x: Math.max(4, Math.min(96, x)), y: Math.max(5, Math.min(95, y)) })
+      setBlock(g.k, yOnly(g.k) ? { y: Math.max(5, Math.min(95, y)) } : { x: Math.max(4, Math.min(96, x)), y: Math.max(5, Math.min(95, y)) })
     }
     const up = () => { drag.current = null }
     addEventListener('pointermove', move)
@@ -65,7 +71,7 @@ export function TemplateEditor({ id, initial, media, brand }: { id: string | nul
     const m = map[e.key]
     if (!m) return
     e.preventDefault()
-    setBlock(active, { x: Math.max(4, Math.min(96, b.x + m[0])), y: Math.max(5, Math.min(95, b.y + m[1])) })
+    setBlock(active, { x: yOnly(active) ? b.x : Math.max(4, Math.min(96, b.x + m[0])), y: Math.max(5, Math.min(95, b.y + m[1])) })
   }
 
   const save = async () => {
@@ -102,7 +108,7 @@ export function TemplateEditor({ id, initial, media, brand }: { id: string | nul
 
           <Section title="النصوص" desc="«~» ثم رقم لموضع الكشيدة: إتم~4ام">
             <Field label="العنوان" error={errors['design.title']}><Input value={d.title} onChange={(e) => setD({ title: e.target.value })} /></Field>
-            <Switch checked={d.english} onChange={(english) => setD({ english })} label="سطر إنجليزي تحت العنوان" />
+            {d.layout !== 'split' && <Switch checked={d.english} onChange={(english) => setD({ english })} label="سطر إنجليزي تحت العنوان" />}
             <Field label="قبل الاسم"><Input value={d.lead} onChange={(e) => setD({ lead: e.target.value })} /></Field>
             <Field label="قبل اسم الدورة"><Input value={d.courseLead} onChange={(e) => setD({ courseLead: e.target.value })} /></Field>
             <Field label="سطر الساعات" hint="{{hours}} يُستبدل بساعات الدورة"><Input value={d.hoursText} onChange={(e) => setD({ hoursText: e.target.value })} /></Field>

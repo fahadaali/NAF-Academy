@@ -49,6 +49,8 @@ const profile = z.object({
 export async function saveProfileAction(raw: unknown): Promise<{ ok: boolean; error?: string }> {
   const me = await currentLearner()
   if (!me) return { ok: false, error: 'انتهت الجلسة — ادخل من جديد' }
+  /* رسالة «الرقم مسجّل بحساب آخر» تكشف وجود الرقم — فالمحاولات محدودة */
+  if (await limited('profile-save', 15, 10 * 60e3)) return { ok: false, error: 'محاولات كثيرة — انتظر قليلاً' }
   const p = profile.safeParse(raw)
   if (!p.success) return { ok: false, error: p.error.issues[0]?.message }
   const v = p.data

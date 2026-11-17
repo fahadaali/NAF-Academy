@@ -198,6 +198,17 @@ export async function recheckCourse(courseId: string, by: string) {
   return n
 }
 
+/** ملف الشهادة بالرقم كاملاً: لصاحبها (جلسة المتدرب) أو للفريق بصلاحية الشهادات في نطاق دورته. بلا رقم هوية (القديمة) لمن يملك الرمز */
+export async function mayDownloadCertificate(c: { learnerId: string; courseId: string; nationalId: string }) {
+  if (!c.nationalId) return true
+  const { currentLearner } = await import('../learner-auth')
+  if ((await currentLearner())?.id === c.learnerId) return true
+  const { currentStaff, courseScope, inScope } = await import('../auth')
+  const { can } = await import('@/lib/permissions')
+  const st = await currentStaff()
+  return !!st && can(st.role, 'certificates.manage', st.perms) && inScope(await courseScope(st), c.courseId)
+}
+
 export async function certificateByCode(code: string) {
   const [r] = await db.select({ c: s.certificates, slug: s.courses.slug }).from(s.certificates).innerJoin(s.courses, eq(s.courses.id, s.certificates.courseId))
     .where(eq(s.certificates.code, code.trim().toUpperCase()))
