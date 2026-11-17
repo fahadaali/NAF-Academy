@@ -2,7 +2,7 @@ import { desc, eq } from 'drizzle-orm'
 import { brandView } from '@/server/brand'
 import { db, schema as s } from '@/server/db'
 import { currentLearner } from '@/server/learner-auth'
-import { certImages, verifyUrl, viewData } from '@/server/certificates'
+import { certImages, hasNationalId, verifyUrl, viewData } from '@/server/certificates'
 import { CertificateView } from '@/components/CertificateView'
 import { DEFAULT_DESIGN, linkedinUrl } from '@/lib/certificate'
 import { CopyLink } from '@/site/CopyLink'
@@ -16,6 +16,8 @@ export default async function MyCertificates() {
   if (!rows.length)
     return <div className={st.empty}><strong>لا شهادات بعد.</strong><span>تصدر الشهادة بعد استيفاء متطلبات الدورة واعتمادها — تابع تقدّمك من صفحة كل دورة.</span><a className="btn" href="/learn">دوراتي</a></div>
   const brand = await brandView()
+  /* رقم الهوية شرط للإصدار: الشهادة المستوفاة تنتظره قبل الاعتماد */
+  const needsId = !hasNationalId(me.nationalId)
   const views = await Promise.all(rows.map(async (c) => ({ c, v: c.status === 'issued' ? await viewData(c) : null, img: c.status === 'issued' ? await certImages(c.design ?? DEFAULT_DESIGN) : {} })))
   return (
     <div className={st.grid}>
@@ -30,7 +32,10 @@ export default async function MyCertificates() {
               <CopyLink url={verifyUrl(c.code!)} label="نسخ رابط التحقق" />
             </div>
           ) : (
-            <p className={st.next}>{LABEL[c.status]}{c.reason ? ` — ${c.reason}` : ''}</p>
+            <>
+              <p className={st.next}>{LABEL[c.status]}{c.reason ? ` — ${c.reason}` : ''}</p>
+              {c.status === 'pending' && needsId && <a className="btn" href="/learn/profile">أضف رقم هويتك لإصدار الشهادة</a>}
+            </>
           )}
         </article>
       ))}

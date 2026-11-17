@@ -311,6 +311,8 @@ export const learners = sqliteTable('learners', {
   vatNumber: text('vat_number').notNull().default(''),
   /** الاسم بالإنجليزية للشهادة الثنائية — يكتبه المتدرب في ملفه */
   nameEn: text('name_en').notNull().default(''),
+  /** رقم الهوية الوطنية أو الإقامة (10 أرقام لاتينية) — شرط لإصدار الشهادة، ويُطبع عليها */
+  nationalId: text('national_id').notNull().default(''),
   ...stamps,
 })
 
@@ -781,6 +783,8 @@ export const certificates = sqliteTable('certificates', {
   /** لقطة الإنجليزية للشهادة الثنائية */
   nameEn: text('name_en').notNull().default(''),
   courseTitleEn: text('course_title_en').notNull().default(''),
+  /** لقطة رقم الهوية عند الإصدار */
+  nationalId: text('national_id').notNull().default(''),
   hours: real('hours').notNull().default(0),
   criteria: text('criteria', { mode: 'json' }).$type<Criterion[]>().notNull().default(sql`'[]'`),
   templateId: text('template_id'),

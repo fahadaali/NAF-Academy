@@ -38,6 +38,7 @@ export default async function Certificate({ params }: P) {
       </div>
       <dl className={`${st.facts} num stagger reveal`}>
         <div><dt>الاسم</dt><dd>{c.name}</dd></div>
+        {data.idNumber && <div><dt>رقم الهوية</dt><dd dir="ltr">{data.idNumber}</dd></div>}
         <div><dt>الدورة</dt><dd>{c.courseTitle}</dd></div>
         {c.hours > 0 && <div><dt>الساعات التدريبية</dt><dd>{c.hours}</dd></div>}
         <div><dt>تاريخ الإصدار</dt><dd>{data.date} · {data.hijri}</dd></div>

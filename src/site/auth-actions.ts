@@ -7,6 +7,8 @@ import { db, schema as s } from '@/server/db'
 import { currentLearner } from '@/server/learner-auth'
 import { normalizePhone } from '@/lib/phone'
 import { eq } from 'drizzle-orm'
+import { revalidatePath } from 'next/cache'
+import { normalizeDigits, validNationalId } from '@/lib/certificate'
 
 const ch = z.enum(['email', 'sms'])
 
@@ -37,6 +39,8 @@ const profile = z.object({
   /** بحروف لاتينية — للشهادة الثنائية */
   nameEn: z.union([z.literal(''), z.string().trim().max(120).regex(/^[A-Za-z][A-Za-z .'-]*$/, 'الاسم بالإنجليزية بحروف لاتينية')]).default(''),
   vatNumber: z.union([z.literal(''), z.string().regex(/^3\d{13}3$/, 'الرقم الضريبي 15 رقماً يبدأ وينتهي بـ 3')]),
+  /** رقم الهوية الوطنية أو الإقامة — شرط لإصدار الشهادة */
+  nationalId: z.string().transform(normalizeDigits).refine((v) => v === '' || validNationalId(v), 'رقم الهوية غير صحيح — 10 أرقام تبدأ بـ 1 (هوية وطنية) أو 2 (إقامة)').default(''),
 })
 
 export async function saveProfileAction(raw: unknown): Promise<{ ok: boolean; error?: string }> {
@@ -51,5 +55,12 @@ export async function saveProfileAction(raw: unknown): Promise<{ ok: boolean; er
     if (other && other.id !== me.id) return { ok: false, error: 'هذا الجوال مرتبط بحساب آخر' }
   }
   await db.update(s.learners).set({ ...p.data, phone: phone ?? '', updatedAt: new Date().toISOString() }).where(eq(s.learners.id, me.id))
+  /* الشهادات المعلّقة بانتظار رقم الهوية تصدر الآن (الاعتماد التلقائي) — ولا يُفشل الحفظ إن تعذّر الإصدار */
+  if (p.data.nationalId && p.data.nationalId !== me.nationalId) {
+    try {
+      const { issueAwaitingId } = await import('@/server/certificates')
+      if (await issueAwaitingId(me.id)) revalidatePath('/learn', 'layout')
+    } catch (e) { console.error('issue awaiting id', e) }
+  }
   return { ok: true }
 }

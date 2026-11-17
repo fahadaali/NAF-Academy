@@ -8,9 +8,9 @@ import { z } from 'zod'
 import { db, schema as s } from '@/server/db'
 import { courseScope, inScope, requirePermission, type Staff } from '@/server/auth'
 import { audit } from '@/server/audit'
-import { certBrand, issueCertificate, recheckCourse, regeneratePdf } from '@/server/certificates'
+import { certBrand, dateAr, hijriAr, issueAwaitingId, issueCertificate, recheckCourse, regeneratePdf } from '@/server/certificates'
 import { certificatePdf } from '@/server/certificates/pdf'
-import { BLOCKS, DEFAULT_DESIGN, type CertDesign } from '@/lib/certificate'
+import { BLOCKS, DEFAULT_DESIGN, maskId, normalizeDigits, SAMPLE_ID, validNationalId, type CertDesign } from '@/lib/certificate'
 import { inList } from '@/server/db/limits'
 
 /** المدرب لا يمسّ إلا شهادات دوراته */
@@ -23,21 +23,40 @@ async function mine(st: Staff, id: string) {
 
 const refresh = () => { revalidatePath('/admin/certificates', 'layout'); revalidatePath('/learn', 'layout') }
 
-export async function approveCertificates(ids: string[]): Promise<{ ok: boolean; n: number }> {
+export async function approveCertificates(ids: string[]): Promise<{ ok: boolean; n: number; missing: number }> {
   const st = await requirePermission('certificates.manage')
-  let n = 0
+  let n = 0, missing = 0
   const list = z.array(z.string().uuid()).max(200).safeParse(ids)
-  if (!list.success) return { ok: false, n: 0 }
-  /* خطأ في شهادة لا يوقف بقية الدفعة */
+  if (!list.success) return { ok: false, n: 0, missing: 0 }
+  /* خطأ في شهادة لا يوقف بقية الدفعة — وما ينقصه رقم الهوية يبقى معلّقاً ويُعدّ */
   for (const id of list.data) {
     if (!(await mine(st, id))) continue
     try {
       const r = await issueCertificate(id, st.name)
       if (r?.status === 'issued') n++
+      else if (r?.status === 'pending') missing++
     } catch (e) { console.error('approve certificate', id, e) }
   }
   refresh()
-  return { ok: true, n }
+  return { ok: true, n, missing }
+}
+
+const idInput = z.object({ id: z.string().uuid(), nationalId: z.string().transform(normalizeDigits).refine(validNationalId, 'رقم الهوية غير صحيح — 10 أرقام تبدأ بـ 1 أو 2') })
+
+/** إضافة رقم هوية المتدرب من طلب شهادته — للفريق حين لا يضيفه المتدرب. الاعتماد التلقائي يصدر فوراً */
+export async function setCertificateNationalId(raw: unknown): Promise<{ ok: boolean; error?: string }> {
+  const st = await requirePermission('certificates.manage')
+  const p = idInput.safeParse(raw)
+  if (!p.success) return { ok: false, error: p.error.issues[0]?.message }
+  if (!(await mine(st, p.data.id))) return { ok: false, error: 'الشهادة غير موجودة' }
+  const [c] = await db.select({ learnerId: s.certificates.learnerId }).from(s.certificates).where(and(eq(s.certificates.id, p.data.id), eq(s.certificates.status, 'pending')))
+  if (!c) return { ok: false, error: 'الشهادة ليست بانتظار المراجعة' }
+  await db.update(s.learners).set({ nationalId: p.data.nationalId, updatedAt: new Date().toISOString() }).where(eq(s.learners.id, c.learnerId))
+  /* السجل بالرقم مقنّعاً: سجل النسخ يُقرأ في اللوحة لغير صاحب الصلاحية */
+  await audit(st.name, 'national_id', 'learner', c.learnerId, maskId(p.data.nationalId))
+  await issueAwaitingId(c.learnerId)
+  refresh()
+  return { ok: true }
 }
 
 const reasonInput = z.object({ id: z.string().uuid(), reason: z.string().trim().min(3, 'اذكر السبب').max(500) })
@@ -108,13 +127,15 @@ const designInput = z.object({
   lead: z.string().trim().max(120),
   courseLead: z.string().trim().max(120),
   hoursText: z.string().trim().max(120),
+  idLabel: z.string().trim().max(40).default(DEFAULT_DESIGN.idLabel),
   english: z.boolean(),
   bilingual: z.boolean().default(false),
-  en: z.object({ title: z.string().trim().max(80), lead: z.string().trim().max(120), courseLead: z.string().trim().max(120), hoursText: z.string().trim().max(120), issued: z.string().trim().max(40) })
-    .default({ title: 'Certificate of Completion', lead: 'This certificate is awarded to', courseLead: 'for completing the requirements of', hoursText: '{{hours}} training hours', issued: 'Issued on' }),
+  layout: z.enum(['stacked', 'split']).default('stacked'),
+  en: z.object({ title: z.string().trim().max(80), lead: z.string().trim().max(120), courseLead: z.string().trim().max(120), hoursText: z.string().trim().max(120), issued: z.string().trim().max(40), idLabel: z.string().trim().max(40).default(DEFAULT_DESIGN.en.idLabel) })
+    .default(DEFAULT_DESIGN.en),
   signatories: z.array(z.object({ name: z.string().trim().min(1, 'اسم الموقّع مطلوب').max(80), title: z.string().trim().max(80), titleEn: z.string().trim().max(80).optional(), signatureId: z.string().nullable() })).max(3),
   blocks: z.object(Object.fromEntries(BLOCKS.map((k) => [k, block])) as Record<(typeof BLOCKS)[number], typeof block>),
-})
+}).transform((d) => (d.layout === 'split' ? { ...d, bilingual: true } : d))
 const templateInput = z.object({ name: z.string().trim().min(2, 'اسم القالب مطلوب').max(80), isDefault: z.boolean(), design: designInput })
 export type TemplateInput = z.input<typeof templateInput>
 
@@ -157,10 +178,11 @@ export async function deleteTemplate(id: string): Promise<{ ok: boolean; error?:
 export async function previewTemplatePdf(design: CertDesign): Promise<string> {
   await requirePermission('certificates.templates')
   const d = designInput.parse(design)
+  const now = new Date().toISOString()
   const bytes = await certificatePdf(d, {
-    name: 'سارة عبدالله المتدربة', course: 'نظام الإثبات: من النص إلى المرافعة', hours: 12,
-    date: new Intl.DateTimeFormat('ar-SA-u-nu-latn-ca-gregory', { timeZone: 'Asia/Riyadh', day: 'numeric', month: 'long', year: 'numeric' }).format(new Date()),
-    hijri: '—', code: 'NAF-DEMO-2026', verifyUrl: 'https://academy.example/certificates/NAF-DEMO-2026', nameEn: 'Sarah Abdullah', courseEn: 'Evidence Law: From Text to Pleading', dateEn: '5 November 2026',
+    name: 'سارة عبدالله المتدربة', course: 'نظام الإثبات: من النص إلى المرافعة', hours: 12, date: dateAr(now), hijri: hijriAr(now),
+    code: 'NAF-DEMO-2026', verifyUrl: 'https://academy.example/certificates/NAF-DEMO-2026', nameEn: 'Sarah Abdullah', courseEn: 'Evidence Law: From Text to Pleading',
+    dateEn: new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Riyadh', day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(now)), idNumber: SAMPLE_ID,
   }, await certBrand(d.tone))
   return `data:application/pdf;base64,${Buffer.from(bytes).toString('base64')}`
 }

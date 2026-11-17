@@ -1,5 +1,6 @@
 import { and, count, desc, eq, isNull } from 'drizzle-orm'
 import { db, schema as s } from '@/server/db'
+import { hasNationalId } from '@/server/certificates'
 import { courseScope, requirePermission, staffCan } from '@/server/auth'
 import { inList } from '@/server/db/limits'
 import { Board, Recheck, type BoardRow } from '@/admin/certificates/Board'
@@ -15,14 +16,14 @@ export default async function Certificates({ searchParams }: { searchParams: Pro
   const q = await searchParams
   const status = (F.find(([k]) => k === q.s)?.[0] ?? 'pending') as (typeof F)[number][0]
   const [rows, counts, courses] = await Promise.all([
-    db.select({ c: s.certificates, email: s.learners.email }).from(s.certificates).innerJoin(s.learners, eq(s.learners.id, s.certificates.learnerId))
+    db.select({ c: s.certificates, email: s.learners.email, nationalId: s.learners.nationalId }).from(s.certificates).innerJoin(s.learners, eq(s.learners.id, s.certificates.learnerId))
       .where(and(eq(s.certificates.status, status), by, q.c ? eq(s.certificates.courseId, q.c) : undefined)).orderBy(desc(s.certificates.updatedAt)).limit(500),
     db.select({ st: s.certificates.status, n: count() }).from(s.certificates).where(by).groupBy(s.certificates.status),
     db.select({ id: s.courses.id, title: s.courses.title }).from(s.courses).where(and(isNull(s.courses.deletedAt), scope === null ? undefined : inList(s.courses.id, scope))),
   ])
   const n = new Map(counts.map((x) => [x.st, x.n]))
-  const board: BoardRow[] = rows.map(({ c, email }) => ({
-    id: c.id, name: c.name, email, course: c.courseTitle, status: c.status, code: c.code, criteria: c.criteria, reason: c.reason, by: c.decidedBy,
+  const board: BoardRow[] = rows.map(({ c, email, nationalId }) => ({
+    id: c.id, noId: c.status === 'pending' && !hasNationalId(nationalId), name: c.name, email, course: c.courseTitle, status: c.status, code: c.code, criteria: c.criteria, reason: c.reason, by: c.decidedBy,
     when: when(c.status === 'issued' ? c.issuedAt : c.status === 'revoked' ? c.revokedAt : c.createdAt),
   }))
   return (

@@ -6,14 +6,14 @@ import { useEffect, useRef, useState } from 'react'
 import type { BrandView } from '@/lib/brand'
 import { useRouter } from 'next/navigation'
 import type { Media } from '@/server/db/schema'
-import { BLOCKS, BLOCK_LABEL, type BlockKey, type CertDesign, DEFAULT_DESIGN } from '@/lib/certificate'
+import { BLOCKS, BLOCK_LABEL, type BlockKey, type CertDesign, type CertLayout, DEFAULT_DESIGN, SAMPLE_ID, SPLIT_BLOCKS } from '@/lib/certificate'
 import { CertificateView } from '@/components/CertificateView'
 import { Field, Grid, Input, SaveBar, Section, Segmented, Switch } from '@/admin/ui/kit'
 import { MediaPicker } from '@/admin/ui/MediaPicker'
 import { deleteTemplate, duplicateTemplate, previewTemplatePdf, saveTemplate } from './actions'
 import t from './template.module.css'
 
-const SAMPLE = { name: 'سارة عبدالله المتدربة', course: 'نظام الإثبات: من النص إلى المرافعة', hours: 12, date: '5 نوفمبر 2026', hijri: '14 جمادى الأولى 1448', code: 'NAF-DEMO-2026', nameEn: 'Sarah Abdullah', courseEn: 'Evidence Law: From Text to Pleading', dateEn: '5 November 2026' }
+const SAMPLE = { name: 'سارة عبدالله المتدربة', course: 'نظام الإثبات: من النص إلى المرافعة', hours: 12, date: '5 نوفمبر 2026', hijri: '14 جمادى الأولى 1448', code: 'NAF-DEMO-2026', nameEn: 'Sarah Abdullah', courseEn: 'Evidence Law: From Text to Pleading', dateEn: '5 November 2026', idNumber: SAMPLE_ID }
 
 export function TemplateEditor({ id, initial, media, brand }: { id: string | null; initial: { name: string; isDefault: boolean; design: CertDesign }; media: Media[]; brand: BrandView }) {
   const router = useRouter()
@@ -105,10 +105,15 @@ export function TemplateEditor({ id, initial, media, brand }: { id: string | nul
             <Field label="قبل الاسم"><Input value={d.lead} onChange={(e) => setD({ lead: e.target.value })} /></Field>
             <Field label="قبل اسم الدورة"><Input value={d.courseLead} onChange={(e) => setD({ courseLead: e.target.value })} /></Field>
             <Field label="سطر الساعات" hint="{{hours}} يُستبدل بساعات الدورة"><Input value={d.hoursText} onChange={(e) => setD({ hoursText: e.target.value })} /></Field>
+            <Field label="قبل رقم الهوية" hint="رقم الهوية شرط لإصدار الشهادة — يُطبع كاملاً في PDF ومقنّعاً في صفحة التحقق"><Input value={d.idLabel} onChange={(e) => setD({ idLabel: e.target.value })} /></Field>
           </Section>
 
-          <Section title="الوجه الإنجليزي" desc="شهادة ثنائية اللغة: تحت كل سطر عربي سطره الإنجليزي — والاسم بالإنجليزية من ملف المتدرب، وعنوان الدورة من محرّرها">
-            <Switch checked={!!d.bilingual} onChange={(bilingual) => setD({ bilingual })} label={d.bilingual ? 'ثنائية اللغة' : 'عربية فقط'} />
+          <Section title="الوجه الإنجليزي" desc="شهادة ثنائية اللغة: سطر إنجليزي تحت كل عربي، أو عمودان متقابلان — والاسم بالإنجليزية من ملف المتدرب، وعنوان الدورة من محرّرها">
+            <Field label="التخطيط" hint="تغيير التخطيط يعيد العناصر إلى مواضعه الافتراضية">
+              <Segmented value={d.layout} onChange={(layout: CertLayout) => setD({ layout, bilingual: layout === 'split' ? true : d.bilingual, blocks: layout === 'split' ? SPLIT_BLOCKS : DEFAULT_DESIGN.blocks })}
+                options={[{ value: 'stacked', label: 'سطر تحت سطر' }, { value: 'split', label: 'عربي يمين · إنجليزي يسار' }]} />
+            </Field>
+            {d.layout !== 'split' && <Switch checked={!!d.bilingual} onChange={(bilingual) => setD({ bilingual })} label={d.bilingual ? 'ثنائية اللغة' : 'عربية فقط'} />}
             {d.bilingual && (() => {
               const en = { ...DEFAULT_DESIGN.en, ...(d.en ?? {}) }
               const setEn = (p: Partial<typeof en>) => setD({ en: { ...en, ...p } })
@@ -119,6 +124,7 @@ export function TemplateEditor({ id, initial, media, brand }: { id: string | nul
                   <Field label="قبل اسم الدورة"><Input dir="ltr" value={en.courseLead} onChange={(e) => setEn({ courseLead: e.target.value })} /></Field>
                   <Field label="سطر الساعات" hint="{{hours}}"><Input dir="ltr" value={en.hoursText} onChange={(e) => setEn({ hoursText: e.target.value })} /></Field>
                   <Field label="قبل التاريخ"><Input dir="ltr" value={en.issued} onChange={(e) => setEn({ issued: e.target.value })} /></Field>
+                  <Field label="قبل رقم الهوية"><Input dir="ltr" value={en.idLabel} onChange={(e) => setEn({ idLabel: e.target.value })} /></Field>
                 </>
               )
             })()}

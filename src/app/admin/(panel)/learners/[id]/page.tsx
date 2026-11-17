@@ -6,6 +6,7 @@ import { staffCan } from '@/server/auth'
 import { Badge, PageHead, Section } from '@/admin/ui/kit'
 import { ORDER_LABEL, ORDER_TONE, sar, when } from '@/admin/sales/labels'
 import p from '@/admin/ui/panel.module.css'
+import { maskId } from '@/lib/certificate'
 
 const SOURCE: Record<string, string> = { purchase: 'شراء', free: 'مجاني', grant: 'منحة', manual: 'يدوي', seat: 'مقعد مؤسسة', invite: 'دعوة' }
 const CERT: Record<string, string> = { pending: 'بانتظار المراجعة', issued: 'صادرة', rejected: 'مرفوضة', revoked: 'ملغاة' }
@@ -29,6 +30,7 @@ export default async function LearnerPage({ params }: { params: Promise<{ id: st
           <div><dt>البريد</dt><dd dir="ltr">{l.email}</dd></div>
           <div><dt>الجوال</dt><dd dir="ltr">{l.phone || '—'}</dd></div>
           <div><dt>الجهة</dt><dd>{l.org || '—'}</dd></div>
+          <div><dt>رقم الهوية</dt><dd className="num" dir="ltr">{l.nationalId ? maskId(l.nationalId) : '—'}</dd></div>
           <div><dt>الرقم الضريبي</dt><dd className="num">{l.vatNumber || '—'}</dd></div>
           {d.orgs.length > 0 && <div><dt>المؤسسات</dt><dd>{d.orgs.map((o) => <Link key={o.o.id} href={`/admin/organizations/${o.o.id}`}>{o.o.name}{o.role === 'manager' ? ' (مسؤول)' : ''}</Link>)}</dd></div>}
         </dl>

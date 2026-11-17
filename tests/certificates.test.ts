@@ -5,7 +5,7 @@ import { existsSync, mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { eq } from 'drizzle-orm'
-import { DEFAULT_RULES, certCode, evaluateRules, linkedinUrl, mergeDesign } from '../src/lib/certificate'
+import { DEFAULT_RULES, SAMPLE_ID, SPLIT_BLOCKS, certCode, evaluateRules, linkedinUrl, maskId, mergeDesign, normalizeDigits, validNationalId } from '../src/lib/certificate'
 
 const dir = mkdtempSync(join(tmpdir(), 'naf-cert-'))
 process.env.DATABASE_URL = `file:${join(dir, 't.db')}`
@@ -45,6 +45,33 @@ test('دمج القالب: عنصر غائب يأخذ موضعه الافترا�
   const d = mergeDesign({ title: 'شهادة', blocks: { name: { x: 40, y: 50, size: 30, show: true } } as never })
   assert.equal(d.blocks.name.x, 40)
   assert.equal(d.blocks.qr.show, true)
+})
+
+test('رقم الهوية: 10 أرقام تبدأ بـ 1 أو 2 ورقم تحقق صحيح', () => {
+  assert.equal(validNationalId(SAMPLE_ID), true)
+  assert.equal(validNationalId('1128218466'), true)
+  assert.equal(validNationalId('1128218467'), false, 'رقم التحقق')
+  assert.equal(validNationalId('3128218466'), false, 'البادئة')
+  assert.equal(validNationalId('112821846'), false, 'الطول')
+  assert.equal(validNationalId(''), false)
+  /* الأرقام العربية والمسافات تُطبَّع قبل الفحص */
+  assert.equal(normalizeDigits('١١٢٨ ٢١٨ ٤٦٦'), '1128218466')
+  assert.equal(validNationalId('١١٢٨٢١٨٤٦٦'), true)
+})
+
+test('رقم الهوية مقنّع في الصفحة العامة', () => {
+  assert.equal(maskId('1128218466'), '11•••••466')
+  assert.equal(maskId(''), '')
+})
+
+test('التخطيط المنقسم: ثنائي دائماً بمواضعه، والقديم مكدّس كما هو', () => {
+  const d = mergeDesign({ layout: 'split', bilingual: false })
+  assert.equal(d.bilingual, true)
+  assert.deepEqual(d.blocks.idNumber, SPLIT_BLOCKS.idNumber)
+  const old = mergeDesign({ title: 'شهادة' })
+  assert.equal(old.layout, 'stacked')
+  assert.equal(old.en.idLabel, 'ID No.:')
+  assert.equal(mergeDesign({ layout: 'x' as never }).layout, 'stacked')
 })
 
 test('ترتيب المقاطع: الأرقام واللاتينية مقاطع مستقلة بترتيبها المنطقي', async () => {
@@ -93,10 +120,21 @@ test('الاستيفاء يُنشئ طلباً بانتظار المراجعة �
   assert.equal((await db.select().from(s.certificates)).length, 1)
 })
 
-test('الإصدار: رمز فريد، ولقطة القالب، وملف PDF صالح', { skip: !fonts && 'خطوط الشهادة غير مولّدة' }, async () => {
+test('بلا رقم هوية لا تصدر الشهادة — تبقى بانتظار المراجعة', async () => {
+  const [p] = await db.select().from(s.certificates)
+  const r = await c.issueCertificate(p.id, 'مراجع')
+  assert.equal(r?.status, 'pending')
+  assert.equal(r?.code, null)
+})
+
+test('الإصدار: رمز فريد، ولقطة القالب ورقم الهوية، وملف PDF صالح', { skip: !fonts && 'خطوط الشهادة غير مولّدة' }, async () => {
+  await db.update(s.learners).set({ nationalId: SAMPLE_ID }).where(eq(s.learners.id, 'a'))
   const [p] = await db.select().from(s.certificates)
   const r = await c.issueCertificate(p.id, 'مراجع')
   assert.equal(r?.status, 'issued')
+  assert.equal(r?.nationalId, SAMPLE_ID)
+  /* الصفحة العامة تعرضه مقنّعاً */
+  assert.equal((await c.viewData(r!)).idNumber, maskId(SAMPLE_ID))
   assert.match(r!.code!, /^NAF-/)
   assert.ok(r!.design)
   const [row] = await db.select().from(s.certificates).where(eq(s.certificates.id, p.id))
@@ -111,14 +149,25 @@ test('الإصدار: رمز فريد، ولقطة القالب، وملف PDF �
   assert.equal(again?.code, row.code)
 })
 
-test('الاعتماد التلقائي يصدر فوراً', { skip: !fonts && 'خطوط الشهادة غير مولّدة' }, async () => {
+test('الاعتماد التلقائي ينتظر رقم الهوية ثم يصدر فور إضافته', { skip: !fonts && 'خطوط الشهادة غير مولّدة' }, async () => {
   await db.update(s.courses).set({ certificate: { ...DEFAULT_RULES, autoApprove: true, attendancePct: 0 } }).where(eq(s.courses.id, 'c1'))
   await db.insert(s.learners).values({ id: 'b', name: 'خالد', email: 'k@x.sa' })
   await db.insert(s.enrollments).values({ id: 'e2', learnerId: 'b', courseId: 'c1', source: 'manual' })
   await db.insert(s.lessonProgress).values([{ learnerId: 'b', lessonId: 'v', courseId: 'c1', completedAt: new Date().toISOString() }, { learnerId: 'b', lessonId: 'q', courseId: 'c1', completedAt: new Date().toISOString() }])
   const r = await c.checkCertificate('b', 'c1')
-  assert.equal(r?.status, 'issued')
-  assert.equal(r?.decidedBy, 'اعتماد تلقائي')
+  assert.equal(r?.status, 'pending')
+  await db.update(s.learners).set({ nationalId: '1128218466' }).where(eq(s.learners.id, 'b'))
+  assert.equal(await c.issueAwaitingId('b'), 1)
+  const [row] = await db.select().from(s.certificates).where(eq(s.certificates.learnerId, 'b'))
+  assert.equal(row.status, 'issued')
+  assert.equal(row.decidedBy, 'اعتماد تلقائي')
+})
+
+test('ملف PDF بالتخطيط المنقسم ورقم الهوية', { skip: !fonts && 'خطوط الشهادة غير مولّدة' }, async () => {
+  const { certificatePdf } = await import('../src/server/certificates/pdf')
+  const bytes = await certificatePdf(mergeDesign({ layout: 'split' }), { name: 'سارة', course: 'الإثبات', hours: 3, date: '5 نوفمبر 2026', hijri: '', code: 'NAF-AAAA-BBBB', verifyUrl: 'https://x.sa/c', nameEn: 'Sara', dateEn: '5 November 2026', idNumber: SAMPLE_ID },
+    { name: 'أكاديمية', tagline: '', companyName: '', showName: true, logo: null, full: false })
+  assert.equal(Buffer.from(bytes.slice(0, 5)).toString(), '%PDF-')
 })
 
 test('غير المسجّل لا تُنشأ له شهادة', async () => {
