@@ -8,7 +8,7 @@ import { z } from 'zod'
 import { db, schema as s } from '@/server/db'
 import { courseScope, inScope, requirePermission, type Staff } from '@/server/auth'
 import { audit } from '@/server/audit'
-import { certBrand, dateAr, hijriAr, issueAwaitingId, issueCertificate, recheckCourse, regeneratePdf } from '@/server/certificates'
+import { certBrand, dateAr, hijriAr, isNationalIdConflict, issueAwaitingId, NATIONAL_ID_TAKEN, nationalIdOwner, issueCertificate, recheckCourse, regeneratePdf } from '@/server/certificates'
 import { certificatePdf } from '@/server/certificates/pdf'
 import { BLOCKS, DEFAULT_DESIGN, maskId, normalizeDigits, SAMPLE_ID, validNationalId, type CertDesign } from '@/lib/certificate'
 import { inList } from '@/server/db/limits'
@@ -51,7 +51,13 @@ export async function setCertificateNationalId(raw: unknown): Promise<{ ok: bool
   if (!(await mine(st, p.data.id))) return { ok: false, error: 'الشهادة غير موجودة' }
   const [c] = await db.select({ learnerId: s.certificates.learnerId }).from(s.certificates).where(and(eq(s.certificates.id, p.data.id), eq(s.certificates.status, 'pending')))
   if (!c) return { ok: false, error: 'الشهادة ليست بانتظار المراجعة' }
-  await db.update(s.learners).set({ nationalId: p.data.nationalId, updatedAt: new Date().toISOString() }).where(eq(s.learners.id, c.learnerId))
+  if (await nationalIdOwner(p.data.nationalId, c.learnerId)) return { ok: false, error: 'رقم الهوية مسجّل بحساب متدرب آخر — راجع الحسابين قبل الإضافة' }
+  try {
+    await db.update(s.learners).set({ nationalId: p.data.nationalId, updatedAt: new Date().toISOString() }).where(eq(s.learners.id, c.learnerId))
+  } catch (e) {
+    if (isNationalIdConflict(e)) return { ok: false, error: NATIONAL_ID_TAKEN }
+    throw e
+  }
   /* السجل بالرقم مقنّعاً: سجل النسخ يُقرأ في اللوحة لغير صاحب الصلاحية */
   await audit(st.name, 'national_id', 'learner', c.learnerId, maskId(p.data.nationalId))
   await issueAwaitingId(c.learnerId)

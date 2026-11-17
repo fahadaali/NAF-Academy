@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX `learners_national_id` ON `learners` (`national_id`) WHERE "learners"."national_id" <> '';

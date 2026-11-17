@@ -54,7 +54,15 @@ export async function saveProfileAction(raw: unknown): Promise<{ ok: boolean; er
     const [other] = await db.select({ id: s.learners.id }).from(s.learners).where(eq(s.learners.phone, phone))
     if (other && other.id !== me.id) return { ok: false, error: 'هذا الجوال مرتبط بحساب آخر' }
   }
-  await db.update(s.learners).set({ ...p.data, phone: phone ?? '', updatedAt: new Date().toISOString() }).where(eq(s.learners.id, me.id))
+  const { NATIONAL_ID_TAKEN, isNationalIdConflict, nationalIdOwner } = await import('@/server/certificates')
+  /* رقم الهوية لحساب واحد — والفهرس الفريد يحرس السباق بين الفحص والكتابة */
+  if (await nationalIdOwner(p.data.nationalId, me.id)) return { ok: false, error: NATIONAL_ID_TAKEN }
+  try {
+    await db.update(s.learners).set({ ...p.data, phone: phone ?? '', updatedAt: new Date().toISOString() }).where(eq(s.learners.id, me.id))
+  } catch (e) {
+    if (isNationalIdConflict(e)) return { ok: false, error: NATIONAL_ID_TAKEN }
+    throw e
+  }
   /* الشهادات المعلّقة بانتظار رقم الهوية تصدر الآن (الاعتماد التلقائي) — ولا يُفشل الحفظ إن تعذّر الإصدار */
   if (p.data.nationalId && p.data.nationalId !== me.nationalId) {
     try {

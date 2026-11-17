@@ -73,6 +73,18 @@ export async function checkCertificate(learnerId: string, courseId: string, by =
   return ins[0]
 }
 
+/** رقم الهوية لحساب واحد: يعيد معرّف الحساب الآخر الذي يحمله، أو null */
+export async function nationalIdOwner(nationalId: string, exceptLearnerId: string) {
+  if (!nationalId) return null
+  const [r] = await db.select({ id: s.learners.id }).from(s.learners).where(eq(s.learners.nationalId, nationalId))
+  return r && r.id !== exceptLearnerId ? r.id : null
+}
+
+/** خطأ الفهرس الفريد learners_national_id — حين يسبق حسابٌ آخر بين الفحص والكتابة */
+export const isNationalIdConflict = (e: unknown) => /UNIQUE constraint failed: learners\.national_id|learners_national_id/.test(String((e as { cause?: unknown })?.cause ?? e) + String(e))
+
+export const NATIONAL_ID_TAKEN = 'رقم الهوية مسجّل بحساب آخر — تواصل مع الأكاديمية إن كان رقمك'
+
 /** رقم الهوية شرط للإصدار: بلا رقم صالح تبقى الشهادة «بانتظار رقم الهوية» حتى يضيفه المتدرب أو الفريق */
 export const hasNationalId = (v: string | null | undefined) => !!v && validNationalId(v)
 

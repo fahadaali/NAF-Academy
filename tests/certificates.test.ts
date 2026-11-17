@@ -163,6 +163,15 @@ test('الاعتماد التلقائي ينتظر رقم الهوية ثم يص
   assert.equal(row.decidedBy, 'اعتماد تلقائي')
 })
 
+test('رقم الهوية لحساب واحد — والفارغ لا يتعارض', async () => {
+  /* 'a' يحمل SAMPLE_ID منذ اختبار الإصدار */
+  assert.equal(await c.nationalIdOwner(SAMPLE_ID, 'b'), 'a')
+  assert.equal(await c.nationalIdOwner(SAMPLE_ID, 'a'), null)
+  assert.equal(await c.nationalIdOwner('', 'b'), null)
+  await assert.rejects(db.update(s.learners).set({ nationalId: SAMPLE_ID }).where(eq(s.learners.id, 'b')), (e) => c.isNationalIdConflict(e))
+  await db.insert(s.learners).values([{ id: 'e1', name: 'بلا رقم', email: 'e1@x.sa' }, { id: 'e2', name: 'بلا رقم', email: 'e2@x.sa' }])
+})
+
 test('ملف PDF بالتخطيط المنقسم ورقم الهوية', { skip: !fonts && 'خطوط الشهادة غير مولّدة' }, async () => {
   const { certificatePdf } = await import('../src/server/certificates/pdf')
   const bytes = await certificatePdf(mergeDesign({ layout: 'split' }), { name: 'سارة', course: 'الإثبات', hours: 3, date: '5 نوفمبر 2026', hijri: '', code: 'NAF-AAAA-BBBB', verifyUrl: 'https://x.sa/c', nameEn: 'Sara', dateEn: '5 November 2026', idNumber: SAMPLE_ID },

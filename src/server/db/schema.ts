@@ -314,7 +314,8 @@ export const learners = sqliteTable('learners', {
   /** رقم الهوية الوطنية أو الإقامة (10 أرقام لاتينية) — شرط لإصدار الشهادة، ويُطبع عليها */
   nationalId: text('national_id').notNull().default(''),
   ...stamps,
-})
+  /* رقم الهوية لحساب واحد — الفارغ مستثنى (فهرس جزئي) */
+}, (t) => [uniqueIndex('learners_national_id').on(t.nationalId).where(sql`${t.nationalId} <> ''`)])
 
 export const priceTiers = sqliteTable('price_tiers', {
   id: id(),
