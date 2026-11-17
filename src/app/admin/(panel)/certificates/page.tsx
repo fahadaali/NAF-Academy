@@ -23,7 +23,7 @@ export default async function Certificates({ searchParams }: { searchParams: Pro
   ])
   const n = new Map(counts.map((x) => [x.st, x.n]))
   const board: BoardRow[] = rows.map(({ c, email, nationalId }) => ({
-    id: c.id, noId: c.status === 'pending' && !hasNationalId(nationalId), name: c.name, email, course: c.courseTitle, status: c.status, code: c.code, criteria: c.criteria, reason: c.reason, by: c.decidedBy,
+    id: c.id, learnerId: c.learnerId, noId: c.status === 'pending' && !hasNationalId(nationalId), name: c.name, email, course: c.courseTitle, status: c.status, code: c.code, criteria: c.criteria, reason: c.reason, by: c.decidedBy,
     when: when(c.status === 'issued' ? c.issuedAt : c.status === 'revoked' ? c.revokedAt : c.createdAt),
   }))
   return (

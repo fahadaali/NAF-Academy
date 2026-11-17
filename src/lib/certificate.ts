@@ -87,7 +87,8 @@ export const DEFAULT_DESIGN: CertDesign = {
   },
 }
 
-/** مواضع التخطيط المنقسم: العلامة والتوقيع في الوسط، والنصوص في عمودين (x يتجاهله العمودان)، والتاريخان في أسفل كل عمود */
+/** مواضع التخطيط المنقسم: العلامة في الوسط، والنصوص والتاريخان في عمودين (x يتجاهله العمودان)،
+    والموقّعون (حتى ثلاثة بفاصل 190 نقطة) وحدهم في الصف الأخير فلا يقعون تحت التاريخين */
 export const SPLIT_BLOCKS: Record<BlockKey, Block> = {
   brand: b(50, 12.5, 13),
   title: b(50, 29, 30),
@@ -96,13 +97,16 @@ export const SPLIT_BLOCKS: Record<BlockKey, Block> = {
   idNumber: b(50, 53, 12),
   course: b(50, 63.5, 15),
   hours: b(50, 70.5, 11),
-  date: b(50, 88, 9.5),
-  signatures: b(50, 82, 10.5),
-  qr: b(90.5, 81.5, 50),
+  date: b(50, 77, 9.5),
+  signatures: b(50, 87.5, 10.5),
+  qr: b(91, 84, 46),
 }
 
 /** العمودان في التخطيط المنقسم — مركز كل عمود وعرضه الأقصى بالنسب (العربي يميناً) */
-export const SPLIT = { ar: 74, en: 26, width: 40, divider: { from: 24, to: 74 } } as const
+export const SPLIT = { ar: 74, en: 26, width: 40, divider: { from: 24, to: 80 } } as const
+
+/** «{{hours}}» في سطر الساعات — للصفحة وملف PDF */
+export const hoursOf = (t: string, h: number) => t.replace(/\{\{\s*hours\s*\}\}/g, String(h))
 
 /** دمج قالب مخزّن مع الافتراضي — عنصر جديد يأخذ موضعه الافتراضي لتخطيطه */
 export function mergeDesign(v: Partial<CertDesign> | null | undefined): CertDesign {

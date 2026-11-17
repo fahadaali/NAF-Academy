@@ -1,5 +1,5 @@
 'use client'
-/* تصحيح هوية المتدرب — للفريق بصلاحية learners.identity وحده (الصفحة لا تعرضه لغيره ولا تمرّر له الرقم كاملاً) */
+/* تصحيح هوية المتدرب — الصفحة لا تعرضه (ولا تمرّر الرقم كاملاً) إلا لمن له صلاحية learners.identity */
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Field, Grid, Input } from '@/admin/ui/kit'

@@ -5,7 +5,7 @@ import 'server-only'
    fontkit يرتّب المقطع العربي بصرياً لكنه يقلب الأرقام واللاتينية داخله، فنقسّم السطر مقاطع ونرصّها من اليمين. */
 import { PDFDocument, LineCapStyle, rgb, type PDFPage } from 'pdf-lib'
 import QRCode from 'qrcode'
-import { mergeDesign, PAGE, SPLIT, TONES, type CertDesign } from '@/lib/certificate'
+import { hoursOf, mergeDesign, PAGE, SPLIT, TONES, type CertDesign } from '@/lib/certificate'
 import { parse, render } from '@/motion/kashida'
 import { EMBLEM } from '@/components/Emblem'
 import { bidiRuns, FONTS, loadFont, shape, widthOf, type Font, type Fonts } from '../vector-text'
@@ -74,9 +74,6 @@ export type CertBrand = {
   name: string; tagline: string; companyName: string; showName: boolean
   logo: { bytes: Uint8Array; w: number; h: number } | null; full: boolean
 }
-
-/** «{{hours}}» في سطر الساعات */
-const hoursOf = (t: string, h: number) => t.replace(/\{\{\s*hours\s*\}\}/g, String(h))
 
 export async function certificatePdf(input: CertDesign, d: CertData, brand: CertBrand): Promise<Uint8Array> {
   /* اللقطات القديمة بلا العناصر الأحدث (رقم الهوية، التخطيط) — الدمج يكمّلها بمواضعها الافتراضية ولا يغيّر شكلها */

@@ -30,8 +30,8 @@ export function validNationalId(raw: string): boolean {
   return sum % 10 === 0
 }
 
-/** للعرض في الصفحات وسجل النسخ (لا ملف PDF): أول رقمين وآخر ثلاثة */
-export const maskId = (v: string) => (v.length > 5 ? `${v.slice(0, 2)}${'•'.repeat(v.length - 5)}${v.slice(-3)}` : v)
+/** للعرض في الصفحات وسجل النسخ (لا ملف PDF): آخر أربعة وحدها — الأول 1 أو 2 والأخير رقم تحقق، فإظهارهما لا يحمي شيئاً */
+export const maskId = (v: string) => (v.length > 4 ? `${'•'.repeat(v.length - 4)}${v.slice(-4)}` : v)
 
 const words = (v: string) => v.trim().split(/\s+/).filter(Boolean).length
 

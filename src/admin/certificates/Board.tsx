@@ -3,11 +3,11 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import type { Criterion } from '@/lib/certificate'
-import { approveCertificates, recheck, regenerateCertificate, rejectCertificate, reopenCertificate, revokeCertificate, setCertificateNationalId } from './actions'
+import { approveCertificates, recheck, regenerateCertificate, rejectCertificate, reopenCertificate, revokeCertificate } from './actions'
 import p from '@/admin/ui/panel.module.css'
 import b from './board.module.css'
 
-export type BoardRow = { id: string; noId?: boolean; name: string; email: string; course: string; status: string; code: string | null; criteria: Criterion[]; when: string; reason: string; by: string | null }
+export type BoardRow = { id: string; learnerId: string; noId?: boolean; name: string; email: string; course: string; status: string; code: string | null; criteria: Criterion[]; when: string; reason: string; by: string | null }
 
 export function Board({ rows, status, empty }: { rows: BoardRow[]; status: string; empty: string }) {
   const router = useRouter()
@@ -49,13 +49,11 @@ export function Board({ rows, status, empty }: { rows: BoardRow[]; status: strin
               {r.criteria.map((c) => <li key={c.key} data-met={c.met ? '1' : '0'}><span aria-hidden="true">{c.met ? '✓' : '✕'}</span>{c.label} <small className="num">({c.detail})</small></li>)}
             </ul>
             {r.reason && <p className={b.reason}>السبب: {r.reason}</p>}
-            {r.noId && <p className={b.reason}>بلا رقم هوية — لا تصدر الشهادة حتى يضيفه المتدرب من ملفه أو تضيفه هنا.</p>}
+            {r.noId && <p className={b.reason}>بلا رقم هوية — لا تصدر الشهادة حتى يكمل المتدرب بياناته الإلزامية من «ملفي»، أو تُصحَّح من <a href={`/admin/learners/${r.learnerId}`}>ملفه في اللوحة</a>.</p>}
             <div className={b.actions}>
               {r.status === 'pending' && (
                 <>
-                  {r.noId
-                    ? <button className="btn" disabled={busy} onClick={() => { const x = prompt('رقم الهوية الوطنية أو الإقامة (10 أرقام)')?.trim(); if (x) run(() => setCertificateNationalId({ id: r.id, nationalId: x }), 'أُضيف رقم الهوية') }}>إضافة رقم الهوية</button>
-                    : <button className="btn" disabled={busy} onClick={() => run(() => approveCertificates([r.id]), 'اعتُمدت')}>اعتماد</button>}
+                  <button className="btn" disabled={busy || r.noId} onClick={() => run(() => approveCertificates([r.id]), 'اعتُمدت')}>اعتماد</button>
                   <button className={p.iconBtn} disabled={busy} onClick={() => { const x = reason('سبب الرفض (يظهر للمتدرب)'); if (x) run(() => rejectCertificate({ id: r.id, reason: x }), 'رُفضت') }}>رفض</button>
                 </>
               )}

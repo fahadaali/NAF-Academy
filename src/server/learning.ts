@@ -80,7 +80,8 @@ export async function lessonView(slug: string, lessonId: string, learner: Learne
   const l = ctx.ordered.find((x) => x.id === lessonId)
   if (!l) return null
   const access = ctx.modules.flatMap((m) => m.lessons).find((x) => x.id === lessonId)!.access
-  const enrolled = !!ctx.enrollment
+  /* الناقصة بياناته كالزائر حتى في المعاينة: لا تسجيلات ولا انضمام ولا تذكرة حضور ولا اختبار */
+  const enrolled = !!ctx.enrollment && !ctx.gaps.length
   if (access.state === 'enroll') return null
 
   const [prog] = learner ? await db.select().from(s.lessonProgress).where(and(eq(s.lessonProgress.learnerId, learner.id), eq(s.lessonProgress.lessonId, l.id))) : []
@@ -92,7 +93,7 @@ export async function lessonView(slug: string, lessonId: string, learner: Learne
   }
   let recording: LessonView['recording'] = null
   /* التسجيل يظهر بعد انتهاء الجلسة */
-  if (enrolled && access.state !== 'profile' && l.recording && l.recording.provider !== 'none' && joinWindow(l.startsAt, l.endsAt).state === 'ended') {
+  if (enrolled && l.recording && l.recording.provider !== 'none' && joinWindow(l.startsAt, l.endsAt).state === 'ended') {
     const src = l.recording.provider === 'stream' ? await playbackUrl(l.recording.uid) : l.recording.url
     if (src) recording = { kind: l.recording.provider, src }
   }
@@ -112,7 +113,7 @@ export async function lessonView(slug: string, lessonId: string, learner: Learne
   return {
     ctx, lesson: safe, access, enrolled, player, recording, quiz,
     join: joinWindow(l.startsAt, l.endsAt),
-    ticket: enrolled && learner && l.type === 'onsite' && access.state !== 'profile' ? ticketToken(learner.id, l.id) : null,
+    ticket: enrolled && learner && l.type === 'onsite' ? ticketToken(learner.id, l.id) : null,
     attended: !!att, done: ctx.done.has(l.id),
   }
 }

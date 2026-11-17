@@ -143,8 +143,11 @@ export async function upsertLearner(b: { name: string; email: string; phone: str
   }
   const [old] = await db.select().from(s.learners).where(eq(s.learners.email, email))
   if (!old) {
-    const [row] = await db.insert(s.learners).values({ id: randomUUID(), name: name || email.split('@')[0], email, phone: (await phoneFree()) ? phone : '', org: b.org, vatNumber: b.vatNumber, nameEn: b.nameEn?.trim() ?? '' })
-      .onConflictDoNothing({ target: s.learners.email }).returning()
+    const fresh = { id: randomUUID(), name: name || email.split('@')[0], email, phone: (await phoneFree()) ? phone : '', org: b.org, vatNumber: b.vatNumber, nameEn: b.nameEn?.trim() ?? '' }
+    /* الجوال فريد (فهرس جزئي): إن سبقه حساب آخر بين الفحص والكتابة يُنشأ الحساب بلا جوال — لا يفشل الشراء */
+    const [row] = await db.insert(s.learners).values(fresh).onConflictDoNothing({ target: s.learners.email }).returning()
+      .catch(async (e) => { if (!fresh.phone || !/learners\.phone|learners_phone/.test(`${e} ${(e as { cause?: unknown })?.cause ?? ''}`)) throw e
+        return db.insert(s.learners).values({ ...fresh, phone: '' }).onConflictDoNothing({ target: s.learners.email }).returning() })
     if (row) return row
     const [again] = await db.select().from(s.learners).where(eq(s.learners.email, email))
     return again
@@ -162,6 +165,9 @@ export async function upsertLearner(b: { name: string; email: string; phone: str
   if (nameEn && nameEn !== old.nameEn && !locked && (opts.trusted || !old.nameEn)) patch.nameEn = nameEn
   if (!Object.keys(patch).length) return old
   const [row] = await db.update(s.learners).set({ ...patch, updatedAt: nowIso() }).where(eq(s.learners.id, old.id)).returning()
+    .catch(async (e) => { if (!patch.phone || !/learners\.phone|learners_phone/.test(`${e} ${(e as { cause?: unknown })?.cause ?? ''}`)) throw e
+      const { phone: _p, ...rest } = patch
+      return Object.keys(rest).length ? db.update(s.learners).set({ ...rest, updatedAt: nowIso() }).where(eq(s.learners.id, old.id)).returning() : [old] })
   return row
 }
 

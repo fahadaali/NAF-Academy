@@ -8,7 +8,7 @@ import { db, schema as s } from '@/server/db'
 import { requirePermission } from '@/server/auth'
 import { audit } from '@/server/audit'
 import { writeIdentity } from '@/server/identity'
-import { maskId, normalizeDigits, validArabicName, validEnglishName, validNationalId } from '@/lib/identity'
+import { IDENTITY_LABEL, identityComplete, identityGaps, maskId, normalizeDigits, validArabicName, validEnglishName, validNationalId } from '@/lib/identity'
 import { normalizePhone } from '@/lib/phone'
 
 const input = z.object({
@@ -29,6 +29,9 @@ export async function setLearnerIdentity(raw: unknown): Promise<{ ok: boolean; e
   if (v.phone && !phone) return { ok: false, error: 'رقم جوال غير صالح' }
   const [old] = await db.select().from(s.learners).where(eq(s.learners.id, v.id))
   if (!old) return { ok: false, error: 'المتدرب غير موجود' }
+  /* الهوية المكتملة تبقى مكتملة: تفريغ حقل يفكّ ثبات الاسمين فيعيد تسميتها المتدرب */
+  const gaps = identityGaps({ name: v.name, nameEn: v.nameEn, nationalId: v.nationalId, phone: phone ?? '' })
+  if (identityComplete(old) && gaps.length) return { ok: false, error: `الهوية مكتملة — التصحيح يبقيها مكتملة: ${gaps.map((g) => IDENTITY_LABEL[g]).join('، ')}` }
   const r = await writeIdentity(v.id, { name: v.name, nameEn: v.nameEn, nationalId: v.nationalId, phone: phone ?? '' })
   if (!r.ok) return r
   /* السجل بلا رقم الهوية كاملاً: ما تغيّر وسببه */

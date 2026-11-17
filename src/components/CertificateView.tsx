@@ -1,6 +1,6 @@
 /* عرض الشهادة في الصفحة — نفس المواضع والمقاسات النسبية لملف PDF (الصفحة 842×595 نقطة).
    المقاسات بوحدة cqw فيتناسب العرض مع أي عرض حاوية. */
-import { BLOCKS, mergeDesign, PAGE, SPLIT, TONES, type BlockKey, type CertDesign } from '@/lib/certificate'
+import { BLOCKS, hoursOf, mergeDesign, PAGE, SPLIT, TONES, type BlockKey, type CertDesign } from '@/lib/certificate'
 import { parse, render } from '@/motion/kashida'
 import { Emblem } from './Emblem'
 import { LogoMark } from './Logo'
@@ -10,7 +10,6 @@ import c from './certificate.module.css'
 export type CertViewData = { name: string; course: string; hours: number; date: string; hijri: string; code: string; qrSvg?: string; nameEn?: string; courseEn?: string; dateEn?: string; idNumber?: string }
 
 const cq = (pt: number) => `${(pt / PAGE.w) * 100}cqw`
-const hoursOf = (t: string, h: number) => t.replace(/\{\{\s*hours\s*\}\}/g, String(h))
 
 export function CertificateView({ design: input, data, brand, onPick, active, dragRef, images = {} }: {
   design: CertDesign; data: CertViewData; brand: BrandView

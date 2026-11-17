@@ -19,6 +19,8 @@ async function gate(slug: string, lessonId: string) {
   if (!me) throw new Error('انتهت الجلسة')
   const ctx = await learnerCourse(slug, me)
   if (!ctx?.enrollment) throw new Error('غير مسجّل في الدورة')
+  /* المعاينة المجانية مفتوحة للعرض، لكن لا إجراء (تقدّم، اختبار، واجب، سؤال) قبل البيانات الإلزامية */
+  if (ctx.gaps.length) throw new Error('أكمل بياناتك أولاً')
   const lesson = ctx.ordered.find((l) => l.id === lessonId)
   const acc = ctx.modules.flatMap((m) => m.lessons).find((l) => l.id === lessonId)?.access
   if (!lesson || acc?.state !== 'open') throw new Error('الدرس غير متاح')

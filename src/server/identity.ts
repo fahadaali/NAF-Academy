@@ -20,9 +20,10 @@ async function phoneOwner(phone: string, exceptLearnerId: string) {
   return r && r.id !== exceptLearnerId ? r.id : null
 }
 
-/** خطأ الفهرس الفريد لرقم الهوية — libsql يضعه في cause، وD1 في الرسالة */
-export const isNationalIdConflict = (e: unknown) =>
-  /learners\.national_id|learners_national_id/.test(`${String(e)} ${String((e as { cause?: unknown })?.cause ?? '')}`)
+/** خطأ الفهرس الفريد — libsql يضعه في cause، وD1 في الرسالة */
+export const isNationalIdConflict = (e: unknown) => /learners\.national_id|learners_national_id/.test(errText(e))
+const isPhoneConflict = (e: unknown) => /learners\.phone|learners_phone/.test(errText(e))
+const errText = (e: unknown) => `${String(e)} ${String((e as { cause?: unknown })?.cause ?? '')}`
 
 export type IdentityPatch = Partial<Pick<typeof s.learners.$inferInsert, 'name' | 'nameEn' | 'nationalId' | 'phone' | 'org' | 'vatNumber'>>
 
@@ -36,6 +37,7 @@ export async function writeIdentity(learnerId: string, patch: IdentityPatch): Pr
     await db.update(s.learners).set({ ...patch, updatedAt: new Date().toISOString() }).where(eq(s.learners.id, learnerId))
   } catch (e) {
     if (isNationalIdConflict(e)) return { ok: false, error: NATIONAL_ID_TAKEN }
+    if (isPhoneConflict(e)) return { ok: false, error: PHONE_TAKEN }
     throw e
   }
   /* الإصدار لا يُفشل الحفظ */

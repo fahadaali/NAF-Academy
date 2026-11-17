@@ -80,6 +80,16 @@ test('حفظ الهوية يفتح الدروس، والرقم والجوال ل
   assert.deepEqual((await states('a')).acc, { p: 'open', v: 'open' })
 })
 
+test('المعاينة للناقصة بياناته عرضٌ فقط — لا إجراء فيها', async () => {
+  await db.insert(s.learners).values({ id: 'd', name: 'd', email: 'd@x.sa' })
+  await db.insert(s.enrollments).values({ id: 'e4', learnerId: 'd', courseId: 'c1', source: 'manual' })
+  const { lessonView } = await import('../src/server/learning')
+  const [me] = await db.select().from(s.learners).where(eq(s.learners.id, 'd'))
+  const v = await lessonView('c1', 'p', me)
+  assert.equal(v?.access.state, 'open')
+  assert.equal(v?.enrolled, false, 'كالزائر: لا تسجيلات ولا تذكرة ولا اختبار')
+})
+
 test('الشراء والدعوة لا يغيّران اسماً مثبّتاً — ويملآن الفارغ قبل التثبيت', async () => {
   const { upsertLearner } = await import('../src/server/sales')
   const r = await upsertLearner({ name: 'شخص آخر تماماً', nameEn: 'Someone Else', email: 'b@x.sa', phone: '', org: '', vatNumber: '' }, { trusted: true })
