@@ -116,28 +116,6 @@ export function mergeDesign(v: Partial<CertDesign> | null | undefined): CertDesi
   }
 }
 
-/** رقم الهوية الوطنية أو الإقامة: 10 أرقام تبدأ بـ 1 (مواطن) أو 2 (مقيم)، وآخرها رقم تحقق (Luhn) */
-export function validNationalId(raw: string): boolean {
-  const v = normalizeDigits(raw)
-  if (!/^[12]\d{9}$/.test(v)) return false
-  let sum = 0
-  for (let i = 0; i < 10; i++) {
-    let d = Number(v[i])
-    if (i % 2 === 0) { d *= 2; if (d > 9) d -= 9 }
-    sum += d
-  }
-  return sum % 10 === 0
-}
-
-/** الأرقام العربية والفارسية إلى لاتينية، وحذف المسافات والشرطات */
-export const normalizeDigits = (raw: string) => raw.replace(/[\u0660-\u0669]/g, (d) => String(d.charCodeAt(0) - 0x0660)).replace(/[\u06F0-\u06F9]/g, (d) => String(d.charCodeAt(0) - 0x06F0)).replace(/[\s-]/g, '')
-
-/** رقم هوية تجريبي صالح للمعاينة — ليس لشخص (يمرّ بفحص Luhn وحده) */
-export const SAMPLE_ID = '1000000008'
-
-/** للعرض العام في الصفحة (لا ملف PDF): أول رقمين وآخر ثلاثة */
-export const maskId = (v: string) => (v.length > 5 ? `${v.slice(0, 2)}${'•'.repeat(v.length - 5)}${v.slice(-3)}` : v)
-
 export const mergeRules = (v: Partial<CertRules> | null | undefined): CertRules => ({ ...DEFAULT_RULES, ...v })
 
 /** ألوان الشهادة — مرآة لرموز الهوية (ملف PDF لا يقرأ متغيرات CSS) */

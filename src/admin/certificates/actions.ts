@@ -8,9 +8,11 @@ import { z } from 'zod'
 import { db, schema as s } from '@/server/db'
 import { courseScope, inScope, requirePermission, type Staff } from '@/server/auth'
 import { audit } from '@/server/audit'
-import { certBrand, dateAr, hijriAr, isNationalIdConflict, issueAwaitingId, NATIONAL_ID_TAKEN, nationalIdOwner, issueCertificate, recheckCourse, regeneratePdf } from '@/server/certificates'
+import { certBrand, dateAr, hijriAr, issueCertificate, recheckCourse, regeneratePdf } from '@/server/certificates'
 import { certificatePdf } from '@/server/certificates/pdf'
-import { BLOCKS, DEFAULT_DESIGN, maskId, normalizeDigits, SAMPLE_ID, validNationalId, type CertDesign } from '@/lib/certificate'
+import { BLOCKS, DEFAULT_DESIGN, type CertDesign } from '@/lib/certificate'
+import { maskId, normalizeDigits, SAMPLE_ID, validNationalId } from '@/lib/identity'
+import { writeIdentity } from '@/server/identity'
 import { inList } from '@/server/db/limits'
 
 /** المدرب لا يمسّ إلا شهادات دوراته */
@@ -41,26 +43,24 @@ export async function approveCertificates(ids: string[]): Promise<{ ok: boolean;
   return { ok: true, n, missing }
 }
 
-const idInput = z.object({ id: z.string().uuid(), nationalId: z.string().transform(normalizeDigits).refine(validNationalId, 'رقم الهوية غير صحيح — 10 أرقام تبدأ بـ 1 أو 2') })
+const idInput = z.object({ id: z.string().uuid(), nationalId: z.string().max(20).transform(normalizeDigits).refine(validNationalId, 'رقم الهوية غير صحيح — 10 أرقام تبدأ بـ 1 أو 2') })
 
-/** إضافة رقم هوية المتدرب من طلب شهادته — للفريق حين لا يضيفه المتدرب. الاعتماد التلقائي يصدر فوراً */
+/** إضافة رقم هوية المتدرب من طلب شهادته — يملأ الفارغ وحده: تصحيح رقم ثابت من ملف المتدرب بصلاحية learners.identity.
+    الاعتماد التلقائي يصدر فوراً (writeIdentity) */
 export async function setCertificateNationalId(raw: unknown): Promise<{ ok: boolean; error?: string }> {
   const st = await requirePermission('certificates.manage')
   const p = idInput.safeParse(raw)
   if (!p.success) return { ok: false, error: p.error.issues[0]?.message }
   if (!(await mine(st, p.data.id))) return { ok: false, error: 'الشهادة غير موجودة' }
-  const [c] = await db.select({ learnerId: s.certificates.learnerId }).from(s.certificates).where(and(eq(s.certificates.id, p.data.id), eq(s.certificates.status, 'pending')))
+  const [c] = await db.select({ learnerId: s.certificates.learnerId, has: s.learners.nationalId }).from(s.certificates)
+    .innerJoin(s.learners, eq(s.learners.id, s.certificates.learnerId))
+    .where(and(eq(s.certificates.id, p.data.id), eq(s.certificates.status, 'pending')))
   if (!c) return { ok: false, error: 'الشهادة ليست بانتظار المراجعة' }
-  if (await nationalIdOwner(p.data.nationalId, c.learnerId)) return { ok: false, error: 'رقم الهوية مسجّل بحساب متدرب آخر — راجع الحسابين قبل الإضافة' }
-  try {
-    await db.update(s.learners).set({ nationalId: p.data.nationalId, updatedAt: new Date().toISOString() }).where(eq(s.learners.id, c.learnerId))
-  } catch (e) {
-    if (isNationalIdConflict(e)) return { ok: false, error: NATIONAL_ID_TAKEN }
-    throw e
-  }
+  if (c.has) return { ok: false, error: 'للمتدرب رقم هوية ثابت — يُصحَّح من ملفه في «المتدربون»' }
+  const r = await writeIdentity(c.learnerId, { nationalId: p.data.nationalId })
+  if (!r.ok) return r
   /* السجل بالرقم مقنّعاً: سجل النسخ يُقرأ في اللوحة لغير صاحب الصلاحية */
   await audit(st.name, 'national_id', 'learner', c.learnerId, maskId(p.data.nationalId))
-  await issueAwaitingId(c.learnerId)
   refresh()
   return { ok: true }
 }

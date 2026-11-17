@@ -50,6 +50,18 @@ export async function verifyAt(page: Page, admin: Page, email: string, name: str
   await page.fill('label:has-text("الجوال") input', phone)
 }
 
+/** البيانات الإلزامية في «ملفي» — شرط فتح الدروس (src/lib/identity.ts). الرقم صالح بفحص Luhn وفريد لكل متدرب */
+export async function completeProfile(page: Page, o: { name: string; nameEn: string; nationalId: string; phone: string }) {
+  await page.goto('/learn/profile')
+  await page.getByLabel(/الاسم الكامل بالعربية/).fill(o.name)
+  await page.getByLabel(/الاسم الكامل بالإنجليزية/).fill(o.nameEn)
+  await page.getByLabel(/رقم الهوية الوطنية أو الإقامة/).fill(o.nationalId)
+  await page.getByLabel(/^الجوال/).fill(o.phone)
+  await page.getByRole('checkbox', { name: /أقرّ/ }).check()
+  await page.getByRole('button', { name: 'حفظ', exact: true }).click()
+  await expect(page.getByText('حُفظ ملفك')).toBeVisible()
+}
+
 /** ما يخرج عن الشاشة على الجوال (يُقيَّم في الصفحة):
     - عنصر خارج حدود الشاشة وليس داخل حاوية تمرّر أو تقصّ — html يقصّ الأفقي فلا يمكن الوصول إليه؛
     - عنصر أعرض من حاوية تقصّ فائضها (hidden/clip) فيُقطع داخلها — كبطاقة اتسع عمودها لأعرض ما فيها. */

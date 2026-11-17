@@ -15,6 +15,7 @@ import { ReviewBox } from '@/site/learn/ReviewBox'
 import { REVIEW_MIN_PCT } from '@/lib/reviews'
 import st from '@/site/learn/course.module.css'
 import { ANON_DISPLAY } from '@/lib/reviews'
+import { ProfileGate } from '@/site/learn/ProfileGate'
 
 export const dynamic = 'force-dynamic'
 export const metadata: Metadata = { robots: { index: false } }
@@ -41,7 +42,7 @@ export default async function CourseHome({ params }: { params: Promise<{ course:
   }
   /* البرنامج الخاص لا صفحة عامة له — غير المسجّل يعود إلى دوراته */
   if (!ctx.enrollment) redirect(ctx.course.visibility === 'private' ? '/learn' : `/courses/${slug}`)
-  const { course, modules, pct, resumeId, upcoming, enrollment, cohort } = ctx
+  const { course, modules, pct, resumeId, upcoming, enrollment, cohort, gaps } = ctx
   const [cert, [issued], [myReview]] = await Promise.all([
     evaluate(me.id, course.id),
     db.select().from(s.certificates).where(and(eq(s.certificates.learnerId, me.id), eq(s.certificates.courseId, course.id))),
@@ -64,12 +65,14 @@ export default async function CourseHome({ params }: { params: Promise<{ course:
           </div>
           <div className={st.ringBox}>
             <Ring pct={pct} size={120} />
-            {resumeId && <a className="btn" href={`/learn/${slug}/${resumeId}`}>{pct ? 'تابع من حيث توقفت' : 'ابدأ التعلّم'}</a>}
+            {gaps.length ? <a className="btn" href={`/learn/profile?next=${encodeURIComponent(`/learn/${slug}`)}`}>أكمل بياناتك لتبدأ</a>
+              : resumeId && <a className="btn" href={`/learn/${slug}/${resumeId}`}>{pct ? 'تابع من حيث توقفت' : 'ابدأ التعلّم'}</a>}
           </div>
         </div>
       </header>
       <div className={`wrap ${st.body}`}>
         <div className={st.main}>
+          {gaps.length > 0 && <ProfileGate gaps={gaps} next={`/learn/${slug}`} className={st.box} />}
           {cert && cert.rules.enabled && (
             <section className={st.box} aria-labelledby="cert-h">
               <h2 id="cert-h">الشهادة</h2>

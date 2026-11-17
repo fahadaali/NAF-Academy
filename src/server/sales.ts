@@ -9,6 +9,7 @@ import { zatcaTlv } from './payments/zatca'
 import { gateway } from './payments/gateway'
 import { normalizeCode, quote, type Quote } from '@/lib/quote'
 import { normalizePhone } from '@/lib/phone'
+import { lockedFields } from '@/lib/identity'
 import { resolveStatus } from '@/lib/course-meta'
 import type { CourseRow, CouponRow, OrderRow, TierRow } from './db/schema'
 import { chunksOf, inList } from './db/limits'
@@ -151,12 +152,14 @@ export async function upsertLearner(b: { name: string; email: string; phone: str
   /* الاسم الافتراضي (ما قبل @) يُعامل كفارغ */
   const blankName = !old.name || old.name === email.split('@')[0]
   const patch: Partial<typeof s.learners.$inferInsert> = {}
-  if (name && name !== old.name && (opts.trusted || blankName)) patch.name = name
+  /* الهوية المكتملة ثابتة: الاسمان لا يغيّرهما شراء ولا دعوة — تصحيحهما من ملف المتدرب في اللوحة (src/lib/identity.ts) */
+  const locked = lockedFields(old).names
+  if (name && name !== old.name && !locked && (opts.trusted || blankName)) patch.name = name
   if (phone && phone !== old.phone && (opts.trusted || !old.phone) && (await phoneFree(old.id))) patch.phone = phone
   if (b.org && b.org !== old.org && (opts.trusted || !old.org)) patch.org = b.org
   if (b.vatNumber && b.vatNumber !== old.vatNumber && (opts.trusted || !old.vatNumber)) patch.vatNumber = b.vatNumber
   const nameEn = b.nameEn?.trim() ?? ''
-  if (nameEn && nameEn !== old.nameEn && (opts.trusted || !old.nameEn)) patch.nameEn = nameEn
+  if (nameEn && nameEn !== old.nameEn && !locked && (opts.trusted || !old.nameEn)) patch.nameEn = nameEn
   if (!Object.keys(patch).length) return old
   const [row] = await db.update(s.learners).set({ ...patch, updatedAt: nowIso() }).where(eq(s.learners.id, old.id)).returning()
   return row

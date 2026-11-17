@@ -3,6 +3,7 @@
 import { and, eq, isNull, like, or } from 'drizzle-orm'
 import { db, schema as s } from '@/server/db'
 import { currentLearner } from '@/server/learner-auth'
+import { identityComplete } from '@/lib/identity'
 import { assetRow, serveAsset } from '@/server/assets'
 import { hasAccess } from '@/lib/cohorts'
 import { previewOpen } from '@/lib/learning'
@@ -34,7 +35,8 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
       if (r.preview && previewOpen(r)) { ok = true; continue }
       if (!me) continue
       const [en] = await db.select().from(s.enrollments).where(and(eq(s.enrollments.learnerId, me.id), eq(s.enrollments.courseId, r.courseId), eq(s.enrollments.status, 'active')))
-      if (hasAccess(en)) ok = true
+      /* المسجّل بلا بياناته الإلزامية لا تصله ملفات الدروس — كما تُقفل عليه الدروس (learnerCourse) */
+      if (hasAccess(en) && identityComplete(me)) ok = true
     }
     if (ok) {
       const bytes = await (await import('@/server/storage')).getObject(a.key)
@@ -54,7 +56,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
       let mine = r.preview && previewOpen(r)
       if (!mine && me) {
         const [en] = await db.select().from(s.enrollments).where(and(eq(s.enrollments.learnerId, me.id), eq(s.enrollments.courseId, r.courseId), eq(s.enrollments.status, 'active')))
-        mine = hasAccess(en)
+        mine = hasAccess(en) && identityComplete(me)
       }
       if (!mine) continue
       ok = true

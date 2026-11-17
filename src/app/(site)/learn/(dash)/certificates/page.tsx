@@ -34,7 +34,7 @@ export default async function MyCertificates() {
           ) : (
             <>
               <p className={st.next}>{LABEL[c.status]}{c.reason ? ` — ${c.reason}` : ''}</p>
-              {c.status === 'pending' && needsId && <a className="btn" href="/learn/profile">أضف رقم هويتك لإصدار الشهادة</a>}
+              {c.status === 'pending' && needsId && <a className="btn" href="/learn/profile?next=/learn/certificates">أضف رقم هويتك لإصدار الشهادة</a>}
             </>
           )}
         </article>

@@ -5,7 +5,8 @@ import { existsSync, mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { eq } from 'drizzle-orm'
-import { DEFAULT_RULES, SAMPLE_ID, SPLIT_BLOCKS, certCode, evaluateRules, linkedinUrl, maskId, mergeDesign, normalizeDigits, validNationalId } from '../src/lib/certificate'
+import { DEFAULT_RULES, SPLIT_BLOCKS, certCode, evaluateRules, linkedinUrl, mergeDesign } from '../src/lib/certificate'
+import { SAMPLE_ID, maskId, normalizeDigits, validNationalId } from '../src/lib/identity'
 
 const dir = mkdtempSync(join(tmpdir(), 'naf-cert-'))
 process.env.DATABASE_URL = `file:${join(dir, 't.db')}`
@@ -164,11 +165,14 @@ test('الاعتماد التلقائي ينتظر رقم الهوية ثم يص
 })
 
 test('رقم الهوية لحساب واحد — والفارغ لا يتعارض', async () => {
+  const id = await import('../src/server/identity')
   /* 'a' يحمل SAMPLE_ID منذ اختبار الإصدار */
-  assert.equal(await c.nationalIdOwner(SAMPLE_ID, 'b'), 'a')
-  assert.equal(await c.nationalIdOwner(SAMPLE_ID, 'a'), null)
-  assert.equal(await c.nationalIdOwner('', 'b'), null)
-  await assert.rejects(db.update(s.learners).set({ nationalId: SAMPLE_ID }).where(eq(s.learners.id, 'b')), (e) => c.isNationalIdConflict(e))
+  assert.equal(await id.nationalIdOwner(SAMPLE_ID, 'b'), 'a')
+  assert.equal(await id.nationalIdOwner(SAMPLE_ID, 'a'), null)
+  assert.equal(await id.nationalIdOwner('', 'b'), null)
+  assert.deepEqual(await id.writeIdentity('b', { nationalId: SAMPLE_ID }), { ok: false, error: id.NATIONAL_ID_TAKEN })
+  /* الفهرس الفريد يحرس ولو تجاوزت الكتابة الفحص */
+  await assert.rejects(db.update(s.learners).set({ nationalId: SAMPLE_ID }).where(eq(s.learners.id, 'b')), (e) => id.isNationalIdConflict(e))
   await db.insert(s.learners).values([{ id: 'e1', name: 'بلا رقم', email: 'e1@x.sa' }, { id: 'e2', name: 'بلا رقم', email: 'e2@x.sa' }])
 })
 

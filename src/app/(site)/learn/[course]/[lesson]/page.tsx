@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { ProfileGate } from '@/site/learn/ProfileGate'
 import { headers } from 'next/headers'
 import { notFound, redirect } from 'next/navigation'
 import QRCode from 'qrcode'
@@ -63,6 +64,7 @@ export default async function LessonPage({ params }: { params: Promise<{ course:
         </header>
 
         {access.state === 'drip' && <div className={st.locked}><strong>يُفتح هذا الدرس {formatDay(access.opensAt)}</strong><span className="num">{formatTime(access.opensAt)} · {formatHijri(access.opensAt)}</span></div>}
+        {access.state === 'profile' && <ProfileGate gaps={ctx.gaps} next={`/learn/${slug}/${l.id}`} className={st.locked} />}
         {access.state === 'sequence' && <div className={st.locked}><strong>أكمل الدروس السابقة أولاً</strong><a className="btn ghost" href={`/learn/${slug}/${access.after}`}>انتقل إلى الدرس المطلوب</a></div>}
 
         {access.state === 'open' && (

@@ -58,3 +58,11 @@
 
 /* اللمس: أهداف 40px على الأقل */
 @media (pointer: coarse) { .close { inline-size: 40px; block-size: 40px; } }
+
+/* «ملفي»: قسمان (الإلزامي والاختياري)، والإقرار قبل تثبيت الهوية، وأزرار الحفظ */
+.profile { display: grid; gap: 18px; max-inline-size: 560px; }
+.form h2 { font-size: 18px; font-weight: 800; }
+.form > p { color: var(--muted); font-size: 14.5px; line-height: 1.8; }
+.check { display: flex; gap: 10px; align-items: start; font-size: 14.5px; line-height: 1.7; cursor: pointer; }
+.check input { margin-block-start: 0.35em; inline-size: 18px; block-size: 18px; accent-color: var(--gold-3); flex: none; }
+.actions { display: flex; gap: 10px; flex-wrap: wrap; }
