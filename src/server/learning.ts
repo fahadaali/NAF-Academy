@@ -9,7 +9,6 @@ import type { LessonFull, LearnerRow } from './db/schema'
 import type { PublicQuiz } from '@/lib/learning-types'
 import { playbackUrl } from './stream'
 import { ticketToken } from './tickets'
-import { inList } from '@/server/db/limits'
 import { hasAccess, withSession } from '@/lib/cohorts'
 import { sessionsOf } from './cohorts'
 import { identityGaps, type IdentityField } from '@/lib/identity'
@@ -23,22 +22,26 @@ const completable = (l: { type: string }) => l.type !== 'live' && l.type !== 'on
 export async function learnerCourse(slug: string, learner: LearnerRow | null) {
   const [course] = await db.select().from(s.courses).where(and(eq(s.courses.slug, slug), isNull(s.courses.deletedAt)))
   if (!course) return null
-  const [row] = learner
-    ? await db.select().from(s.enrollments).where(and(eq(s.enrollments.learnerId, learner.id), eq(s.enrollments.courseId, course.id), eq(s.enrollments.status, 'active')))
-    : []
+  /* بعد الدورة: التسجيل والمنهج والتقدّم والحضور مستقلة — بالتوازي (كل نداء D1 رحلة شبكة) */
+  const [[row], mods, lessons, prog, att] = await Promise.all([
+    learner
+      ? db.select().from(s.enrollments).where(and(eq(s.enrollments.learnerId, learner.id), eq(s.enrollments.courseId, course.id), eq(s.enrollments.status, 'active')))
+      : Promise.resolve([]),
+    db.select().from(s.modules).where(eq(s.modules.courseId, course.id)).orderBy(asc(s.modules.sortOrder)),
+    db.select({ l: s.lessons }).from(s.lessons).innerJoin(s.modules, eq(s.modules.id, s.lessons.moduleId)).where(eq(s.modules.courseId, course.id)).orderBy(asc(s.lessons.sortOrder)).then((r) => r.map((x) => x.l)),
+    learner ? db.select().from(s.lessonProgress).where(and(eq(s.lessonProgress.learnerId, learner.id), eq(s.lessonProgress.courseId, course.id))) : Promise.resolve([]),
+    learner ? db.select().from(s.attendance).where(and(eq(s.attendance.learnerId, learner.id), eq(s.attendance.courseId, course.id))) : Promise.resolve([]),
+  ])
   /* التسجيل المنتهي وصوله لا يفتح الدروس — يُعاد منفصلاً لتعرض الصفحة «انتهى وصولك» والتجديد */
   const enrollment = row && hasAccess(row) ? row : undefined
   const expired = row && !enrollment ? row : null
-  const mods = await db.select().from(s.modules).where(eq(s.modules.courseId, course.id)).orderBy(asc(s.modules.sortOrder))
-  const lessons = mods.length ? await db.select().from(s.lessons).where(inList(s.lessons.moduleId, mods.map((m) => m.id))).orderBy(asc(s.lessons.sortOrder)) : []
-  /* مواعيد الجلسات من دفعة المتدرب إن كان في دفعة */
-  const sessions = await sessionsOf(row?.cohortId)
+  /* مواعيد الجلسات من دفعة المتدرب إن كان في دفعة، والدفعة نفسها (المحذوفة لا تُعرض — يبقى بمواعيد دروسه) */
+  const [sessions, [cohort]] = await Promise.all([
+    sessionsOf(row?.cohortId),
+    row?.cohortId ? db.select().from(s.cohorts).where(and(eq(s.cohorts.id, row.cohortId), isNull(s.cohorts.deletedAt))) : Promise.resolve([]),
+  ])
   const ordered = mods.flatMap((m) => lessons.filter((l) => l.moduleId === m.id)).map((l) => withSession(l, sessions))
-  const prog = learner ? await db.select().from(s.lessonProgress).where(and(eq(s.lessonProgress.learnerId, learner.id), eq(s.lessonProgress.courseId, course.id))) : []
-  const att = learner ? await db.select().from(s.attendance).where(and(eq(s.attendance.learnerId, learner.id), eq(s.attendance.courseId, course.id))) : []
   const done = new Set([...prog.filter((p) => p.completedAt).map((p) => p.lessonId), ...att.map((a) => a.lessonId)])
-  /* دفعة في المحذوفات: المتدرب يبقى بمواعيد دروسه (لا تُعرض دفعة محذوفة) */
-  const [cohort] = row?.cohortId ? await db.select().from(s.cohorts).where(and(eq(s.cohorts.id, row.cohortId), isNull(s.cohorts.deletedAt))) : []
   /* المعاينة لغير المسجّل: للدورة العامة الظاهرة وحدها */
   const previews = previewOpen(course)
   const acc = availability(ordered.map((l) => ({ id: l.id, type: l.type, drip: l.drip, preview: l.preview && previews, startsAt: l.startsAt })), {
@@ -57,7 +60,7 @@ export async function learnerCourse(slug: string, learner: LearnerRow | null) {
   const last = prog.filter((p) => !p.completedAt).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0]
   const nextUp = ordered.find((l) => acc.get(l.id)?.state === 'open' && !done.has(l.id) && completable(l))
   const upcoming = ordered.filter((l) => (l.type === 'live' || l.type === 'onsite') && l.startsAt && joinWindow(l.startsAt, l.endsAt).state !== 'ended')
-  return { course, enrollment: enrollment ?? null, expired, cohort: cohort ?? null, gaps, modules, ordered, pct, done, resumeId: last?.lessonId ?? nextUp?.id ?? ordered[0]?.id ?? null, upcoming }
+  return { course, enrollment: enrollment ?? null, expired, cohort: cohort ?? null, gaps, modules, ordered, pct, done, prog, att, resumeId: last?.lessonId ?? nextUp?.id ?? ordered[0]?.id ?? null, upcoming }
 }
 
 export type LessonView = {
@@ -84,7 +87,7 @@ export async function lessonView(slug: string, lessonId: string, learner: Learne
   const enrolled = !!ctx.enrollment && !ctx.gaps.length
   if (access.state === 'enroll') return null
 
-  const [prog] = learner ? await db.select().from(s.lessonProgress).where(and(eq(s.lessonProgress.learnerId, learner.id), eq(s.lessonProgress.lessonId, l.id))) : []
+  const prog = ctx.prog.find((p) => p.lessonId === l.id)
   const resumeAt = prog && !prog.completedAt ? prog.positionSec : 0
   let player: LessonView['player'] = { kind: 'none', src: null, resumeAt, duration: l.minutes * 60, captions: [] }
   if (access.state === 'open' && l.type === 'video') {
@@ -106,8 +109,17 @@ export async function lessonView(slug: string, lessonId: string, learner: Learne
     /* البذرة رقم المحاولة — الترتيب ثابت داخل المحاولة ويتغيّر في التي بعدها */
     const attemptId = open?.id ?? ''
     quiz = { ...publicQuiz(l.quiz, `${learner.id}:${l.id}:${used}`), attemptId, used, best, lastPassed: attempts.find((a) => a.submittedAt)?.passed ?? null }
+    /* اختبار مجتاز ودرسه غير مكتمل (تعثّر حفظ التقدّم بعد التسليم): يُكمَل الآن — وإلا علق الدرس والشهادة، فلا محاولة جديدة بعد النجاح */
+    if (attempts.some((a) => a.passed) && !ctx.done.has(l.id)) {
+      const at = new Date().toISOString()
+      await db.insert(s.lessonProgress).values({ learnerId: learner.id, lessonId: l.id, courseId: ctx.course.id, completedAt: at })
+        .onConflictDoUpdate({ target: [s.lessonProgress.learnerId, s.lessonProgress.lessonId], set: { completedAt: sql`coalesce(${s.lessonProgress.completedAt}, ${at})`, updatedAt: at } })
+      ctx.done.add(l.id)
+      const { onProgress } = await import('./notify/engine')
+      await onProgress(learner.id, ctx.course.id).catch((e) => console.error('quiz heal progress', (e as Error).message))
+    }
   }
-  const [att] = learner ? await db.select().from(s.attendance).where(and(eq(s.attendance.learnerId, learner.id), eq(s.attendance.lessonId, l.id))) : []
+  const att = ctx.att.find((a) => a.lessonId === l.id)
   /* لا يخرج مصدر الفيديو ولا معرّف Stream ولا صورته غير الموقّعة — المشغّل يأخذ الرابط الموقّع وحده */
   const { quiz: _q, joinUrl: _j, video: _v, recording: _r, streamUid: _u, thumbnailUrl: _t, ...safe } = l
   return {

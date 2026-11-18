@@ -1,7 +1,7 @@
 /* الانضمام للجلسة المباشرة — الرابط الحقيقي لا يظهر في الصفحة؛ يُكشف هنا فقط للمسجّل داخل النافذة وقد فُتح له الدرس،
    ويُسجَّل حضوره. يبقى GET (زر «انضم الآن» رابط عادي)، لكن الحضور لا يُحتسب من جلب مسبق للمتصفح (prefetch) ولا من
    روبوتات معاينة الروابط ولا من طلب ليس تنقّلاً — فتح الرابط فعلاً هو الحضور. */
-import { NextResponse } from 'next/server'
+import { NextResponse, after } from 'next/server'
 import { onProgress } from '@/server/notify/engine'
 import { and, eq, isNull } from 'drizzle-orm'
 import { db, schema as s } from '@/server/db'
@@ -48,6 +48,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ lessonId: strin
   if (joinWindow(l.startsAt, l.endsAt).state !== 'open') return NextResponse.redirect(back, 303)
   if (skip) return NextResponse.redirect(back, 303)
   const first = await db.insert(s.attendance).values({ learnerId: me.id, lessonId, courseId: c.course.id, method: 'join', by: 'self' }).onConflictDoNothing().returning({ at: s.attendance.at })
-  if (first.length) await onProgress(me.id, c.course.id)
+  /* التقدّم والشهادة والإنجازات والرسائل بعد التحويل — لا ينتظرها المتدرب على باب الجلسة (يضغط المئات معاً عند البدء) */
+  if (first.length) after(() => onProgress(me.id, c.course.id).catch((e) => console.error('join progress', (e as Error).message)))
   return NextResponse.redirect(l.joinUrl, 303)
 }

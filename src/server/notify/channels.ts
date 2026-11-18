@@ -100,6 +100,8 @@ export async function send(m: Message): Promise<{ ok: boolean; error?: string; i
         method: 'POST',
         headers: { authorization: `Bearer ${envVar('RESEND_API_KEY')}`, 'content-type': 'application/json' },
         body: JSON.stringify({ from: envVar('MAIL_FROM'), to: [m.to], subject: m.subject, text: m.text, html: m.html, headers: m.headers, attachments: m.attachments?.map((a) => ({ filename: a.filename, content: Buffer.from(a.content).toString('base64') })) }),
+        /* مزوّد متعثّر لا يعلّق الطلب (والدفعة) بلا نهاية — الفشل يُعاد بالتراجع */
+        signal: AbortSignal.timeout(15000),
       })
       if (!r.ok) throw new Error(`resend ${r.status}: ${(await r.text()).slice(0, 200)}`)
       providerId = ((await r.json()) as { id?: string }).id ?? ''
@@ -108,6 +110,8 @@ export async function send(m: Message): Promise<{ ok: boolean; error?: string; i
         method: 'POST',
         headers: { authorization: `Bearer ${envVar('TAQNYAT_API_KEY')}`, 'content-type': 'application/json' },
         body: JSON.stringify({ recipients: [m.to.replace(/^\+/, '')], body: m.text, sender: envVar('SMS_SENDER') }),
+        /* مزوّد متعثّر لا يعلّق الطلب (والدفعة) بلا نهاية — الفشل يُعاد بالتراجع */
+        signal: AbortSignal.timeout(15000),
       })
       if (!r.ok) throw new Error(`taqnyat ${r.status}: ${(await r.text()).slice(0, 200)}`)
       providerId = String(((await r.json()) as { messageId?: string | number }).messageId ?? '')

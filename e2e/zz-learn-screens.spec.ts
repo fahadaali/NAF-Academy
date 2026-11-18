@@ -18,11 +18,22 @@ test('صفحات المتدرب والدروس على 360 و390px', async ({ bro
   await g.check('aside input[type=checkbox]')
   await g.click('button:has-text("أكّد التسجيل")')
   await g.waitForURL(/\/orders\//)
+  /* المسجّل الناقصة بياناته لا يُدلّ على «التسجيل» في أي موضع — بل على إكمال بياناته (صفحة الطلب، دوراتي، صفحة الدورة، صفحة التسجيل) */
+  await expect(g.getByRole('link', { name: 'أكمل بياناتك لتبدأ الدورة' })).toBeVisible()
+  await g.goto('/learn')
+  await expect(g.getByRole('link', { name: 'أكمل بياناتك لتبدأ' }).first()).toBeVisible()
+  await g.goto('/courses/evidence-system-deep-dive')
+  await expect(g.getByRole('link', { name: 'أكمل بياناتك لتبدأ' }).first()).toBeVisible()
+  await g.goto('/courses/evidence-system-deep-dive/enroll')
+  await expect(g.getByRole('link', { name: 'أكمل بياناتي' })).toBeVisible()
   /* قبل البيانات الإلزامية: الدرس مقفل بقفل «أكمل بياناتك» */
   await g.goto('/learn/evidence-system-deep-dive')
   await expect(g.getByRole('link', { name: 'أكمل بياناتك لتبدأ' })).toBeVisible()
   await completeProfile(g, { name: 'متدرب الشاشات', nameEn: 'Screens Learner', nationalId: '1000000115', phone: '0551110078' })
 
+  /* بعد إكمالها: صفحة الدورة العامة تدلّه على دورته لا على التسجيل */
+  await g.goto('/courses/evidence-system-deep-dive')
+  await expect(g.getByRole('link', { name: 'ادخل إلى الدورة' }).first()).toBeVisible()
   await g.goto('/learn/evidence-system-deep-dive')
   const lessons = [...new Set(await g.locator('a[href^="/learn/evidence-system-deep-dive/"]').evaluateAll((as) => as.map((a) => a.getAttribute('href')!.split('?')[0])))]
   expect(lessons.length).toBeGreaterThan(1)

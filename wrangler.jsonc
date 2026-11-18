@@ -7,6 +7,10 @@
   "compatibility_date": "2026-10-01",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
   "assets": { "directory": ".open-next/assets", "binding": "ASSETS" },
+  // التنفيذ الذكي (Smart Placement): الصفحة الواحدة تسأل D1 عدة مرات متتالية، وكل سؤال رحلة إلى موقع القاعدة —
+  // فيُشغَّل العامل قرب القاعدة متى كان أسرع (رحلة واحدة طويلة للزائر بدل عدة). الملفات الثابتة تبقى من أقرب مركز.
+  // يحتاج نحو ربع ساعة من الحركة بعد النشر ليقرّر؛ وحاله في اللوحة ← Workers ← naf-academy ← Settings ← Placement.
+  "placement": { "mode": "smart" },
   "d1_databases": [
     { "binding": "DB", "database_name": "naf_academy", "database_id": "b12360ab-1ce4-4ec0-96a4-5d1355cd95ff", "migrations_dir": "migrations" },
     // ذاكرة الصفحات (OpenNext): وسوم الإبطال في القاعدة نفسها — جدول revalidations (الترحيل 0018)
@@ -29,6 +33,9 @@
   // SMS_SENDER يُضاف هنا متى رُبطت قناته.
   "vars": {
     "SITE_URL": "https://academy.naflaw.sa",
+    // صفحة الإعداد /setup مقفلة بعد التهيئة (التهيئة واستعادة المالك بكلمة مرور الإعداد). للفتح وقت الحاجة: "0" هنا ثم نشر،
+    // أو مؤقتاً من لوحة Cloudflare ← Variables (يعود القفل في النشر التالي). الترحيلات لا تتأثر — يطبّقها المشغّل الدوري.
+    "SETUP_LOCKED": "1",
     "MAIL_FROM": "أكاديمية ناف <academy@naflaw.sa>",
     // إشعارات المتصفح: العام والعنوان هنا، والخاص VAPID_PRIVATE_KEY سرّ في اللوحة (الزوج من scripts/vapid.mjs)
     "VAPID_PUBLIC_KEY": "BNdGNtPxFhx8Wtqr4-q6oGjVFCim0beByIGTgyTgedtYbcQfYAU5U4b24_-1zxYSKlepdqMTZ5viLFzkCe8cmn0",

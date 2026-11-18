@@ -6,12 +6,15 @@ import { siteUrl } from './site'
    الجلسة: رمز عشوائي في كوكي httpOnly، والقاعدة تحفظ تجزيئه فقط. */
 import { createHash, createHmac, randomBytes, randomInt, randomUUID, timingSafeEqual } from 'node:crypto'
 import { cookies, headers } from 'next/headers'
+import { cache } from 'react'
 import { and, count, desc, eq, gt, isNull, lt, sql } from 'drizzle-orm'
 import { db, schema as s } from './db'
 import { envVar } from './runtime'
 import { channelOpen, send, type Channel } from './notify/channels'
 import { brandEmail } from './notify/templates'
 import { normalizePhone } from '@/lib/phone'
+import { ipBucket } from '@/lib/ip'
+import { failures } from './ratelimit'
 import type { LearnerRow } from './db/schema'
 
 const COOKIE = 'naf_learner'
@@ -19,6 +22,9 @@ const SESSION_DAYS = 30
 const CODE_TTL = 10 * 60e3
 const MAX_ATTEMPTS = 5
 const MAX_SENDS = 3
+/** الخطأ المتراكم لكل حساب عبر النوافذ: 5 محاولات للرمز و3 رموز كل 10 دقائق وحدها تسمح بتخمين بطيء بلا نهاية */
+const TARGET_FAILS = 30
+const TARGET_WINDOW = 6 * 3600e3
 
 export function learnerSecret() {
   const v = envVar('LEARNER_SECRET')
@@ -41,7 +47,8 @@ export function normalizeTarget(channel: Channel, raw: string): string | null {
 
 async function clientIp() {
   const h = await headers()
-  return h.get('cf-connecting-ip') ?? h.get('x-forwarded-for')?.split(',')[0]?.trim() ?? ''
+  const ip = h.get('cf-connecting-ip') ?? h.get('x-forwarded-for')?.split(',')[0]?.trim() ?? ''
+  return ip ? ipBucket(ip) : ''
 }
 
 export async function requestCode(channel: Channel, raw: string): Promise<{ ok: boolean; error?: string; target?: string }> {
@@ -81,6 +88,8 @@ export async function verifyCode(channel: Channel, raw: string, code: string, na
     .where(and(eq(s.otpCodes.target, target), isNull(s.otpCodes.consumedAt), gt(s.otpCodes.expiresAt, now())))
     .orderBy(desc(s.otpCodes.createdAt)).limit(1)
   if (!row) return { ok: false, error: 'انتهت صلاحية الرمز — اطلب رمزاً جديداً' }
+  const lock = await failures(`otp-target:${target}`, TARGET_FAILS, TARGET_WINDOW, 'global')
+  if (lock.blocked()) return { ok: false, error: 'محاولات خاطئة كثيرة لهذا الحساب — حاول بعد بضع ساعات أو تواصل معنا' }
   /* المحاولة تُحتسب قبل المقارنة وذرّياً */
   const [tried] = await db.update(s.otpCodes).set({ attempts: sql`${s.otpCodes.attempts} + 1` })
     .where(and(eq(s.otpCodes.id, row.id), lt(s.otpCodes.attempts, MAX_ATTEMPTS), isNull(s.otpCodes.consumedAt))).returning()
@@ -88,6 +97,7 @@ export async function verifyCode(channel: Channel, raw: string, code: string, na
   const a = Buffer.from(hashCode(target, code))
   const b = Buffer.from(row.codeHash)
   if (a.length !== b.length || !timingSafeEqual(a, b)) {
+    await lock.fail()
     const left = MAX_ATTEMPTS - tried.attempts
     return { ok: false, error: left > 0 ? `رمز غير صحيح — بقي ${left} محاولات` : 'محاولات كثيرة — اطلب رمزاً جديداً' }
   }
@@ -96,7 +106,7 @@ export async function verifyCode(channel: Channel, raw: string, code: string, na
 
   let learner: LearnerRow | undefined
   if (channel === 'email') {
-    ;[learner] = await db.insert(s.learners).values({ id: randomUUID(), email: target, name: name?.trim() || target.split('@')[0] })
+    ;[learner] = await db.insert(s.learners).values({ id: randomUUID(), email: target, name: name?.trim().slice(0, 80) || target.split('@')[0] })
       .onConflictDoUpdate({ target: s.learners.email, set: { updatedAt: now() } }).returning()
   } else {
     ;[learner] = await db.select().from(s.learners).where(eq(s.learners.phone, target))
@@ -116,7 +126,9 @@ export async function startSession(learnerId: string, name = '') {
   jar.set('naf_hi', (name.split(/[\s@]/)[0] || 'حسابي').slice(0, 30), { sameSite: 'lax', secure: process.env.NODE_ENV === 'production', path: '/', expires: exp })
 }
 
-export async function currentLearner(): Promise<LearnerRow | null> {
+/** المتدرب الداخل — مرة واحدة لكل طلب (الغلاف والصفحة وبيانات الصفحة يسألون معاً) */
+export const currentLearner = cache(readLearner)
+async function readLearner(): Promise<LearnerRow | null> {
   const token = (await cookies()).get(COOKIE)?.value
   if (!token || token.length > 100) return null
   const [row] = await db.select({ l: s.learners, sess: s.learnerSessions }).from(s.learnerSessions)

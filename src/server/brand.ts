@@ -36,9 +36,18 @@ export const brandView = cache(async (): Promise<BrandView> => {
 
 /** الشعار المتجه نظيفاً ومهيّأً للحركة (--n لكل عنصر) — للإدراج داخل الصفحة في مواضع الحركة */
 export const logoSvg = cache(async (key: string): Promise<string | null> => {
+  /* ذاكرة النسخة: قراءة الملف من التخزين وتنقيته في كل طلب كلفة بلا داعٍ — المفتاح يتبع الملف المرفوع (الجديد بمفتاح جديد)،
+     والمهلة القصيرة تكفي لما يُستبدل بالمفتاح نفسه (حزمة الهوية) */
+  const hit = svgMemo.get(key)
+  if (hit && Date.now() - hit.at < SVG_TTL) return hit.svg
   const bytes = await getObject(key)
-  return bytes ? sanitizeSvg(new TextDecoder().decode(bytes), { motion: true })?.svg ?? null : null
+  const svg = bytes ? sanitizeSvg(new TextDecoder().decode(bytes), { motion: true })?.svg ?? null : null
+  if (svgMemo.size > 50) svgMemo.clear()
+  svgMemo.set(key, { svg, at: Date.now() })
+  return svg
 })
+const svgMemo = new Map<string, { svg: string | null; at: number }>()
+const SVG_TTL = 5 * 60e3
 
 /** بايتات PNG للشعار (لملف PDF وصور المشاركة) — توأم الملف المتجه أو الملف نفسه */
 export async function logoBytes(img: LogoImg | null) {

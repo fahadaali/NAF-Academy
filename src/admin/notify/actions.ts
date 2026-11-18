@@ -15,6 +15,7 @@ import { siteUrl } from '@/server/site'
 import { EVENTS, EVENT_META, fill, type EventKey, type NotifySettings, type Template } from '@/lib/notify'
 import { formatDay, formatHijri, formatTime, formatWeekday } from '@/lib/dates'
 import { inList } from '@/server/db/limits'
+import { limited } from '@/server/ratelimit'
 
 const tpl = z.object({
   enabled: z.boolean(),
@@ -82,6 +83,8 @@ export async function sendTest(event: EventKey, t: Template, to: string, channel
   const st = await requirePermission('notify.manage')
   const site = siteUrl()
   if (!site) return { ok: false, error: 'SITE_URL غير مضبوط' }
+  /* التجربة بنص حرّ من مرسل المنصة: حدّ لكل عضو، فلا تصير قناة لرسائل جماعية أو كلفة رسائل جوال */
+  if (await limited(`notify-test:${st.id}`, 10, 60 * 60e3)) return { ok: false, error: 'رسائل تجربة كثيرة — انتظر قليلاً' }
   /* القناة والحدث قيم معدودة — لا يصل send() غيرهما */
   if (!EVENTS.includes(event) || !z.enum(['email', 'sms']).safeParse(channel).success) return { ok: false, error: 'رسالة أو قناة غير صالحة' }
   const dest = z.string().trim().min(5).max(200).safeParse(to)

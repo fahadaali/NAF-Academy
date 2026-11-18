@@ -7,6 +7,10 @@ import { z } from 'zod'
 import { envVar } from '@/server/runtime'
 import { failures, limited } from '@/server/ratelimit'
 import { runSetup, setOwnerPassword, type SetupResult } from '@/server/setup'
+import { isSetupLocked, SETUP_LOCKED_MESSAGE } from '@/lib/setup-lock'
+
+/** القفل على الخادم في كل إجراء — لا في الصفحة وحدها (الإجراء يُستدعى مباشرة بطلب POST) */
+const locked = () => isSetupLocked(envVar('SETUP_LOCKED'))
 
 const input = z.object({
   password: z.string().min(1).max(200),
@@ -51,6 +55,7 @@ async function checkSetupPassword(got: string): Promise<string | null> {
 }
 
 export async function setupAction(raw: unknown): Promise<SetupResult> {
+  if (locked()) return { ok: false, steps: [], error: SETUP_LOCKED_MESSAGE }
   if (await limited('setup', 8, 15 * 60e3)) return { ok: false, steps: [], error: 'محاولات كثيرة — انتظر ربع ساعة' }
   const p = input.safeParse(raw)
   if (!p.success) return { ok: false, steps: [], error: p.error.issues[0]?.message ?? 'بيانات غير صالحة' }
@@ -76,6 +81,7 @@ const ownerInput = z.object({
 
 /** حساب المالك: تعيين كلمة المرور أو استعادته — بكلمة مرور الإعداد وحدها (مخرج الطوارئ إن نُسيت أو فُقد جهاز التحقق) */
 export async function ownerAction(raw: unknown): Promise<SetupResult> {
+  if (locked()) return { ok: false, steps: [], error: SETUP_LOCKED_MESSAGE }
   if (await limited('setup-owner', 6, 15 * 60e3)) return { ok: false, steps: [], error: 'محاولات كثيرة — انتظر ربع ساعة' }
   const p = ownerInput.safeParse(raw)
   if (!p.success) return { ok: false, steps: [], error: p.error.issues[0]?.message ?? 'بيانات غير صالحة' }

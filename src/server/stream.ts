@@ -42,11 +42,26 @@ export function allowedOrigins(): string[] {
 /** رمز تشغيل قصير العمر — المشاهدة فقط: لا تنزيل. يُطلب بعد التحقق من حق المشاهد، ولا يخرج معرّف الفيديو في الرابط */
 async function viewToken(uid: string): Promise<string | null> {
   if (!streamState().configured || !STREAM_UID.test(uid)) return null
-  const r = await fetch(`${api()}/${uid}/token`, { method: 'POST', headers: auth(), body: JSON.stringify({ exp: Math.floor(Date.now() / 1000) + TOKEN_TTL, downloadable: false }) })
-  if (!r.ok) return null
-  const token = ((await r.json()) as { result?: { token?: string } }).result?.token
-  return token && /^[\w.-]+$/.test(token) ? token : null
+  /* الرمز للفيديو لا للمشاهد (التحقق من الحق قبله): يُعاد استعماله داخل النسخة ما بقي من عمره ساعة فأكثر —
+     فلا يُسأل API كلاودفلير (بحدّ طلباته) في كل فتح درس */
+  const memo = tokenMemo.get(uid)
+  if (memo && memo.exp - Date.now() > TOKEN_TTL * 500) return memo.token
+  try {
+    const exp = Date.now() + TOKEN_TTL * 1000
+    const r = await fetch(`${api()}/${uid}/token`, { method: 'POST', headers: auth(), body: JSON.stringify({ exp: Math.floor(exp / 1000), downloadable: false }), signal: AbortSignal.timeout(8000) })
+    if (!r.ok) return null
+    const token = ((await r.json()) as { result?: { token?: string } }).result?.token
+    if (!token || !/^[\w.-]+$/.test(token)) return null
+    if (tokenMemo.size > 500) tokenMemo.clear()
+    tokenMemo.set(uid, { token, exp })
+    return token
+  } catch (e) {
+    /* شبكة أو مهلة: «الفيديو قيد التجهيز» بدل أن تسقط صفحة الدرس كلها */
+    console.error('stream token', (e as Error).message)
+    return null
+  }
 }
+const tokenMemo = new Map<string, { token: string; exp: number }>()
 
 /** رابط المشغّل الموقّع (iframe) بصورة الغلاف الموقّعة وألوان الأكاديمية — null إن تعذّر */
 export async function playbackUrl(uid: string, startSec = 0): Promise<string | null> {

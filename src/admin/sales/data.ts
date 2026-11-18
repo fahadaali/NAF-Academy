@@ -87,7 +87,8 @@ export async function courseLearners(courseId: string) {
   const scope = await courseScope(await requirePermission('learners.read'))
   if (!inScope(scope, courseId)) return { enrolls: [], interest: [], cohorts: [] }
   const [enrolls, interest] = await Promise.all([
-    db.select({ e: s.enrollments, l: s.learners, number: s.orders.number, tier: s.priceTiers.name })
+    /* أعمدة المتدرب التي تعرضها اللوحة وحدها — كل ما يُمرَّر لمكوّن العميل يصل المتصفح، ورقم الهوية لا يخرج إلا لصلاحية learners.identity */
+    db.select({ e: s.enrollments, l: { id: s.learners.id, name: s.learners.name, email: s.learners.email, phone: s.learners.phone, org: s.learners.org }, number: s.orders.number, tier: s.priceTiers.name })
       .from(s.enrollments).innerJoin(s.learners, eq(s.learners.id, s.enrollments.learnerId))
       .leftJoin(s.orders, eq(s.orders.id, s.enrollments.orderId)).leftJoin(s.priceTiers, eq(s.priceTiers.id, s.enrollments.tierId))
       .where(eq(s.enrollments.courseId, courseId)).orderBy(desc(s.enrollments.createdAt)),

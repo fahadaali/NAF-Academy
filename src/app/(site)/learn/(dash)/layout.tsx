@@ -12,12 +12,13 @@ export const dynamic = 'force-dynamic'
 export default async function LearnLayout({ children }: { children: React.ReactNode }) {
   const me = await currentLearner()
   if (!me) redirect('/login?next=/learn')
+  const [orgs, inbox, brand] = await Promise.all([managedOrgs(me.id), inboxOf(me.id, 1), brandView()])
   return (
     <>
       <PageHero eyebrow="مساحتك" title={`أهلاً، ${me.name.split(' ')[0]}.`}>
-        <LearnNav org={(await managedOrgs(me.id)).length > 0} unread={(await inboxOf(me.id, 1)).unread} />
+        <LearnNav org={orgs.length > 0} unread={inbox.unread} />
       </PageHero>
-      <div className="wrap" style={{ paddingBlock: '40px 110px' }}><InstallApp icon={(await brandView()).icon?.url} />{children}</div>
+      <div className="wrap" style={{ paddingBlock: '40px 110px' }}><InstallApp icon={brand.icon?.url} />{children}</div>
     </>
   )
 }

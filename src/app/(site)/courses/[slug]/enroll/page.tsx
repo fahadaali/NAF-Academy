@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
-import { notFound } from 'next/navigation'
-import { courseDetail } from '@/server/queries'
+import { notFound, permanentRedirect } from 'next/navigation'
+import { courseDetail, movedCourse } from '@/server/queries'
 import { priceFor, salesOpen, seatsUsed } from '@/server/sales'
 import { paymentSettings } from '@/server/settings'
 import { plain } from '@/motion/kashida'
@@ -12,6 +12,9 @@ import { channelOpen } from '@/server/notify/channels'
 import { and, eq } from 'drizzle-orm'
 import { db, schema as s } from '@/server/db'
 import { hasAccess } from '@/lib/cohorts'
+import { identityGaps } from '@/lib/identity'
+import { ProfileGate } from '@/site/learn/ProfileGate'
+import lk from '@/site/learn/lesson.module.css'
 
 export const dynamic = 'force-dynamic'
 export const metadata: Metadata = { title: 'التسجيل', robots: { index: false } }
@@ -20,19 +23,34 @@ export default async function Enroll({ params, searchParams }: { params: Promise
   const { slug } = await params
   const sp = await searchParams
   const d = await courseDetail(slug)
-  if (!d) notFound()
+  if (!d) {
+    const to = await movedCourse(slug)
+    if (to) permanentRedirect(`/courses/${to}/enroll`)
+    notFound()
+  }
   const title = plain(d.course.title)
   const st = d.course.status
   /* المنتهي وصوله يجدّد دائماً — ولو أُغلق التسجيل أو امتلأ — ويبقى في دفعته (قرار المالك) */
   const me0 = await currentLearner()
   const [mine] = me0 ? await db.select().from(s.enrollments).where(and(eq(s.enrollments.learnerId, me0.id), eq(s.enrollments.courseId, d.row.id), eq(s.enrollments.status, 'active'))) : []
   const renew = mine && !hasAccess(mine) ? mine : null
+  /* مسجّل ساري الوصول: لا يُطلب منه التسجيل ثانية — يُدلّ على دورته (أو على إكمال بياناته إن كانت سبب القفل).
+     الشراء يبقى تحته لطلب مقاعد لفريق (placeOrder يرفض مقعده هو مرة ثانية) */
+  const enrolled = mine && hasAccess(mine) ? mine : null
+  const gaps = enrolled && me0 ? identityGaps(me0) : []
+  const already = enrolled ? (
+    <div className="wrap" style={{ paddingBlockStart: 44 }}>
+      {gaps.length ? <ProfileGate gaps={gaps} next={`/learn/${slug}`} className={lk.locked} />
+        : <section className={lk.locked} aria-labelledby="en-h"><strong id="en-h">أنت مسجّل في هذه الدورة</strong><span>تجدها في «دوراتي» — ادخل وابدأ التعلّم.</span><a className="btn" href={`/learn/${slug}`}>ادخل إلى الدورة</a></section>}
+    </div>
+  ) : null
 
   if (st !== 'open' && !renew) {
     const kind = st === 'soon' ? 'notify_open' : st === 'full' ? 'waitlist' : 'next_cohort'
     return (
       <>
         <PageHero eyebrow={title} title={st === 'soon' ? 'قريباً جداً.' : st === 'full' ? 'اكتمل العدد.' : 'انتهى تسجيل هذه الدفعة.'} />
+        {already}
         <div className="wrap" style={{ paddingBlock: '44px 100px' }}><InterestForm slug={slug} kind={kind} /></div>
       </>
     )
@@ -53,6 +71,7 @@ export default async function Enroll({ params, searchParams }: { params: Promise
   return (
     <>
       <PageHero eyebrow={renew ? 'تجديد الوصول' : 'التسجيل'} title={d.course.title} body={renew ? 'تقدّمك محفوظ — بعد التجديد تكمل من حيث توقفت.' : d.course.subtitle} />
+      {already}
       <div className="wrap">
         {left === 0 ? (
           <div style={{ paddingBlock: '44px 100px' }}><InterestForm slug={slug} kind="waitlist" /></div>

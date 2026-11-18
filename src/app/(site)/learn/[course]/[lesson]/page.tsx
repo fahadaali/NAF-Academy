@@ -1,7 +1,8 @@
 import type { Metadata } from 'next'
 import { ProfileGate } from '@/site/learn/ProfileGate'
 import { headers } from 'next/headers'
-import { notFound, redirect } from 'next/navigation'
+import { notFound, permanentRedirect, redirect } from 'next/navigation'
+import { movedCourse } from '@/server/queries'
 import QRCode from 'qrcode'
 import { currentLearner } from '@/server/learner-auth'
 import { learnerCourse, lessonView } from '@/server/learning'
@@ -25,6 +26,9 @@ export default async function LessonPage({ params }: { params: Promise<{ course:
   const me = await currentLearner()
   const v = await lessonView(slug, id, me)
   if (!v) {
+    /* رابط درس بالرابط القديم للدورة (روابط البريد والإشعارات) */
+    const to = await movedCourse(slug)
+    if (to) permanentRedirect(`/learn/${to}/${id}`)
     if (!me) redirect(`/login?next=/learn/${slug}/${id}`)
     /* المنتهي وصوله: صفحة الدورة تعرض «انتهى وصولك» مع التجديد — لا 404 (روابط البريد القديمة) */
     if ((await learnerCourse(slug, me))?.expired) redirect(`/learn/${slug}`)
@@ -36,6 +40,8 @@ export default async function LessonPage({ params }: { params: Promise<{ course:
   const prev = flat.slice(0, i).reverse().find((x) => x.access.state === 'open')
   const next = flat.slice(i + 1).find((x) => x.access.state === 'open')
   const canAct = enrolled && !!me && access.state === 'open'
+  /* مسجّل ناقصة بياناته: لا «سجّل» (هو مسجّل) — بل «أكمل بياناتك»، فوق المعاينة المجانية أيضاً */
+  const needsProfile = !!ctx.enrollment && ctx.gaps.length > 0
   /* موعد تسليم الواجب: بعد «dueDays» من إتاحة الدرس لهذا المتدرب (الفتح المتدرّج أو تاريخ تسجيله) */
   const dueAt = l.type === 'assignment' && l.assignment?.dueDays && ctx.enrollment
     ? new Date(Date.parse(dripOpensAt(l.drip, dripBase(ctx.enrollment.createdAt, ctx.cohort?.startsAt)) ?? ctx.enrollment.createdAt) + l.assignment.dueDays * 864e5).toISOString()
@@ -59,12 +65,12 @@ export default async function LessonPage({ params }: { params: Promise<{ course:
 
       <div className={st.main}>
         <header className={st.head}>
-          <span className="eyebrow">{!enrolled && l.preview ? 'معاينة مجانية' : `الدرس ${i + 1} من ${flat.length}`}</span>
+          <span className="eyebrow">{!ctx.enrollment && l.preview ? 'معاينة مجانية' : `الدرس ${i + 1} من ${flat.length}`}</span>
           <h1>{l.title}</h1>
         </header>
 
         {access.state === 'drip' && <div className={st.locked}><strong>يُفتح هذا الدرس {formatDay(access.opensAt)}</strong><span className="num">{formatTime(access.opensAt)} · {formatHijri(access.opensAt)}</span></div>}
-        {access.state === 'profile' && <ProfileGate gaps={ctx.gaps} next={`/learn/${slug}/${l.id}`} className={st.locked} />}
+        {(access.state === 'profile' || (needsProfile && access.state === 'open')) && <ProfileGate gaps={ctx.gaps} next={`/learn/${slug}/${l.id}`} className={st.locked} />}
         {access.state === 'sequence' && <div className={st.locked}><strong>أكمل الدروس السابقة أولاً</strong><a className="btn ghost" href={`/learn/${slug}/${access.after}`}>انتقل إلى الدرس المطلوب</a></div>}
 
         {access.state === 'open' && (
@@ -89,7 +95,7 @@ export default async function LessonPage({ params }: { params: Promise<{ course:
 
             {l.type === 'quiz' && (v.quiz ? (
               <QuizRunner slug={slug} lessonId={l.id} meta={{ passPct: v.quiz.passPct, attempts: v.quiz.attempts, timeLimitMin: v.quiz.timeLimitMin, shuffle: v.quiz.shuffle, showAnswers: v.quiz.showAnswers, used: v.quiz.used, best: v.quiz.best, lastPassed: v.quiz.lastPassed, attemptId: v.quiz.attemptId, count: v.quiz.questions.length }} />
-            ) : <div className={st.locked}><strong>الاختبار متاح للمسجّلين</strong></div>)}
+            ) : !needsProfile && <div className={st.locked}><strong>الاختبار متاح للمسجّلين</strong></div>)}
 
             {l.type === 'assignment' && l.assignment && (
               <>
@@ -109,7 +115,7 @@ export default async function LessonPage({ params }: { params: Promise<{ course:
             {l.type === 'live' && (
               <>
                 {enrolled ? <JoinPanel lessonId={l.id} startsAt={l.startsAt} opensAt={v.join.state === 'upcoming' ? v.join.opensAt : null} state={v.join.state} />
-                  : <div className={st.locked}><strong>رابط الجلسة للمسجّلين فقط</strong></div>}
+                  : !needsProfile && <div className={st.locked}><strong>رابط الجلسة للمسجّلين فقط</strong></div>}
                 {v.recording && (
                   <section className={st.box}>
                     <h2>تسجيل الجلسة</h2>
@@ -148,7 +154,7 @@ export default async function LessonPage({ params }: { params: Promise<{ course:
 
             {canAct && (l.type === 'article' || l.type === 'file') && <CompleteButton slug={slug} lessonId={l.id} done={v.done} />}
 
-            {!enrolled && <div className={st.locked}><strong>أعجبك؟ سجّل لتكمل الدورة كاملة</strong><a className="btn" href={`/courses/${slug}`}>التسجيل</a></div>}
+            {!enrolled && !needsProfile && <div className={st.locked}><strong>أعجبك؟ سجّل لتكمل الدورة كاملة</strong><a className="btn" href={`/courses/${slug}`}>التسجيل</a></div>}
 
             {canAct && l.type === 'video' && <Questions slug={slug} lessonId={l.id} />}
             {canAct && l.type !== 'video' && (

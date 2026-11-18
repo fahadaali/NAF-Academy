@@ -3,11 +3,24 @@ import type { Metadata } from 'next'
 import { setupStatus } from '@/server/setup'
 import { OwnerForm, SetupForm } from './SetupForm'
 import st from './setup.module.css'
+import { envVar } from '@/server/runtime'
+import { isSetupLocked } from '@/lib/setup-lock'
 
 export const dynamic = 'force-dynamic'
 export const metadata: Metadata = { title: 'تهيئة المنصة', robots: { index: false, follow: false } }
 
 export default async function Setup() {
+  /* مقفلة بعد التهيئة: لا نموذج ولا حالة المنصة — والفتح من متغيرات العامل (يحتاج صلاحية Cloudflare لا كلمة مرور) */
+  if (isSetupLocked(envVar('SETUP_LOCKED'))) return (
+    <main id="main" className={st.page}>
+      <div className={st.card}>
+        <h1 className={st.title}>صفحة الإعداد مقفلة</h1>
+        <p className={st.lead}>المنصة مهيّأة، والترحيلات بعد كل نشر تُطبَّق تلقائياً كل 5 دقائق.</p>
+        <p className={st.lead}>لفتحها (استعادة حساب المالك مثلاً): Cloudflare ← Workers ← naf-academy ← Settings ← Variables، واجعل <bdi dir="ltr">SETUP_LOCKED</bdi> = <bdi dir="ltr">0</bdi>. النشر التالي يعيد القفل من <bdi dir="ltr">wrangler.jsonc</bdi>.</p>
+        <p className={st.lead}><a href="/admin/login">إلى لوحة الإدارة ←</a></p>
+      </div>
+    </main>
+  )
   const s = await setupStatus()
   const rows: [string, boolean, string][] = [
     ['ترحيلات القاعدة', !s.migrations.pending.length, s.d1 ? `${s.migrations.applied} من ${s.migrations.total}${s.migrations.pending.length ? ` — معلّق: ${s.migrations.pending.length}` : ''}` : 'محلياً: يطبّقها db-setup'],

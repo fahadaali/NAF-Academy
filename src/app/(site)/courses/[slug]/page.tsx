@@ -1,8 +1,8 @@
 import type { Metadata } from 'next'
 import { brandView } from '@/server/brand'
-import { notFound } from 'next/navigation'
+import { notFound, permanentRedirect } from 'next/navigation'
 import { CourseView } from '@/site/CourseView'
-import { catalog, courseDetail, homeContent } from '@/server/queries'
+import { catalog, courseDetail, homeContent, movedCourse } from '@/server/queries'
 import { paymentSettings } from '@/server/settings'
 import { plain } from '@/motion/kashida'
 import { breadcrumbs, course, ldJson } from '@/lib/seo'
@@ -25,8 +25,14 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 }
 
 export default async function CoursePage({ params }: { params: Promise<{ slug: string }> }) {
-  const d = await courseDetail((await params).slug)
-  if (!d) notFound()
+  const { slug } = await params
+  const d = await courseDetail(slug)
+  if (!d) {
+    /* رابط قديم لدورة غيّرت رابطها: تحويل دائم فتنتقل نتائج البحث إلى الجديد */
+    const to = await movedCourse(slug)
+    if (to) permanentRedirect(`/courses/${to}`)
+    notFound()
+  }
   const site = siteUrl() ?? ''
   const r = d.row
   const [home, pay] = await Promise.all([homeContent(), paymentSettings()])

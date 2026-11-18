@@ -1,6 +1,6 @@
 /* عامل الخدمة — تصفّح الصفحات العامة دون اتصال، وإشعارات المتصفح.
    لا يُخزَّن أي محتوى خاص (حسابي، الدروس، اللوحة، الطلبات، الملفات) — يُطلب من الشبكة دائماً. */
-const VERSION = 'naf-v6'
+const VERSION = 'naf-v7'
 const STATIC = `${VERSION}-static`
 const PAGES = `${VERSION}-pages`
 const OFFLINE = '/offline'
@@ -12,9 +12,16 @@ self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(STATIC).then((c) => c.addAll([OFFLINE, '/icons/icon-192.png'])).then(() => self.skipWaiting()))
 })
 
+/* التحميل المسبق للتنقّل: طلب الصفحة يبدأ مع إيقاظ العامل لا بعده — بلا هذا ينتظر كل تنقّل (ومنه الرجوع) إقلاع العامل أولاً */
 self.addEventListener('activate', (e) => {
-  e.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((k) => !k.startsWith(VERSION)).map((k) => caches.delete(k)))).then(() => self.clients.claim()))
+  e.waitUntil(Promise.all([
+    caches.keys().then((keys) => Promise.all(keys.filter((k) => !k.startsWith(VERSION)).map((k) => caches.delete(k)))),
+    self.registration.navigationPreload ? self.registration.navigationPreload.enable() : null,
+  ]).then(() => self.clients.claim()))
 })
+
+/** الصفحة من التحميل المسبق إن وُجد، وإلا من الشبكة */
+const network = async (e) => (await e.preloadResponse) || fetch(e.request)
 
 self.addEventListener('fetch', (e) => {
   const req = e.request
@@ -39,12 +46,12 @@ self.addEventListener('fetch', (e) => {
 
   /* الصفحات الخاصة: من الشبكة فقط، وصفحة «دون اتصال» عند الانقطاع */
   if (PRIVATE.test(path)) {
-    e.respondWith(fetch(req).catch(() => caches.match(OFFLINE)))
+    e.respondWith(network(e).catch(() => caches.match(OFFLINE)))
     return
   }
 
   /* الصفحات العامة: الشبكة أولاً، وتُحفظ نسخة للتصفح دون اتصال */
-  e.respondWith(fetch(req).then((res) => {
+  e.respondWith(network(e).then((res) => {
     if (res.ok && PUBLIC_PAGE.test(path) && !url.search) caches.open(PAGES).then((c) => c.put(req, res.clone()))
     return res
   }).catch(async () => (await caches.match(req, { ignoreSearch: true })) ?? caches.match(OFFLINE)))

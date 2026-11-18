@@ -206,6 +206,7 @@ export async function checkIn(token: string): Promise<CheckIn> {
 /** تسجيل الحضور يدوياً أو إلغاؤه (جلسة مباشرة أو حضورية) */
 export async function setAttendance(learnerId: string, lessonId: string, present: boolean): Promise<{ ok: boolean; error?: string }> {
   const st = await requirePermission('attendance.mark')
+  if (typeof learnerId !== 'string' || typeof lessonId !== 'string' || typeof present !== 'boolean' || learnerId.length > 64 || lessonId.length > 64) return { ok: false, error: 'بيانات غير صالحة' }
   const [row] = await db.select({ type: s.lessons.type, courseId: s.modules.courseId }).from(s.lessons).innerJoin(s.modules, eq(s.modules.id, s.lessons.moduleId)).where(eq(s.lessons.id, lessonId))
   if (!row || (row.type !== 'live' && row.type !== 'onsite') || !inScope(await courseScope(st), row.courseId)) return { ok: false, error: 'ليست جلسة' }
   const [en] = await db.select().from(s.enrollments).where(and(eq(s.enrollments.learnerId, learnerId), eq(s.enrollments.courseId, row.courseId), eq(s.enrollments.status, 'active')))

@@ -12,6 +12,8 @@ import { plain } from '@/motion/kashida'
 import { Words } from '@/components/Words'
 import { Riyal } from '@/components/Riyal'
 import s from '@/site/order.module.css'
+import { currentLearner } from '@/server/learner-auth'
+import { identityGaps } from '@/lib/identity'
 
 export const dynamic = 'force-dynamic'
 export const metadata: Metadata = { title: 'طلبك', robots: { index: false } }
@@ -35,6 +37,12 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
   const city = k ? k.city || course?.city : course?.city
   const venue = k?.venue.split('\n')[0] ?? ''
   const q = `?t=${t}`
+  /* المشتري يحضر بنفسه: زر «ابدأ الدورة» مباشرة — وإن نقصت بياناته الإلزامية فإكمالها أولاً (الدروس مقفلة حتى تكتمل) */
+  const attends = paid && !!course && !!it && (it.quantity === 1 || order.attendSelf)
+  const me = attends ? await currentLearner() : null
+  const mine = !!me && me.id === order.learnerId
+  const gaps = mine ? identityGaps(me) : []
+  const start = attends && course ? (gaps.length ? `/learn/profile?next=${encodeURIComponent(`/learn/${course.slug}`)}` : `/learn/${course.slug}`) : null
 
   return (
     <div className={s.page}>
@@ -49,6 +57,7 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
           {failed && order.status === 'pending' && <p className={s.lead}>{payFailureAr(failed)} يمكنك المحاولة مرة أخرى — مقعدك ما زال محجوزاً.</p>}
           {order.status === 'expired' && course && <p className={s.lead}>انتهت مهلة حجز المقعد. <a href={`/courses/${course.slug}/enroll`}>ابدأ التسجيل من جديد</a></p>}
           {order.status === 'pending' && <a className="btn" href={`/orders/${order.number}/pay${q}`}>{failed ? 'حاول مرة أخرى' : 'أكمل الدفع'}</a>}
+          {start && <a className="btn" href={start}>{gaps.length ? 'أكمل بياناتك لتبدأ الدورة' : 'ابدأ الدورة'}</a>}
         </div>
       </header>
 
@@ -83,6 +92,7 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
           <section className={s.next}>
             <h2>الخطوات التالية</h2>
             <ol role="list">
+              {gaps.length > 0 && <li><span><strong>أكمل بياناتك</strong> — الاسم بالعربية والإنجليزية ورقم الهوية والجوال؛ تُفتح الدروس بعدها وتُطبع على شهادتك.</span></li>}
               <li><span><strong>احفظ هذه الصفحة</strong> — رابطها هو إيصالك حتى تفعيل حسابك.</span></li>
               <li><span><strong>تصلك التذكيرات</strong> قبل الموعد بوقت كافٍ، مع رابط الانضمام أو تفاصيل المكان.</span></li>
               {it && it.quantity > 1 && <li><span><strong>أرسل لنا بريد كل مشارك</strong> لنخصّص له مقعده.</span></li>}

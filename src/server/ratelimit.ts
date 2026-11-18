@@ -3,6 +3,7 @@ import 'server-only'
    كل احتساب upsert ذرّي واحد يعيد العدد بعده؛ وما انتهت نافذته يبدأ من 1. والجدول نفسه يحفظ أحداث Webhook
    المستلمة (`seen:…`) فلا يُعاد تنفيذ حدث مكرر.
    قبل التهيئة (لا جداول بعد) أو عند تعذّر القاعدة: عدّاد في الذاكرة لكل نسخة — لا يُرجع خطأً. */
+import { ipBucket } from '@/lib/ip'
 import { headers } from 'next/headers'
 import { after } from 'next/server'
 import { eq, lt, sql } from 'drizzle-orm'
@@ -76,7 +77,7 @@ export const forgetSeen = (key: string) => forget(`seen:${key}`)
 
 async function clientIp() {
   const h = await headers()
-  return h.get('cf-connecting-ip') ?? h.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'local'
+  return ipBucket(h.get('cf-connecting-ip') ?? h.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'local')
 }
 
 /** كل نداء يُحتسب؛ true إن تجاوز العنوان الحدّ في النافذة */
