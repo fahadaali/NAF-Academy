@@ -51,10 +51,14 @@ export async function uploadSlides(form: FormData): Promise<{ ok: true; slides: 
   if (file.size > MAX) return { ok: false, error: 'الحد الأقصى 25 ميغابايت' }
   const bytes = new Uint8Array(await file.arrayBuffer())
   let pages = 0
+  /* سطرا تشخيص في سجل العامل: «بدء» بلا «تمّ» يعني أن العامل توقّف أثناء قراءة الملف (حدّ المعالج أو الذاكرة) لا خطأً يُلتقط */
+  console.log(`[slides] parse start · ${file.size}B · ${file.name}`)
   try {
     const { PDFDocument } = await import('pdf-lib')
     pages = (await PDFDocument.load(bytes, { ignoreEncryption: true, updateMetadata: false })).getPageCount()
-  } catch {
+    console.log(`[slides] parse done · ${pages}p · ${file.name}`)
+  } catch (e) {
+    console.error('[slides] parse failed', file.name, e)
     return { ok: false, error: 'تعذّرت قراءة الملف — تأكد أنه PDF سليم' }
   }
   if (pages < 1) return { ok: false, error: 'الملف بلا صفحات' }

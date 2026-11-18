@@ -209,6 +209,8 @@ function Chapters({ value, onChange }: { value: Chapter[]; onChange: (v: Chapter
   )
 }
 
+const UPLOAD_FAILED = 'تعذّر رفع الملف: لم يكتمل الطلب على الخادم. أعد المحاولة، وإن تكرّر الخطأ مع هذا الملف فصدّره PDF من جديد.'
+
 /** ملف السلايدات: PDF واحد يُحسب عدد صفحاته عند الرفع — والدرس يكتمل حين يبلغ المتدرب آخر شريحة */
 function SlidesField({ value, onChange, error }: { value: Slides | null; onChange: (v: Slides | null) => void; error?: string }) {
   const [msg, setMsg] = useState('')
@@ -217,7 +219,9 @@ function SlidesField({ value, onChange, error }: { value: Slides | null; onChang
     setMsg(`جارٍ رفع ${f.name}…`)
     const fd = new FormData()
     fd.append('file', f)
-    const r = await uploadSlides(fd)
+    /* استجابة غير متوقعة من الخادم (انقطاع، أو توقّف العامل أثناء قراءة الملف) ترمي استثناءً لا نتيجة — فلا تبقى «جارٍ رفع…» معلّقة */
+    const r = await uploadSlides(fd).catch((e) => { console.error('upload slides', e); return null })
+    if (!r) { setMsg(UPLOAD_FAILED); return }
     if (!r.ok) { setMsg(r.error); return }
     onChange({ ...r.slides, download: value?.download ?? false })
     setMsg('')
@@ -249,7 +253,8 @@ function Attachments({ value, onChange }: { value: { assetId: string; name: stri
       setMsg(`جارٍ رفع ${f.name}…`)
       const fd = new FormData()
       fd.append('file', f)
-      const r = await uploadLessonFile(fd)
+      const r = await uploadLessonFile(fd).catch((e) => { console.error('upload file', e); return null })
+      if (!r) { setMsg(UPLOAD_FAILED); return }
       if (!r.ok) { setMsg(r.error); return }
       next.push(r.file)
     }
