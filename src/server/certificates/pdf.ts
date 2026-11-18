@@ -5,7 +5,7 @@ import 'server-only'
    fontkit يرتّب المقطع العربي بصرياً لكنه يقلب الأرقام واللاتينية داخله، فنقسّم السطر مقاطع ونرصّها من اليمين. */
 import { PDFDocument, LineCapStyle, rgb, type PDFPage } from 'pdf-lib'
 import QRCode from 'qrcode'
-import { hoursOf, mergeDesign, PAGE, SPLIT, TONES, type CertDesign } from '@/lib/certificate'
+import { hoursOf, mergeDesign, PAGE, signerEn, SPLIT, TONES, type CertDesign } from '@/lib/certificate'
 import { parse, render } from '@/motion/kashida'
 import { EMBLEM } from '@/components/Emblem'
 import { bidiRuns, FONTS, loadFont, shape, widthOf, type Font, type Fonts } from '../vector-text'
@@ -202,7 +202,14 @@ export async function certificatePdf(input: CertDesign, d: CertData, brand: Cert
       page.drawLine({ start: { x: cx - 70, y: PAGE.h - ly }, end: { x: cx + 70, y: PAGE.h - ly }, thickness: 0.6, color: hex(T.line) })
       line(page, sg.name, { x: cx, y: ly + s * 1.4, size: s, font: f.display, color: T.ink })
       line(page, sg.title, { x: cx, y: ly + s * 2.7, size: s * 0.85, font: f.sans, color: T.soft })
-      if (bi && sg.titleEn) line(page, sg.titleEn, { x: cx, y: ly + s * 3.9, size: s * 0.8, font: f.sans, color: T.soft, rtl: false })
+      if (bi && signerEn(sg)) line(page, signerEn(sg), { x: cx, y: ly + s * 3.9, size: s * 0.8, font: f.sans, color: T.soft, rtl: false })
+    }
+  }
+  if (B.stamp.show && design.stampId) {
+    const img = await image(doc, design.stampId)
+    if (img) {
+      const h = B.stamp.size, w = (img.width / img.height) * h
+      page.drawImage(img, { x: px(B.stamp.x) - w / 2, y: PAGE.h - py(B.stamp.y) - h / 2, width: w, height: h })
     }
   }
   if (B.qr.show) {

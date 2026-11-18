@@ -211,3 +211,13 @@ test('ترحيل 0022: القالب الثنائي افتراضياً بنصوص
   assert.equal(d.signatories[0].name, 'فهد')
   assert.deepEqual(d.blocks, SPLIT_BLOCKS)
 })
+
+test('الختم: مقابل رمز التحقق في التخطيط المنقسم، والقديم بلا ختم كما هو', async () => {
+  const { signerEn } = await import('../src/lib/certificate')
+  const d = mergeDesign({ layout: 'split' })
+  assert.equal(d.stampId, null)
+  assert.equal(d.blocks.stamp.x, 100 - d.blocks.qr.x)
+  assert.equal(d.blocks.stamp.y, d.blocks.qr.y)
+  assert.equal(signerEn({ name: 'فهد', title: 'المدير', signatureId: null, nameEn: 'Fahad', titleEn: 'Director' }), 'Fahad, Director')
+  assert.equal(signerEn({ name: 'فهد', title: 'المدير', signatureId: null }), '')
+})

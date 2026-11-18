@@ -58,3 +58,7 @@
 .col[lang='en'] .title { font-weight: 700; }
 .divider { position: absolute; left: 50%; inline-size: 0; border-inline-start: 0.07cqw solid var(--c-line); }
 .divider i { position: absolute; top: 50%; left: 0; inline-size: 1.1cqw; aspect-ratio: 1; background: var(--c-gold); transform: translate(-50%, -50%) rotate(45deg); box-shadow: 0 0 0 0.6cqw var(--c-bg); }
+
+/* الختم: مركزه على موضعه كرمز التحقق (يعادل إزاحة .block الرأسية) */
+.stamp { display: block; inline-size: auto; transform: translateY(28%); pointer-events: none; }
+.stampPh { display: grid; place-items: center; transform: translateY(28%); border: 0.12cqw dashed var(--c-line); border-radius: 50%; color: var(--c-soft); font-family: var(--font); font-size: 1.1cqw; }
