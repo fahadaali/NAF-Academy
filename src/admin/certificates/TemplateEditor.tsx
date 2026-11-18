@@ -6,14 +6,18 @@ import { useEffect, useRef, useState } from 'react'
 import type { BrandView } from '@/lib/brand'
 import { useRouter } from 'next/navigation'
 import type { Media } from '@/server/db/schema'
-import { BLOCKS, BLOCK_LABEL, type BlockKey, type CertDesign, DEFAULT_DESIGN } from '@/lib/certificate'
+import { BLOCKS, BLOCK_LABEL, type BlockKey, type CertDesign, type CertLayout, DEFAULT_DESIGN, SPLIT_BLOCKS } from '@/lib/certificate'
+import { SAMPLE_ID } from '@/lib/identity'
 import { CertificateView } from '@/components/CertificateView'
 import { Field, Grid, Input, SaveBar, Section, Segmented, Switch } from '@/admin/ui/kit'
 import { MediaPicker } from '@/admin/ui/MediaPicker'
 import { deleteTemplate, duplicateTemplate, previewTemplatePdf, saveTemplate } from './actions'
 import t from './template.module.css'
 
-const SAMPLE = { name: 'سارة عبدالله المتدربة', course: 'نظام الإثبات: من النص إلى المرافعة', hours: 12, date: '5 نوفمبر 2026', hijri: '14 جمادى الأولى 1448', code: 'NAF-DEMO-2026', nameEn: 'Sarah Abdullah', courseEn: 'Evidence Law: From Text to Pleading', dateEn: '5 November 2026' }
+/** في التخطيط المنقسم موضع النصوص الأفقي يحدده العمودان — السحب يحرّكها رأسياً وحده */
+const COLUMN_BLOCKS = new Set<BlockKey>(['title', 'lead', 'name', 'idNumber', 'course', 'hours', 'date'])
+
+const SAMPLE = { name: 'سارة عبدالله المتدربة', course: 'نظام الإثبات: من النص إلى المرافعة', hours: 12, date: '5 نوفمبر 2026', hijri: '14 جمادى الأولى 1448', code: 'NAF-DEMO-2026', nameEn: 'Sarah Abdullah', courseEn: 'Evidence Law: From Text to Pleading', dateEn: '5 November 2026', idNumber: SAMPLE_ID }
 
 export function TemplateEditor({ id, initial, media, brand }: { id: string | null; initial: { name: string; isDefault: boolean; design: CertDesign }; media: Media[]; brand: BrandView }) {
   const router = useRouter()
@@ -27,6 +31,9 @@ export function TemplateEditor({ id, initial, media, brand }: { id: string | nul
   const stage = useRef<HTMLDivElement>(null)
   const drag = useRef<{ k: BlockKey; dx: number; dy: number } | null>(null)
   const d = v.design
+  const splitRef = useRef(false)
+  splitRef.current = d.layout === 'split'
+  const yOnly = (k: BlockKey) => splitRef.current && COLUMN_BLOCKS.has(k)
   const dirty = JSON.stringify(v) !== saved
   const images = media.filter((m) => m.mime === 'image/png' || m.mime === 'image/jpeg')
 
@@ -47,7 +54,7 @@ export function TemplateEditor({ id, initial, media, brand }: { id: string | nul
       const r = stage.current.getBoundingClientRect()
       const x = Math.round((((e.clientX - r.left) / r.width) * 100 - g.dx) * 2) / 2
       const y = Math.round((((e.clientY - r.top) / r.height) * 100 - g.dy) * 2) / 2
-      setBlock(g.k, { x: Math.max(4, Math.min(96, x)), y: Math.max(5, Math.min(95, y)) })
+      setBlock(g.k, yOnly(g.k) ? { y: Math.max(5, Math.min(95, y)) } : { x: Math.max(4, Math.min(96, x)), y: Math.max(5, Math.min(95, y)) })
     }
     const up = () => { drag.current = null }
     addEventListener('pointermove', move)
@@ -64,7 +71,7 @@ export function TemplateEditor({ id, initial, media, brand }: { id: string | nul
     const m = map[e.key]
     if (!m) return
     e.preventDefault()
-    setBlock(active, { x: Math.max(4, Math.min(96, b.x + m[0])), y: Math.max(5, Math.min(95, b.y + m[1])) })
+    setBlock(active, { x: yOnly(active) ? b.x : Math.max(4, Math.min(96, b.x + m[0])), y: Math.max(5, Math.min(95, b.y + m[1])) })
   }
 
   const save = async () => {
@@ -101,14 +108,19 @@ export function TemplateEditor({ id, initial, media, brand }: { id: string | nul
 
           <Section title="النصوص" desc="«~» ثم رقم لموضع الكشيدة: إتم~4ام">
             <Field label="العنوان" error={errors['design.title']}><Input value={d.title} onChange={(e) => setD({ title: e.target.value })} /></Field>
-            <Switch checked={d.english} onChange={(english) => setD({ english })} label="سطر إنجليزي تحت العنوان" />
+            {d.layout !== 'split' && <Switch checked={d.english} onChange={(english) => setD({ english })} label="سطر إنجليزي تحت العنوان" />}
             <Field label="قبل الاسم"><Input value={d.lead} onChange={(e) => setD({ lead: e.target.value })} /></Field>
             <Field label="قبل اسم الدورة"><Input value={d.courseLead} onChange={(e) => setD({ courseLead: e.target.value })} /></Field>
             <Field label="سطر الساعات" hint="{{hours}} يُستبدل بساعات الدورة"><Input value={d.hoursText} onChange={(e) => setD({ hoursText: e.target.value })} /></Field>
+            <Field label="قبل رقم الهوية" hint="رقم الهوية شرط لإصدار الشهادة — يُطبع كاملاً في PDF ومقنّعاً في صفحة التحقق"><Input value={d.idLabel} onChange={(e) => setD({ idLabel: e.target.value })} /></Field>
           </Section>
 
-          <Section title="الوجه الإنجليزي" desc="شهادة ثنائية اللغة: تحت كل سطر عربي سطره الإنجليزي — والاسم بالإنجليزية من ملف المتدرب، وعنوان الدورة من محرّرها">
-            <Switch checked={!!d.bilingual} onChange={(bilingual) => setD({ bilingual })} label={d.bilingual ? 'ثنائية اللغة' : 'عربية فقط'} />
+          <Section title="الوجه الإنجليزي" desc="شهادة ثنائية اللغة: سطر إنجليزي تحت كل عربي، أو عمودان متقابلان — والاسم بالإنجليزية من ملف المتدرب، وعنوان الدورة من محرّرها">
+            <Field label="التخطيط" hint="تغيير التخطيط يعيد العناصر إلى مواضعه الافتراضية">
+              <Segmented value={d.layout} onChange={(layout: CertLayout) => setD({ layout, bilingual: layout === 'split' ? true : d.bilingual, blocks: layout === 'split' ? SPLIT_BLOCKS : DEFAULT_DESIGN.blocks })}
+                options={[{ value: 'stacked', label: 'سطر تحت سطر' }, { value: 'split', label: 'عربي يمين · إنجليزي يسار' }]} />
+            </Field>
+            {d.layout !== 'split' && <Switch checked={!!d.bilingual} onChange={(bilingual) => setD({ bilingual })} label={d.bilingual ? 'ثنائية اللغة' : 'عربية فقط'} />}
             {d.bilingual && (() => {
               const en = { ...DEFAULT_DESIGN.en, ...(d.en ?? {}) }
               const setEn = (p: Partial<typeof en>) => setD({ en: { ...en, ...p } })
@@ -119,6 +131,7 @@ export function TemplateEditor({ id, initial, media, brand }: { id: string | nul
                   <Field label="قبل اسم الدورة"><Input dir="ltr" value={en.courseLead} onChange={(e) => setEn({ courseLead: e.target.value })} /></Field>
                   <Field label="سطر الساعات" hint="{{hours}}"><Input dir="ltr" value={en.hoursText} onChange={(e) => setEn({ hoursText: e.target.value })} /></Field>
                   <Field label="قبل التاريخ"><Input dir="ltr" value={en.issued} onChange={(e) => setEn({ issued: e.target.value })} /></Field>
+                  <Field label="قبل رقم الهوية"><Input dir="ltr" value={en.idLabel} onChange={(e) => setEn({ idLabel: e.target.value })} /></Field>
                 </>
               )
             })()}

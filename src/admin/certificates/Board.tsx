@@ -7,7 +7,7 @@ import { approveCertificates, recheck, regenerateCertificate, rejectCertificate,
 import p from '@/admin/ui/panel.module.css'
 import b from './board.module.css'
 
-export type BoardRow = { id: string; name: string; email: string; course: string; status: string; code: string | null; criteria: Criterion[]; when: string; reason: string; by: string | null }
+export type BoardRow = { id: string; learnerId: string; noId?: boolean; name: string; email: string; course: string; status: string; code: string | null; criteria: Criterion[]; when: string; reason: string; by: string | null }
 
 export function Board({ rows, status, empty }: { rows: BoardRow[]; status: string; empty: string }) {
   const router = useRouter()
@@ -16,11 +16,11 @@ export function Board({ rows, status, empty }: { rows: BoardRow[]; status: strin
   const [msg, setMsg] = useState('')
   const all = rows.length > 0 && sel.size === rows.length
   const toggle = (id: string) => setSel((s0) => { const s1 = new Set(s0); if (s1.has(id)) s1.delete(id); else s1.add(id); return s1 })
-  const run = async (f: () => Promise<{ ok: boolean; error?: string; n?: number }>, ok: string) => {
+  const run = async (f: () => Promise<{ ok: boolean; error?: string; n?: number; missing?: number }>, ok: string) => {
     setBusy(true); setMsg('')
     const r = await f()
     setBusy(false)
-    setMsg(r.ok ? ok.replace('{n}', String(r.n ?? '')) : r.error ?? 'تعذّر')
+    setMsg(r.ok ? ok.replace('{n}', String(r.n ?? '')) + (r.missing ? ` — ${r.missing} بلا رقم هوية لم تصدر` : '') : r.error ?? 'تعذّر')
     setSel(new Set())
     router.refresh()
   }
@@ -49,10 +49,11 @@ export function Board({ rows, status, empty }: { rows: BoardRow[]; status: strin
               {r.criteria.map((c) => <li key={c.key} data-met={c.met ? '1' : '0'}><span aria-hidden="true">{c.met ? '✓' : '✕'}</span>{c.label} <small className="num">({c.detail})</small></li>)}
             </ul>
             {r.reason && <p className={b.reason}>السبب: {r.reason}</p>}
+            {r.noId && <p className={b.reason}>بلا رقم هوية — لا تصدر الشهادة حتى يكمل المتدرب بياناته الإلزامية من «ملفي»، أو تُصحَّح من <a href={`/admin/learners/${r.learnerId}`}>ملفه في اللوحة</a>.</p>}
             <div className={b.actions}>
               {r.status === 'pending' && (
                 <>
-                  <button className="btn" disabled={busy} onClick={() => run(() => approveCertificates([r.id]), 'اعتُمدت')}>اعتماد</button>
+                  <button className="btn" disabled={busy || r.noId} onClick={() => run(() => approveCertificates([r.id]), 'اعتُمدت')}>اعتماد</button>
                   <button className={p.iconBtn} disabled={busy} onClick={() => { const x = reason('سبب الرفض (يظهر للمتدرب)'); if (x) run(() => rejectCertificate({ id: r.id, reason: x }), 'رُفضت') }}>رفض</button>
                 </>
               )}

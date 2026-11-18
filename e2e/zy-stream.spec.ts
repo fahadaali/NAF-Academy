@@ -3,7 +3,7 @@
    (يترك أثراً في درس دورة الإثبات — لذا يجري قرب الأخير) */
 import { createHmac } from 'node:crypto'
 import { expect, test, type Page } from '@playwright/test'
-import { adminPage, openChannelsAndPayments, verifyAt } from './helpers'
+import { adminPage, openChannelsAndPayments, verifyAt, completeProfile } from './helpers'
 
 test.describe.configure({ mode: 'serial' })
 
@@ -73,6 +73,7 @@ test('الحماية: لا معرّف في الصفحات، والمسجّل و�
   await g.check('aside input[type=checkbox]')
   await g.click('button:has-text("أكّد التسجيل")')
   await g.waitForURL(/\/orders\//)
+  await completeProfile(g, { name: 'متدرب الفيديو', nameEn: 'Video Learner', nationalId: '1000000107', phone: '0551110077' })
 
   await g.goto(`/learn/${SLUG}`)
   await g.getByRole('link', { name: new RegExp(LESSON) }).first().click()

@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { brandView } from '@/server/brand'
 import { notFound } from 'next/navigation'
-import { certImages, certificateByCode, verifyUrl, viewData } from '@/server/certificates'
+import { certImages, certificateByCode, mayDownloadCertificate, verifyUrl, viewData } from '@/server/certificates'
 import { CertificateView } from '@/components/CertificateView'
 import { DEFAULT_DESIGN, linkedinUrl } from '@/lib/certificate'
 import { CopyLink } from '@/site/CopyLink'
@@ -21,7 +21,7 @@ export default async function Certificate({ params }: P) {
   const r = await certificateByCode((await params).code)
   if (!r || !r.c.code || (r.c.status !== 'issued' && r.c.status !== 'revoked')) notFound()
   const { c } = r
-  const [data, brand] = await Promise.all([viewData(c), brandView()])
+  const [data, brand, mine] = await Promise.all([viewData(c), brandView(), mayDownloadCertificate(c)])
   const valid = c.status === 'issued'
   const url = verifyUrl(c.code!)
   return (
@@ -38,6 +38,7 @@ export default async function Certificate({ params }: P) {
       </div>
       <dl className={`${st.facts} num stagger reveal`}>
         <div><dt>الاسم</dt><dd>{c.name}</dd></div>
+        {data.idNumber && <div><dt>رقم الهوية</dt><dd dir="ltr">{data.idNumber}</dd></div>}
         <div><dt>الدورة</dt><dd>{c.courseTitle}</dd></div>
         {c.hours > 0 && <div><dt>الساعات التدريبية</dt><dd>{c.hours}</dd></div>}
         <div><dt>تاريخ الإصدار</dt><dd>{data.date} · {data.hijri}</dd></div>
@@ -45,7 +46,8 @@ export default async function Certificate({ params }: P) {
       </dl>
       {valid && (
         <div className={st.actions}>
-          <a className="btn" href={`/certificates/${c.code}/pdf?download`}>تنزيل PDF</a>
+          {mine ? <a className="btn" href={`/certificates/${c.code}/pdf?download`}>تنزيل PDF</a>
+            : <span className={st.note}>ملف الشهادة لصاحبها — وهذه الصفحة إثبات صحتها</span>}
           <a className="btn ghost" href={linkedinUrl({ course: c.courseTitle, code: c.code!, url, issuedAt: c.issuedAt! })} target="_blank" rel="noopener noreferrer">أضف إلى LinkedIn</a>
           <CopyLink url={url} />
           <a className={st.badge} href={`/certificates/${c.code}/badge`}>Open Badge</a>

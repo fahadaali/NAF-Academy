@@ -20,3 +20,6 @@
 .form input { flex: 1 1 240px; min-block-size: 52px; padding-inline: 18px; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--surface); color: var(--text); font-size: 18px; letter-spacing: 0.06em; font-variant-numeric: tabular-nums; text-align: center; }
 .form input:focus { outline: none; border-color: var(--gold-3); box-shadow: 0 0 0 4px color-mix(in srgb, var(--gold-3) 18%, transparent); }
 .miss { color: var(--danger); font-weight: 600; }
+
+/* بدل زر التنزيل لغير صاحب الشهادة — الملف يحمل رقم الهوية كاملاً */
+.note { font-size: 13px; color: var(--muted); align-self: center; }

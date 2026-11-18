@@ -9,6 +9,7 @@ import { zatcaTlv } from './payments/zatca'
 import { gateway } from './payments/gateway'
 import { normalizeCode, quote, type Quote } from '@/lib/quote'
 import { normalizePhone } from '@/lib/phone'
+import { lockedFields } from '@/lib/identity'
 import { resolveStatus } from '@/lib/course-meta'
 import type { CourseRow, CouponRow, OrderRow, TierRow } from './db/schema'
 import { chunksOf, inList } from './db/limits'
@@ -142,8 +143,11 @@ export async function upsertLearner(b: { name: string; email: string; phone: str
   }
   const [old] = await db.select().from(s.learners).where(eq(s.learners.email, email))
   if (!old) {
-    const [row] = await db.insert(s.learners).values({ id: randomUUID(), name: name || email.split('@')[0], email, phone: (await phoneFree()) ? phone : '', org: b.org, vatNumber: b.vatNumber, nameEn: b.nameEn?.trim() ?? '' })
-      .onConflictDoNothing({ target: s.learners.email }).returning()
+    const fresh = { id: randomUUID(), name: name || email.split('@')[0], email, phone: (await phoneFree()) ? phone : '', org: b.org, vatNumber: b.vatNumber, nameEn: b.nameEn?.trim() ?? '' }
+    /* الجوال فريد (فهرس جزئي): إن سبقه حساب آخر بين الفحص والكتابة يُنشأ الحساب بلا جوال — لا يفشل الشراء */
+    const [row] = await db.insert(s.learners).values(fresh).onConflictDoNothing({ target: s.learners.email }).returning()
+      .catch(async (e) => { if (!fresh.phone || !/learners\.phone|learners_phone/.test(`${e} ${(e as { cause?: unknown })?.cause ?? ''}`)) throw e
+        return db.insert(s.learners).values({ ...fresh, phone: '' }).onConflictDoNothing({ target: s.learners.email }).returning() })
     if (row) return row
     const [again] = await db.select().from(s.learners).where(eq(s.learners.email, email))
     return again
@@ -151,14 +155,19 @@ export async function upsertLearner(b: { name: string; email: string; phone: str
   /* الاسم الافتراضي (ما قبل @) يُعامل كفارغ */
   const blankName = !old.name || old.name === email.split('@')[0]
   const patch: Partial<typeof s.learners.$inferInsert> = {}
-  if (name && name !== old.name && (opts.trusted || blankName)) patch.name = name
+  /* الهوية المكتملة ثابتة: الاسمان لا يغيّرهما شراء ولا دعوة — تصحيحهما من ملف المتدرب في اللوحة (src/lib/identity.ts) */
+  const locked = lockedFields(old).names
+  if (name && name !== old.name && !locked && (opts.trusted || blankName)) patch.name = name
   if (phone && phone !== old.phone && (opts.trusted || !old.phone) && (await phoneFree(old.id))) patch.phone = phone
   if (b.org && b.org !== old.org && (opts.trusted || !old.org)) patch.org = b.org
   if (b.vatNumber && b.vatNumber !== old.vatNumber && (opts.trusted || !old.vatNumber)) patch.vatNumber = b.vatNumber
   const nameEn = b.nameEn?.trim() ?? ''
-  if (nameEn && nameEn !== old.nameEn && (opts.trusted || !old.nameEn)) patch.nameEn = nameEn
+  if (nameEn && nameEn !== old.nameEn && !locked && (opts.trusted || !old.nameEn)) patch.nameEn = nameEn
   if (!Object.keys(patch).length) return old
   const [row] = await db.update(s.learners).set({ ...patch, updatedAt: nowIso() }).where(eq(s.learners.id, old.id)).returning()
+    .catch(async (e) => { if (!patch.phone || !/learners\.phone|learners_phone/.test(`${e} ${(e as { cause?: unknown })?.cause ?? ''}`)) throw e
+      const { phone: _p, ...rest } = patch
+      return Object.keys(rest).length ? db.update(s.learners).set({ ...rest, updatedAt: nowIso() }).where(eq(s.learners.id, old.id)).returning() : [old] })
   return row
 }
 

@@ -8,6 +8,7 @@ import { putObject, getObject } from '../storage'
 import { siteUrl } from '../site'
 import { audit } from '../audit'
 import { certCode, DEFAULT_DESIGN, evaluateRules, mergeDesign, mergeRules, type CertDesign } from '@/lib/certificate'
+import { maskId, validNationalId } from '@/lib/identity'
 import { formatHijri } from '@/lib/dates'
 import { certificatePdf, type CertBrand } from './pdf'
 import { brandView, logoBytes } from '../brand'
@@ -73,14 +74,18 @@ export async function checkCertificate(learnerId: string, courseId: string, by =
   return ins[0]
 }
 
+/** رقم الهوية شرط للإصدار: بلا رقم صالح تبقى الشهادة «بانتظار رقم الهوية» حتى يضيفه المتدرب أو الفريق */
+export const hasNationalId = (v: string | null | undefined) => !!v && validNationalId(v)
+
 /** إصدار: رمز، ولقطة القالب، وملف PDF، ورسالة */
 export async function issueCertificate(id: string, by: string) {
   const [c] = await db.select().from(s.certificates).where(eq(s.certificates.id, id))
   if (!c || c.status === 'issued' || c.status === 'revoked') return c ?? null
+  /* اللقطة تؤخذ عند الإصدار لا عند الاستيفاء: إن صحّح المتدرب اسمه أو عُدّلت الدورة قبل الاعتماد يظهر الصحيح */
+  const [learner] = await db.select({ name: s.learners.name, email: s.learners.email, nameEn: s.learners.nameEn, nationalId: s.learners.nationalId }).from(s.learners).where(eq(s.learners.id, c.learnerId))
+  if (!hasNationalId(learner?.nationalId)) return c
   const { id: tid, design } = await designFor(c.templateId)
   const issuedAt = nowIso()
-  /* اللقطة تؤخذ عند الإصدار لا عند الاستيفاء: إن صحّح المتدرب اسمه أو عُدّلت الدورة قبل الاعتماد يظهر الصحيح */
-  const [learner] = await db.select({ name: s.learners.name, email: s.learners.email, nameEn: s.learners.nameEn }).from(s.learners).where(eq(s.learners.id, c.learnerId))
   const [course] = await db.select({ title: s.courses.title, hours: s.courses.hours, titleEn: s.courses.titleEn }).from(s.courses).where(eq(s.courses.id, c.courseId))
   let code = ''
   for (let i = 0; i < 5 && !code; i++) {
@@ -91,7 +96,7 @@ export async function issueCertificate(id: string, by: string) {
   const [row] = await db.update(s.certificates).set({
     status: 'issued', code, issuedAt, design, templateId: tid, decidedBy: by, reason: '', updatedAt: issuedAt,
     name: learner?.name || c.name || learner?.email || '', courseTitle: course ? course.title.replace(/~\d/g, '') : c.courseTitle, hours: course?.hours ?? c.hours,
-    nameEn: learner?.nameEn ?? '', courseTitleEn: course?.titleEn ?? '',
+    nameEn: learner?.nameEn ?? '', courseTitleEn: course?.titleEn ?? '', nationalId: learner!.nationalId,
   })
     .where(and(eq(s.certificates.id, id), inArray(s.certificates.status, ['pending', 'rejected']))).returning()
   if (!row) return c
@@ -112,6 +117,20 @@ export async function issueCertificate(id: string, by: string) {
     console.error('certificate achievements', e)
   }
   return row
+}
+
+/** بعد أن يضيف المتدرب (أو الفريق) رقم هويته: تصدر شهاداته المعلّقة في الدورات ذات الاعتماد التلقائي.
+    ما يحتاج مراجعة يبقى للفريق — والرقم صار متاحاً لاعتماده */
+export async function issueAwaitingId(learnerId: string) {
+  const rows = await db.select({ id: s.certificates.id, rules: s.courses.certificate }).from(s.certificates)
+    .innerJoin(s.courses, eq(s.courses.id, s.certificates.courseId))
+    .where(and(eq(s.certificates.learnerId, learnerId), eq(s.certificates.status, 'pending')))
+  let n = 0
+  for (const r of rows) {
+    if (!mergeRules(r.rules).autoApprove) continue
+    try { if ((await issueCertificate(r.id, 'اعتماد تلقائي'))?.status === 'issued') n++ } catch (e) { console.error('issue awaiting id', r.id, e) }
+  }
+  return n
 }
 
 const dateAr = (iso: string) => new Intl.DateTimeFormat('ar-SA-u-nu-latn-ca-gregory', { timeZone: 'Asia/Riyadh', day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(iso))
@@ -144,7 +163,7 @@ async function renderPdf(c: typeof s.certificates.$inferSelect, design?: CertDes
   if (!url) throw new Error('SITE_URL غير مضبوط — لا تُولَّد الشهادة برابط تحقق نسبي')
   return certificatePdf(d, {
     name: c.name, course: c.courseTitle, hours: c.hours, date: dateAr(c.issuedAt ?? nowIso()), hijri: hijriAr(c.issuedAt ?? nowIso()),
-    nameEn: c.nameEn, courseEn: c.courseTitleEn, dateEn: dateEn(c.issuedAt ?? nowIso()),
+    nameEn: c.nameEn, courseEn: c.courseTitleEn, dateEn: dateEn(c.issuedAt ?? nowIso()), idNumber: c.nationalId,
     code: c.code ?? 'NAF-XXXX-XXXX', verifyUrl: url,
   }, await certBrand(d.tone))
 }
@@ -179,6 +198,17 @@ export async function recheckCourse(courseId: string, by: string) {
   return n
 }
 
+/** ملف الشهادة بالرقم كاملاً: لصاحبها (جلسة المتدرب) أو للفريق بصلاحية الشهادات في نطاق دورته. بلا رقم هوية (القديمة) لمن يملك الرمز */
+export async function mayDownloadCertificate(c: { learnerId: string; courseId: string; nationalId: string }) {
+  if (!c.nationalId) return true
+  const { currentLearner } = await import('../learner-auth')
+  if ((await currentLearner())?.id === c.learnerId) return true
+  const { currentStaff, courseScope, inScope } = await import('../auth')
+  const { can } = await import('@/lib/permissions')
+  const st = await currentStaff()
+  return !!st && can(st.role, 'certificates.manage', st.perms) && inScope(await courseScope(st), c.courseId)
+}
+
 export async function certificateByCode(code: string) {
   const [r] = await db.select({ c: s.certificates, slug: s.courses.slug }).from(s.certificates).innerJoin(s.courses, eq(s.courses.id, s.certificates.courseId))
     .where(eq(s.certificates.code, code.trim().toUpperCase()))
@@ -194,7 +224,8 @@ export async function viewData(c: typeof s.certificates.$inferSelect) {
   const qrSvg = abs
     ? (await QRCode.toString(abs, { type: 'svg', margin: 0, errorCorrectionLevel: 'M' })).replace(/fill="#ffffff"/gi, 'fill="transparent"').replace(/#000000/g, 'currentColor')
     : undefined
-  return { name: c.name, course: c.courseTitle, hours: c.hours, date: dateAr(at), hijri: hijriAr(at), code: c.code ?? 'NAF-XXXX-XXXX', qrSvg, nameEn: c.nameEn, courseEn: c.courseTitleEn, dateEn: dateEn(at) }
+  /* الصفحة عامة برابط التحقق: رقم الهوية مقنّع فيها، وكاملاً في ملف PDF وحده (وثيقة المتدرب) */
+  return { name: c.name, course: c.courseTitle, hours: c.hours, date: dateAr(at), hijri: hijriAr(at), code: c.code ?? 'NAF-XXXX-XXXX', qrSvg, nameEn: c.nameEn, courseEn: c.courseTitleEn, dateEn: dateEn(at), idNumber: maskId(c.nationalId) }
 }
 
 export { dateAr, hijriAr }

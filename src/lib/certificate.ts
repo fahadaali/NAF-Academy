@@ -20,14 +20,17 @@ export type CertRules = {
 
 export const DEFAULT_RULES: CertRules = { enabled: true, lessonsPct: 100, attendancePct: 75, quizzes: true, assignments: true, autoApprove: false, templateId: null }
 
-export const BLOCKS = ['brand', 'title', 'lead', 'name', 'course', 'hours', 'date', 'signatures', 'qr'] as const
+export const BLOCKS = ['brand', 'title', 'lead', 'name', 'idNumber', 'course', 'hours', 'date', 'signatures', 'qr'] as const
 export type BlockKey = (typeof BLOCKS)[number]
 export type Block = { x: number; y: number; size: number; show: boolean }
 
 export type Signatory = { name: string; title: string; signatureId: string | null; titleEn?: string }
 
 /** نصوص الوجه الإنجليزي للشهادة الثنائية — {{hours}} للساعات */
-export type CertEnglish = { title: string; lead: string; courseLead: string; hoursText: string; issued: string }
+export type CertEnglish = { title: string; lead: string; courseLead: string; hoursText: string; issued: string; idLabel: string }
+
+/** تخطيط الشهادة الثنائية: stacked سطر إنجليزي تحت كل عربي، وsplit عمودان — العربي يميناً والإنجليزي يساراً */
+export type CertLayout = 'stacked' | 'split'
 
 export type CertDesign = {
   tone: 'ivory' | 'night'
@@ -36,17 +39,21 @@ export type CertDesign = {
   lead: string
   courseLead: string
   hoursText: string
+  /** ما قبل رقم الهوية */
+  idLabel: string
   /** سطر «CERTIFICATE OF COMPLETION» تحت العنوان */
   english: boolean
   /** ثنائية اللغة كاملة: تحت كل سطر عربي سطره الإنجليزي (العنوان، التمهيد، الاسم، الدورة، الساعات، التاريخ، المسمّيات) */
   bilingual: boolean
+  /** split يعني ثنائية اللغة دائماً — مواضع العناصر النصية الأفقية يحددها العمودان، والرأسية من blocks */
+  layout: CertLayout
   en: CertEnglish
   signatories: Signatory[]
   blocks: Record<BlockKey, Block>
 }
 
 export const BLOCK_LABEL: Record<BlockKey, string> = {
-  brand: 'العلامة', title: 'العنوان', lead: 'التمهيد', name: 'اسم المتدرب', course: 'الدورة',
+  brand: 'العلامة', title: 'العنوان', lead: 'التمهيد', name: 'اسم المتدرب', idNumber: 'رقم الهوية', course: 'الدورة',
   hours: 'الساعات', date: 'التاريخ', signatures: 'التوقيعات', qr: 'رمز التحقق',
 }
 
@@ -59,15 +66,19 @@ export const DEFAULT_DESIGN: CertDesign = {
   lead: 'تُمنح هذه الشهادة إلى',
   courseLead: 'لإتمام متطلبات دورة',
   hoursText: 'بواقع {{hours}} ساعة تدريبية',
+  idLabel: 'رقم الهوية:',
   english: true,
   bilingual: false,
-  en: { title: 'Certificate of Completion', lead: 'This certificate is awarded to', courseLead: 'for completing the requirements of', hoursText: '{{hours}} training hours', issued: 'Issued on' },
+  layout: 'stacked',
+  en: { title: 'Certificate of Completion', lead: 'This certificate is awarded to', courseLead: 'for completing the requirements of', hoursText: '{{hours}} training hours', issued: 'Issued on', idLabel: 'ID No.:' },
   signatories: [{ name: 'مدير الأكاديمية', title: 'أكاديمية ناف', signatureId: null, titleEn: 'NAF Academy' }],
   blocks: {
     brand: b(50, 12, 15),
     title: b(50, 26, 44),
     lead: b(50, 38, 15),
     name: b(50, 48, 36),
+    /* تحت الساعات: بين الاسم والدورة لا متّسع للسطرين في الثنائية. الشهادات القديمة بلا رقم لا يُرسم لها السطر */
+    idNumber: b(50, 75.5, 11),
     course: b(50, 61, 19),
     hours: b(50, 69, 12),
     date: b(18, 86, 11),
@@ -76,11 +87,37 @@ export const DEFAULT_DESIGN: CertDesign = {
   },
 }
 
-/** دمج قالب مخزّن مع الافتراضي — عنصر جديد يأخذ موضعه الافتراضي */
+/** مواضع التخطيط المنقسم: العلامة في الوسط، والنصوص والتاريخان في عمودين (x يتجاهله العمودان)،
+    والموقّعون (حتى ثلاثة بفاصل 190 نقطة) وحدهم في الصف الأخير فلا يقعون تحت التاريخين */
+export const SPLIT_BLOCKS: Record<BlockKey, Block> = {
+  brand: b(50, 12.5, 13),
+  title: b(50, 29, 30),
+  lead: b(50, 38, 12.5),
+  name: b(50, 46.5, 22),
+  idNumber: b(50, 53, 12),
+  course: b(50, 63.5, 15),
+  hours: b(50, 70.5, 11),
+  date: b(50, 77, 9.5),
+  signatures: b(50, 87.5, 10.5),
+  qr: b(91, 84, 46),
+}
+
+/** العمودان في التخطيط المنقسم — مركز كل عمود وعرضه الأقصى بالنسب (العربي يميناً) */
+export const SPLIT = { ar: 74, en: 26, width: 40, divider: { from: 24, to: 80 } } as const
+
+/** «{{hours}}» في سطر الساعات — للصفحة وملف PDF */
+export const hoursOf = (t: string, h: number) => t.replace(/\{\{\s*hours\s*\}\}/g, String(h))
+
+/** دمج قالب مخزّن مع الافتراضي — عنصر جديد يأخذ موضعه الافتراضي لتخطيطه */
 export function mergeDesign(v: Partial<CertDesign> | null | undefined): CertDesign {
-  const blocks = { ...DEFAULT_DESIGN.blocks }
-  for (const k of BLOCKS) if (v?.blocks?.[k]) blocks[k] = { ...DEFAULT_DESIGN.blocks[k], ...v.blocks[k] }
-  return { ...DEFAULT_DESIGN, ...v, blocks, en: { ...DEFAULT_DESIGN.en, ...(v?.en ?? {}) }, bilingual: v?.bilingual ?? false, signatories: v?.signatories ?? DEFAULT_DESIGN.signatories }
+  const layout: CertLayout = v?.layout === 'split' ? 'split' : 'stacked'
+  const base = layout === 'split' ? SPLIT_BLOCKS : DEFAULT_DESIGN.blocks
+  const blocks = { ...base }
+  for (const k of BLOCKS) if (v?.blocks?.[k]) blocks[k] = { ...base[k], ...v.blocks[k] }
+  return {
+    ...DEFAULT_DESIGN, ...v, blocks, layout, idLabel: v?.idLabel ?? DEFAULT_DESIGN.idLabel,
+    en: { ...DEFAULT_DESIGN.en, ...(v?.en ?? {}) }, bilingual: layout === 'split' || (v?.bilingual ?? false), signatories: v?.signatories ?? DEFAULT_DESIGN.signatories,
+  }
 }
 
 export const mergeRules = (v: Partial<CertRules> | null | undefined): CertRules => ({ ...DEFAULT_RULES, ...v })

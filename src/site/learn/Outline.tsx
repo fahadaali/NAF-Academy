@@ -14,7 +14,7 @@ export function Outline({ slug, modules, current }: { slug: string; modules: Mod
           <ol role="list">
             {m.lessons.map((l) => {
               const locked = l.access.state !== 'open'
-              const sub = l.access.state === 'drip' ? `يُفتح ${formatDay(l.access.opensAt)}` : l.access.state === 'sequence' ? 'أكمل ما قبله' : l.startsAt ? `${formatDay(l.startsAt)} · ${formatTime(l.startsAt)}` : l.minutes ? `${l.minutes} د` : ''
+              const sub = l.access.state === 'drip' ? `يُفتح ${formatDay(l.access.opensAt)}` : l.access.state === 'sequence' ? 'أكمل ما قبله' : l.access.state === 'profile' ? 'أكمل بياناتك' : l.startsAt ? `${formatDay(l.startsAt)} · ${formatTime(l.startsAt)}` : l.minutes ? `${l.minutes} د` : ''
               const inner = (
                 <>
                   <span className={o.icon} data-done={l.done ? '1' : '0'} aria-hidden="true">{l.done ? '✓' : locked ? '🔒' : ICON[l.type]}</span>

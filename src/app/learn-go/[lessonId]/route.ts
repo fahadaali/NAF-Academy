@@ -43,7 +43,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ lessonId: strin
   const l = c?.ordered.find((x) => x.id === lessonId)
   if (!c || !l || l.type !== 'live') return new Response('غير متاح', { status: 404 })
   const access = c.modules.flatMap((m) => m.lessons).find((x) => x.id === lessonId)?.access
-  if (!c.enrollment || access?.state !== 'open') return NextResponse.redirect(back, 303)
+  if (!c.enrollment || c.gaps.length || access?.state !== 'open') return NextResponse.redirect(back, 303)
   if (!l.joinUrl) return new Response('غير متاح', { status: 404 })
   if (joinWindow(l.startsAt, l.endsAt).state !== 'open') return NextResponse.redirect(back, 303)
   if (skip) return NextResponse.redirect(back, 303)

@@ -6,6 +6,8 @@ import { staffCan } from '@/server/auth'
 import { Badge, PageHead, Section } from '@/admin/ui/kit'
 import { ORDER_LABEL, ORDER_TONE, sar, when } from '@/admin/sales/labels'
 import p from '@/admin/ui/panel.module.css'
+import { identityGaps, IDENTITY_LABEL, maskId } from '@/lib/identity'
+import { IdentityEditor } from '@/admin/learners/IdentityEditor'
 
 const SOURCE: Record<string, string> = { purchase: 'شراء', free: 'مجاني', grant: 'منحة', manual: 'يدوي', seat: 'مقعد مؤسسة', invite: 'دعوة' }
 const CERT: Record<string, string> = { pending: 'بانتظار المراجعة', issued: 'صادرة', rejected: 'مرفوضة', revoked: 'ملغاة' }
@@ -14,7 +16,7 @@ const KIND: Record<string, string> = { notify_open: 'أبلغني عند الف�
 export default async function LearnerPage({ params }: { params: Promise<{ id: string }> }) {
   const d = await learnerProfile((await params).id)
   if (!d) notFound()
-  const [canSales, canLog] = await Promise.all([staffCan('sales.read'), staffCan('messages.read')])
+  const [canSales, canLog, canIdentity] = await Promise.all([staffCan('sales.read'), staffCan('messages.read'), staffCan('learners.identity')])
   const { learner: l } = d
   return (
     <>
@@ -29,10 +31,18 @@ export default async function LearnerPage({ params }: { params: Promise<{ id: st
           <div><dt>البريد</dt><dd dir="ltr">{l.email}</dd></div>
           <div><dt>الجوال</dt><dd dir="ltr">{l.phone || '—'}</dd></div>
           <div><dt>الجهة</dt><dd>{l.org || '—'}</dd></div>
+          <div><dt>الاسم بالإنجليزية</dt><dd dir="ltr">{l.nameEn || '—'}</dd></div>
+          <div><dt>رقم الهوية</dt><dd className="num" dir="ltr">{l.nationalId ? maskId(l.nationalId) : '—'}</dd></div>
+          <div><dt>البيانات الإلزامية</dt><dd>{identityGaps(l).length ? `ناقصة: ${identityGaps(l).map((g) => IDENTITY_LABEL[g]).join('، ')} — الدروس مقفلة عليه حتى تكتمل` : 'مكتملة ومثبّتة'}</dd></div>
           <div><dt>الرقم الضريبي</dt><dd className="num">{l.vatNumber || '—'}</dd></div>
           {d.orgs.length > 0 && <div><dt>المؤسسات</dt><dd>{d.orgs.map((o) => <Link key={o.o.id} href={`/admin/organizations/${o.o.id}`}>{o.o.name}{o.role === 'manager' ? ' (مسؤول)' : ''}</Link>)}</dd></div>}
         </dl>
       </Section>
+      {canIdentity && (
+        <Section title="تصحيح الهوية" desc="الاسمان ورقم الهوية ثابتة على المتدرب بعد إكمالها — التصحيح هنا وحده، برقم وجوال لا يحملهما حساب آخر">
+          <IdentityEditor id={l.id} initial={{ name: l.name, nameEn: l.nameEn, nationalId: l.nationalId, phone: l.phone }} />
+        </Section>
+      )}
       <Section title="الدورات" desc="التقدّم للتسجيلات النشطة">
         {d.enrolls.length === 0 ? <p className={p.muted}>لا تسجيلات.</p> : (
           <div className={p.scroll}><table className={p.table}>

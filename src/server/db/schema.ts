@@ -311,8 +311,15 @@ export const learners = sqliteTable('learners', {
   vatNumber: text('vat_number').notNull().default(''),
   /** الاسم بالإنجليزية للشهادة الثنائية — يكتبه المتدرب في ملفه */
   nameEn: text('name_en').notNull().default(''),
+  /** رقم الهوية الوطنية أو الإقامة (10 أرقام لاتينية) — شرط لإصدار الشهادة، ويُطبع عليها */
+  nationalId: text('national_id').notNull().default(''),
   ...stamps,
-})
+  /* رقم الهوية والجوال لحساب واحد — الفارغ مستثنى (فهرسان جزئيان) */
+}, (t) => [
+  uniqueIndex('learners_national_id').on(t.nationalId).where(sql`${t.nationalId} <> ''`),
+  /* الجوال لحساب واحد (دخول الرسائل النصية يختار به الحساب) — الفارغ مستثنى */
+  uniqueIndex('learners_phone').on(t.phone).where(sql`${t.phone} <> ''`),
+])
 
 export const priceTiers = sqliteTable('price_tiers', {
   id: id(),
@@ -781,6 +788,8 @@ export const certificates = sqliteTable('certificates', {
   /** لقطة الإنجليزية للشهادة الثنائية */
   nameEn: text('name_en').notNull().default(''),
   courseTitleEn: text('course_title_en').notNull().default(''),
+  /** لقطة رقم الهوية عند الإصدار */
+  nationalId: text('national_id').notNull().default(''),
   hours: real('hours').notNull().default(0),
   criteria: text('criteria', { mode: 'json' }).$type<Criterion[]>().notNull().default(sql`'[]'`),
   templateId: text('template_id'),

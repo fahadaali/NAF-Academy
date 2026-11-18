@@ -1,7 +1,7 @@
 /* صفحات المتدرب على الجوال: لوحته ودوراته وكل درس (ومنه الواجب بحقل الملف) — لا شيء خارج الشاشة ولا مقصوص.
    في zz-: يسجّل متدرباً بكوبون منحة فيأخذ مقعداً. */
 import { expect, test } from '@playwright/test'
-import { adminPage, openChannelsAndPayments, overflow, verifyAt } from './helpers'
+import { adminPage, completeProfile, openChannelsAndPayments, overflow, verifyAt } from './helpers'
 
 test('صفحات المتدرب والدروس على 360 و390px', async ({ browser }) => {
   const admin = await adminPage(browser)
@@ -18,6 +18,10 @@ test('صفحات المتدرب والدروس على 360 و390px', async ({ bro
   await g.check('aside input[type=checkbox]')
   await g.click('button:has-text("أكّد التسجيل")')
   await g.waitForURL(/\/orders\//)
+  /* قبل البيانات الإلزامية: الدرس مقفل بقفل «أكمل بياناتك» */
+  await g.goto('/learn/evidence-system-deep-dive')
+  await expect(g.getByRole('link', { name: 'أكمل بياناتك لتبدأ' })).toBeVisible()
+  await completeProfile(g, { name: 'متدرب الشاشات', nameEn: 'Screens Learner', nationalId: '1000000115', phone: '0551110078' })
 
   await g.goto('/learn/evidence-system-deep-dive')
   const lessons = [...new Set(await g.locator('a[href^="/learn/evidence-system-deep-dive/"]').evaluateAll((as) => as.map((a) => a.getAttribute('href')!.split('?')[0])))]

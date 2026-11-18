@@ -12,6 +12,7 @@ import { ticketToken } from './tickets'
 import { inList } from '@/server/db/limits'
 import { hasAccess, withSession } from '@/lib/cohorts'
 import { sessionsOf } from './cohorts'
+import { identityGaps, type IdentityField } from '@/lib/identity'
 
 export type LessonState = { id: string; title: string; type: LessonFull['type']; minutes: number; preview: boolean; access: Availability; done: boolean; startsAt: string | null }
 export type ModuleState = { id: string; title: string; lessons: LessonState[] }
@@ -43,6 +44,9 @@ export async function learnerCourse(slug: string, learner: LearnerRow | null) {
   const acc = availability(ordered.map((l) => ({ id: l.id, type: l.type, drip: l.drip, preview: l.preview && previews, startsAt: l.startsAt })), {
     enrolledAt: enrollment ? dripBase(enrollment.createdAt, cohort?.startsAt) : null, sequential: course.sequential, completed: done,
   })
+  /* حساب لشخص واحد: المسجّل بلا بياناته الإلزامية لا يفتح درساً (إلا المعاينة المجانية) — كل إجراء وملف يمرّ بهذه الحالة */
+  const gaps: IdentityField[] = enrollment && learner ? identityGaps(learner) : []
+  if (gaps.length) for (const l of ordered) if (!(l.preview && previews) && acc.get(l.id)?.state !== 'enroll') acc.set(l.id, { state: 'profile' })
   const modules: ModuleState[] = mods.map((m) => ({
     id: m.id, title: m.title,
     lessons: ordered.filter((l) => l.moduleId === m.id).map((l) => ({
@@ -53,7 +57,7 @@ export async function learnerCourse(slug: string, learner: LearnerRow | null) {
   const last = prog.filter((p) => !p.completedAt).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0]
   const nextUp = ordered.find((l) => acc.get(l.id)?.state === 'open' && !done.has(l.id) && completable(l))
   const upcoming = ordered.filter((l) => (l.type === 'live' || l.type === 'onsite') && l.startsAt && joinWindow(l.startsAt, l.endsAt).state !== 'ended')
-  return { course, enrollment: enrollment ?? null, expired, cohort: cohort ?? null, modules, ordered, pct, done, resumeId: last?.lessonId ?? nextUp?.id ?? ordered[0]?.id ?? null, upcoming }
+  return { course, enrollment: enrollment ?? null, expired, cohort: cohort ?? null, gaps, modules, ordered, pct, done, resumeId: last?.lessonId ?? nextUp?.id ?? ordered[0]?.id ?? null, upcoming }
 }
 
 export type LessonView = {
@@ -76,7 +80,8 @@ export async function lessonView(slug: string, lessonId: string, learner: Learne
   const l = ctx.ordered.find((x) => x.id === lessonId)
   if (!l) return null
   const access = ctx.modules.flatMap((m) => m.lessons).find((x) => x.id === lessonId)!.access
-  const enrolled = !!ctx.enrollment
+  /* الناقصة بياناته كالزائر حتى في المعاينة: لا تسجيلات ولا انضمام ولا تذكرة حضور ولا اختبار */
+  const enrolled = !!ctx.enrollment && !ctx.gaps.length
   if (access.state === 'enroll') return null
 
   const [prog] = learner ? await db.select().from(s.lessonProgress).where(and(eq(s.lessonProgress.learnerId, learner.id), eq(s.lessonProgress.lessonId, l.id))) : []

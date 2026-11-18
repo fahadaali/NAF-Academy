@@ -9,7 +9,8 @@ export const previewOpen = (c: { visibility: string; status: CourseStatus; publi
   c.visibility === 'public' && isPublic(liveStatus(c.status, c.publishAt, null, now))
 
 export type LessonLite = { id: string; type: string; drip: Drip; preview: boolean; startsAt?: string | null }
-export type Availability = { state: 'open' } | { state: 'drip'; opensAt: string } | { state: 'sequence'; after: string } | { state: 'enroll' }
+/** profile: مسجّل لم يُكمل بياناته الإلزامية (src/lib/identity.ts) — الدروس مقفلة عليه حتى تكتمل، والمعاينة المجانية تبقى مفتوحة */
+export type Availability = { state: 'open' } | { state: 'drip'; opensAt: string } | { state: 'sequence'; after: string } | { state: 'enroll' } | { state: 'profile' }
 
 /** بداية العدّ للفتح بالأيام: بداية الدفعة لمن في دفعة (الدفعة تسير معاً)، وإلا تاريخ التسجيل */
 export const dripBase = (enrolledAt: string, cohortStartsAt?: string | null) => (cohortStartsAt && !Number.isNaN(Date.parse(cohortStartsAt)) ? cohortStartsAt : enrolledAt)

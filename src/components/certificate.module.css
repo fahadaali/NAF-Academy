@@ -23,7 +23,8 @@
 .signs i { display: block; inline-size: 100%; block-size: 0; border-block-start: 0.07cqw solid var(--c-line); margin-block-end: 0.5em; }
 .signs strong { font-family: var(--font-display); }
 .signs small { color: var(--c-soft); font-size: 0.85em; }
-.qr { display: grid; justify-items: center; gap: 0.6cqw; transform: translateY(28%); }
+.qr { display: grid; grid-template-columns: minmax(0, 1fr); justify-items: center; gap: 0.6cqw; transform: translateY(28%); }
+/* الرمز بمقاس العنصر: الحد الأدنى لخط الرقم (8px) على الجوال لا يوسّع المربّع — يفيض الرقم حوله بلا أن يكبّر الرمز */
 .qrBox { display: block; inline-size: 100%; aspect-ratio: 1; padding: 0.5cqw; background: var(--c-plate); color: var(--c-plate-ink); border-radius: 2px; }
 .qrBox svg { display: block; inline-size: 100%; block-size: 100%; }
 .qrBox[data-ph='1'] { background: repeating-conic-gradient(var(--c-plate-ink) 0 25%, var(--c-plate) 0 50%) 0 0 / 22% 22%; }
@@ -47,3 +48,13 @@
 .course small { font-size: 0.55em; margin-block-start: 0.25em; }
 .enName { font-size: 0.42em !important; color: var(--c-ink) !important; margin-block-start: 0.35em; }
 .title .enBig { font-size: 0.26em; letter-spacing: 0.18em; text-transform: uppercase; }
+
+/* رقم الهوية — أرقام لاتينية متساوية العرض */
+.idno { font-family: var(--font); color: var(--c-ink); font-variant-numeric: tabular-nums; }
+
+/* التخطيط المنقسم: عمود عربي يميناً وإنجليزي يساراً كما في ملف PDF — يلتف السطر الطويل بدل أن يعبر الفاصل */
+.col { max-inline-size: 40cqw; white-space: normal; text-wrap: balance; }
+.col .name { display: inline-block; min-inline-size: 30cqw; padding-inline: 0; }
+.col[lang='en'] .title { font-weight: 700; }
+.divider { position: absolute; left: 50%; inline-size: 0; border-inline-start: 0.07cqw solid var(--c-line); }
+.divider i { position: absolute; top: 50%; left: 0; inline-size: 1.1cqw; aspect-ratio: 1; background: var(--c-gold); transform: translate(-50%, -50%) rotate(45deg); box-shadow: 0 0 0 0.6cqw var(--c-bg); }
