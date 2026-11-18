@@ -104,6 +104,7 @@ export function TemplateEditor({ id, initial, media, brand }: { id: string | nul
             <Field label="الخلفية"><Segmented value={d.tone} onChange={(tone) => setD({ tone })} options={[{ value: 'ivory', label: 'عاجي' }, { value: 'night', label: 'كحلي' }]} /></Field>
             <MediaPicker label="صورة خلفية (اختيارية — PNG أو JPG بنسبة A4 أفقية)" value={d.backgroundId} onChange={(backgroundId) => setD({ backgroundId })} library={images} ratio="842 / 595" accept={['image/png', 'image/jpeg']} />
             {errors['design.backgroundId'] && <span className={t.err}>{errors['design.backgroundId']}</span>}
+            <MediaPicker label="الختم (PNG شفاف) — يُرسم في موضع «الختم»، ويُحرَّك ويُكبَّر من «العناصر»" value={d.stampId ?? null} onChange={(stampId) => setD({ stampId })} library={images} ratio="1 / 1" accept={['image/png']} />
           </Section>
 
           <Section title="النصوص" desc="«~» ثم رقم لموضع الكشيدة: إتم~4ام">
@@ -143,6 +144,7 @@ export function TemplateEditor({ id, initial, media, brand }: { id: string | nul
                 <Grid>
                   <Field label="الاسم" error={errors[`design.signatories.${i}.name`]}><Input value={sg.name} onChange={(e) => setD({ signatories: d.signatories.map((x, k) => (k === i ? { ...x, name: e.target.value } : x)) })} /></Field>
                   <Field label="الصفة"><Input value={sg.title} onChange={(e) => setD({ signatories: d.signatories.map((x, k) => (k === i ? { ...x, title: e.target.value } : x)) })} /></Field>
+                  {d.bilingual && <Field label="الاسم بالإنجليزية"><Input dir="ltr" value={sg.nameEn ?? ''} onChange={(e) => setD({ signatories: d.signatories.map((x, k) => (k === i ? { ...x, nameEn: e.target.value } : x)) })} /></Field>}
                   {d.bilingual && <Field label="الصفة بالإنجليزية"><Input dir="ltr" value={sg.titleEn ?? ''} onChange={(e) => setD({ signatories: d.signatories.map((x, k) => (k === i ? { ...x, titleEn: e.target.value } : x)) })} /></Field>}
                 </Grid>
                 <MediaPicker label="صورة التوقيع (PNG شفاف)" value={sg.signatureId} onChange={(signatureId) => setD({ signatories: d.signatories.map((x, k) => (k === i ? { ...x, signatureId } : x)) })} library={images} ratio="3 / 1" accept={['image/png']} />
@@ -157,7 +159,7 @@ export function TemplateEditor({ id, initial, media, brand }: { id: string | nul
               {BLOCKS.map((k) => (
                 <li key={k} data-active={active === k ? '1' : '0'}>
                   <button type="button" className={t.blockName} onClick={() => setActive(k)} aria-pressed={active === k}>{BLOCK_LABEL[k]}</button>
-                  <label className={t.size}><input type="number" dir="ltr" min={6} max={120} value={d.blocks[k].size} aria-label={`مقاس ${BLOCK_LABEL[k]}`} onChange={(e) => setBlock(k, { size: Number(e.target.value) })} />{k === 'qr' ? 'نقطة' : 'pt'}</label>
+                  <label className={t.size}><input type="number" dir="ltr" min={6} max={120} value={d.blocks[k].size} aria-label={`مقاس ${BLOCK_LABEL[k]}`} onChange={(e) => setBlock(k, { size: Number(e.target.value) })} />{k === 'qr' || k === 'stamp' ? 'نقطة' : 'pt'}</label>
                   <input type="checkbox" checked={d.blocks[k].show} aria-label={`إظهار ${BLOCK_LABEL[k]}`} onChange={(e) => setBlock(k, { show: e.target.checked })} />
                 </li>
               ))}

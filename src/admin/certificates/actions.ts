@@ -106,6 +106,7 @@ const block = z.object({ x: z.number().min(0).max(100), y: z.number().min(0).max
 const designInput = z.object({
   tone: z.enum(['ivory', 'night']),
   backgroundId: z.string().nullable(),
+  stampId: z.string().nullable().default(null),
   title: z.string().trim().min(1, 'العنوان مطلوب').max(80),
   lead: z.string().trim().max(120),
   courseLead: z.string().trim().max(120),
@@ -116,7 +117,7 @@ const designInput = z.object({
   layout: z.enum(['stacked', 'split']).default('stacked'),
   en: z.object({ title: z.string().trim().max(80), lead: z.string().trim().max(120), courseLead: z.string().trim().max(120), hoursText: z.string().trim().max(120), issued: z.string().trim().max(40), idLabel: z.string().trim().max(40).default(DEFAULT_DESIGN.en.idLabel) })
     .default(DEFAULT_DESIGN.en),
-  signatories: z.array(z.object({ name: z.string().trim().min(1, 'اسم الموقّع مطلوب').max(80), title: z.string().trim().max(80), titleEn: z.string().trim().max(80).optional(), signatureId: z.string().nullable() })).max(3),
+  signatories: z.array(z.object({ name: z.string().trim().min(1, 'اسم الموقّع مطلوب').max(80), title: z.string().trim().max(80), titleEn: z.string().trim().max(80).optional(), nameEn: z.string().trim().max(80).optional(), signatureId: z.string().nullable() })).max(3),
   blocks: z.object(Object.fromEntries(BLOCKS.map((k) => [k, block])) as Record<(typeof BLOCKS)[number], typeof block>),
 }).transform((d) => (d.layout === 'split' ? { ...d, bilingual: true } : d))
 const templateInput = z.object({ name: z.string().trim().min(2, 'اسم القالب مطلوب').max(80), isDefault: z.boolean(), design: designInput })
@@ -124,7 +125,7 @@ export type TemplateInput = z.input<typeof templateInput>
 
 /** الصور المسموحة في الشهادة: PNG وJPEG فقط (pdf-lib) */
 async function checkImages(d: CertDesign) {
-  const ids = [d.backgroundId, ...d.signatories.map((x) => x.signatureId)].filter(Boolean) as string[]
+  const ids = [d.backgroundId, d.stampId, ...d.signatories.map((x) => x.signatureId)].filter(Boolean) as string[]
   if (!ids.length) return null
   const rows = await db.select({ id: s.media.id, mime: s.media.mime }).from(s.media).where(inList(s.media.id, ids))
   return rows.some((r) => r.mime !== 'image/png' && r.mime !== 'image/jpeg') ? 'صور الشهادة بصيغة PNG أو JPG فقط' : null

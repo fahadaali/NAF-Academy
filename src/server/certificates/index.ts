@@ -232,7 +232,7 @@ export { dateAr, hijriAr }
 
 /** روابط صور القالب (الخلفية والتوقيعات) بمعرّفاتها — لعرض الشهادة في الصفحة مطابقاً لملف PDF */
 export async function certImages(design: CertDesign | null | undefined): Promise<Record<string, string>> {
-  const ids = [design?.backgroundId, ...(design?.signatories ?? []).map((x) => x.signatureId)].filter((x): x is string => !!x)
+  const ids = [design?.backgroundId, design?.stampId, ...(design?.signatories ?? []).map((x) => x.signatureId)].filter((x): x is string => !!x)
   if (!ids.length) return {}
   const rows = await db.select({ id: s.media.id, key: s.media.key }).from(s.media).where(inList(s.media.id, ids))
   return Object.fromEntries(rows.map((m) => [m.id, `/media/${m.key}`]))

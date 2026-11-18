@@ -1,6 +1,6 @@
 /* عرض الشهادة في الصفحة — نفس المواضع والمقاسات النسبية لملف PDF (الصفحة 842×595 نقطة).
    المقاسات بوحدة cqw فيتناسب العرض مع أي عرض حاوية. */
-import { BLOCKS, hoursOf, mergeDesign, PAGE, SPLIT, TONES, type BlockKey, type CertDesign } from '@/lib/certificate'
+import { BLOCKS, hoursOf, mergeDesign, PAGE, signerEn, SPLIT, TONES, type BlockKey, type CertDesign } from '@/lib/certificate'
 import { parse, render } from '@/motion/kashida'
 import { Emblem } from './Emblem'
 import { LogoMark } from './Logo'
@@ -74,8 +74,13 @@ export function CertificateView({ design: input, data, brand, onPick, active, dr
     date: at('date', <div className={c.date} style={{ fontSize: cq(B.date.size) }}><span>صدرت في {data.date}</span>{data.hijri && <small>الموافق {data.hijri}</small>}{bi && data.dateEn && <small lang="en" dir="ltr">{en.issued} {data.dateEn}</small>}</div>),
     signatures: at('signatures', <div className={c.signs} style={{ fontSize: cq(B.signatures.size) }}>{design.signatories.map((s, i) => (
       // eslint-disable-next-line @next/next/no-img-element
-      <div key={i}>{s.signatureId && images[s.signatureId] ? <img className={c.sig} src={images[s.signatureId]} alt="" /> : <span className={c.sigGap} />}<i /><strong>{s.name}</strong><small>{s.title}</small>{bi && s.titleEn && <small lang="en" dir="ltr">{s.titleEn}</small>}</div>
+      <div key={i}>{s.signatureId && images[s.signatureId] ? <img className={c.sig} src={images[s.signatureId]} alt="" /> : <span className={c.sigGap} />}<i /><strong>{s.name}</strong><small>{s.title}</small>{bi && signerEn(s) && <small lang="en" dir="ltr">{signerEn(s)}</small>}</div>
     ))}</div>),
+    /* الختم مقابل رمز التحقق — بلا صورة يظهر موضعه في المحرّر وحده */
+    stamp: at('stamp', design.stampId && images[design.stampId]
+      // eslint-disable-next-line @next/next/no-img-element
+      ? <img className={c.stamp} src={images[design.stampId]} alt="" style={{ blockSize: cq(B.stamp.size) }} />
+      : onPick ? <span className={c.stampPh} style={{ blockSize: cq(B.stamp.size), inlineSize: cq(B.stamp.size) }}>الختم</span> : null),
     qr: at('qr', <div className={c.qr} style={{ inlineSize: cq(B.qr.size) }}>
       {data.qrSvg ? <span className={c.qrBox} dangerouslySetInnerHTML={{ __html: data.qrSvg }} /> : <span className={c.qrBox} data-ph="1" />}
       <small dir="ltr">{data.code}</small></div>),

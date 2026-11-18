@@ -20,11 +20,14 @@ export type CertRules = {
 
 export const DEFAULT_RULES: CertRules = { enabled: true, lessonsPct: 100, attendancePct: 75, quizzes: true, assignments: true, autoApprove: false, templateId: null }
 
-export const BLOCKS = ['brand', 'title', 'lead', 'name', 'idNumber', 'course', 'hours', 'date', 'signatures', 'qr'] as const
+export const BLOCKS = ['brand', 'title', 'lead', 'name', 'idNumber', 'course', 'hours', 'date', 'signatures', 'qr', 'stamp'] as const
 export type BlockKey = (typeof BLOCKS)[number]
 export type Block = { x: number; y: number; size: number; show: boolean }
 
-export type Signatory = { name: string; title: string; signatureId: string | null; titleEn?: string }
+export type Signatory = { name: string; title: string; signatureId: string | null; titleEn?: string; nameEn?: string }
+
+/** سطر الموقّع الإنجليزي في الثنائية: الاسم والصفة معاً («Name, Title») — فلا يزيد التوقيع سطراً */
+export const signerEn = (s: Signatory) => [s.nameEn?.trim(), s.titleEn?.trim()].filter(Boolean).join(', ')
 
 /** نصوص الوجه الإنجليزي للشهادة الثنائية — {{hours}} للساعات */
 export type CertEnglish = { title: string; lead: string; courseLead: string; hoursText: string; issued: string; idLabel: string }
@@ -35,6 +38,8 @@ export type CertLayout = 'stacked' | 'split'
 export type CertDesign = {
   tone: 'ivory' | 'night'
   backgroundId: string | null
+  /** صورة الختم (PNG شفاف) — تُرسم في عنصر stamp إن رُفعت */
+  stampId: string | null
   title: string
   lead: string
   courseLead: string
@@ -54,7 +59,7 @@ export type CertDesign = {
 
 export const BLOCK_LABEL: Record<BlockKey, string> = {
   brand: 'العلامة', title: 'العنوان', lead: 'التمهيد', name: 'اسم المتدرب', idNumber: 'رقم الهوية', course: 'الدورة',
-  hours: 'الساعات', date: 'التاريخ', signatures: 'التوقيعات', qr: 'رمز التحقق',
+  hours: 'الساعات', date: 'التاريخ', signatures: 'التوقيعات', qr: 'رمز التحقق', stamp: 'الختم',
 }
 
 const b = (x: number, y: number, size: number): Block => ({ x, y, size, show: true })
@@ -62,6 +67,7 @@ const b = (x: number, y: number, size: number): Block => ({ x, y, size, show: tr
 export const DEFAULT_DESIGN: CertDesign = {
   tone: 'ivory',
   backgroundId: null,
+  stampId: null,
   title: 'شهادة إتم~4ام',
   lead: 'تُمنح هذه الشهادة إلى',
   courseLead: 'لإتمام متطلبات دورة',
@@ -84,6 +90,8 @@ export const DEFAULT_DESIGN: CertDesign = {
     date: b(18, 86, 11),
     signatures: b(50, 85, 12),
     qr: b(84, 83, 64),
+    /* الختم مقابل رمز التحقق — size ارتفاعه بالنقاط */
+    stamp: b(16, 70, 70),
   },
 }
 
@@ -100,6 +108,8 @@ export const SPLIT_BLOCKS: Record<BlockKey, Block> = {
   date: b(50, 77, 9.5),
   signatures: b(50, 87.5, 10.5),
   qr: b(91, 84, 46),
+  /* الختم يساراً مقابل رمز التحقق يميناً */
+  stamp: b(9, 84, 62),
 }
 
 /** قالب البذرة الافتراضي (وترحيل 0022 للقاعدة القائمة): الشهادة الثنائية بعمودين — بقرار المالك */
