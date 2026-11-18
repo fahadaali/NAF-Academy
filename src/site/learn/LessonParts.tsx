@@ -8,11 +8,28 @@ import { Words } from '@/components/Words'
 import s from './parts.module.css'
 import { packForm } from '@/lib/upload-wire'
 
+/* إجراءات الدرس ترمي من الخادم عند انتهاء الجلسة أو قفل الدرس (gate) أو عطل عابر — ورسالة الخطأ لا تصل في الإنتاج.
+   فلا يعلق الزر ولا يُبتلع الفشل: رسالة واضحة بدلها */
+const FAILED = 'تعذّر الإرسال — حدّث الصفحة وأعد المحاولة (قد تكون الجلسة انتهت)'
+async function safe<T>(f: () => Promise<T>): Promise<T | { ok: false; error: string }> {
+  try { return await f() } catch { return { ok: false, error: FAILED } }
+}
+
 export function CompleteButton({ slug, lessonId, done }: { slug: string; lessonId: string; done: boolean }) {
   const router = useRouter()
   const [ok, setOk] = useState(done)
+  const [err, setErr] = useState('')
+  const [busy, setBusy] = useState(false)
   return ok ? <p className={s.done}>✓ أكملت هذا الدرس</p> : (
-    <button className="btn" onClick={async () => { const r = await markComplete(slug, lessonId); if (r.ok) { setOk(true); router.refresh() } }}>أكملت هذا الدرس</button>
+    <>
+      <button className="btn" disabled={busy} onClick={async () => {
+        setBusy(true); setErr('')
+        const r = await safe(() => markComplete(slug, lessonId))
+        setBusy(false)
+        if (r.ok) { setOk(true); router.refresh() } else setErr('error' in r ? r.error : FAILED)
+      }}>أكملت هذا الدرس</button>
+      {err && <p className={s.err} role="alert">{err}</p>}
+    </>
   )
 }
 
@@ -30,9 +47,11 @@ export function QuizRunner({ slug, lessonId, meta }: { slug: string; lessonId: s
 
   const begin = async () => {
     setErr('')
-    const r = await startQuiz(slug, lessonId)
+    const r = await safe(() => startQuiz(slug, lessonId))
     if (!r.ok) return setErr(r.error ?? '')
-    setQuiz(await quizQuestions(slug, lessonId))
+    const q = await safe(() => quizQuestions(slug, lessonId))
+    if (q && 'ok' in q && q.ok === false) return setErr(q.error)
+    setQuiz(q as PublicQuiz | null)
     setStarted(r.startedAt!)
   }
   useEffect(() => { if (meta.attemptId) void begin() }, []) // eslint-disable-line react-hooks/exhaustive-deps
@@ -45,7 +64,7 @@ export function QuizRunner({ slug, lessonId, meta }: { slug: string; lessonId: s
 
   const pick = (qid: string, oid: string, multi: boolean) => setAnswers((a) => ({ ...a, [qid]: multi ? (a[qid]?.includes(oid) ? a[qid].filter((x) => x !== oid) : [...(a[qid] ?? []), oid]) : [oid] }))
   const submit = async () => {
-    const r = await submitQuiz(slug, lessonId, answers)
+    const r = await safe(() => submitQuiz(slug, lessonId, answers))
     if (!r.ok) return setErr(r.error)
     setResult({ scorePct: r.scorePct, passed: r.passed, results: r.results, late: r.late })
     router.refresh()
@@ -138,7 +157,7 @@ export function AssignmentPanel({ slug, lessonId, accept, maxMb }: { slug: strin
           setBusy(true); setErr('')
           const fd = new FormData(e.currentTarget)
           fd.set('slug', slug); fd.set('lessonId', lessonId)
-          const r = await submitAssignment(await packForm(fd))
+          const r = await safe(async () => submitAssignment(await packForm(fd)))
           setBusy(false)
           if (!r.ok) return setErr(r.error ?? '')
           ;(e.target as HTMLFormElement).reset()

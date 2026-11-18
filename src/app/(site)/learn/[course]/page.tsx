@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
-import { notFound, redirect } from 'next/navigation'
+import { notFound, permanentRedirect, redirect } from 'next/navigation'
+import { movedCourse } from '@/server/queries'
 import { currentLearner } from '@/server/learner-auth'
 import { learnerCourse } from '@/server/learning'
 import { Outline, Ring } from '@/site/learn/Outline'
@@ -25,7 +26,11 @@ export default async function CourseHome({ params }: { params: Promise<{ course:
   const me = await currentLearner()
   if (!me) redirect(`/login?next=/learn/${slug}`)
   const ctx = await learnerCourse(slug, me)
-  if (!ctx) notFound()
+  if (!ctx) {
+    const to = await movedCourse(slug)
+    if (to) permanentRedirect(`/learn/${to}`)
+    notFound()
+  }
   if (!ctx.enrollment && ctx.expired) {
     /* انتهى الوصول: التقدّم محفوظ، والتجديد يفتحه من جديد */
     return (

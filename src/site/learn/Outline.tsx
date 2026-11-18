@@ -23,7 +23,9 @@ export function Outline({ slug, modules, current }: { slug: string; modules: Mod
               )
               return (
                 <li key={l.id} data-current={current === l.id ? '1' : '0'} data-locked={locked ? '1' : '0'}>
-                  {locked ? <span className={o.row} aria-disabled="true">{inner}<span className="sr-only">مقفل</span></span>
+                  {/* المقفل لنقص البيانات يدلّ على إكمالها ثم يعود إلى الدرس نفسه */}
+                  {l.access.state === 'profile' ? <a className={o.row} href={`/learn/profile?next=${encodeURIComponent(`/learn/${slug}/${l.id}`)}`}>{inner}<span className="sr-only">مقفل حتى تكمل بياناتك</span></a>
+                    : locked ? <span className={o.row} aria-disabled="true">{inner}<span className="sr-only">مقفل</span></span>
                     : <a className={o.row} href={`/learn/${slug}/${l.id}`} aria-current={current === l.id ? 'page' : undefined}>{inner}</a>}
                 </li>
               )

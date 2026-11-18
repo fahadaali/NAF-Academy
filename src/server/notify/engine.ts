@@ -60,7 +60,15 @@ export async function notifySettings(): Promise<NotifySettings> {
   return mergeNotify(await getSetting<Partial<NotifySettings> | null>('notify', null))
 }
 
-async function enqueue(rows: Omit<Row, 'id'>[]) {
+async function enqueue(all: Omit<Row, 'id'>[]) {
+  /* المسح يعيد كل 5 دقائق مفاتيح أُدرجت من قبل (المتوقفون عن التعلّم، قرب انتهاء الوصول…): تُستبعد بقراءة واحدة لكل ألفي مفتاح
+     بدل محاولات إدراج تتعارض — فلا تكبر كلفة كل دورة مع عدد المتدربين */
+  const known = new Set<string>()
+  for (let i = 0; i < all.length; i += 2000) {
+    const keys = all.slice(i, i + 2000).map((r) => r.key)
+    for (const r of await db.select({ key: s.notifications.key }).from(s.notifications).where(inList(s.notifications.key, keys))) known.add(r.key)
+  }
+  const rows = all.filter((r) => !known.has(r.key))
   let n = 0
   for (const part of chunksOf(s.notifications, rows)) {
     const r = await db.insert(s.notifications).values(part.map((x) => ({ id: randomUUID(), ...x }))).onConflictDoNothing({ target: s.notifications.key }).returning({ id: s.notifications.id })
@@ -603,7 +611,10 @@ async function contextFor(n: typeof s.notifications.$inferSelect, site: string, 
   return { ok: true, vars, name: vars.name }
 }
 
-export type DispatchResult = { sent: number; skipped: number; failed: number; retry: number; problem?: string }
+export type DispatchResult = { sent: number; skipped: number; failed: number; retry: number; problem?: string; more?: boolean }
+
+/** حصة الدفعة الواحدة: الرسالة نحو عشرين استعلاماً، ولـ D1 سقف استعلامات لكل استدعاء — والبقية في استدعاءات تالية (cf-config: التصريف) */
+export const DISPATCH_BATCH = 40
 
 /** يرسل المستحق من الطابور. keys: لإرسال صفوف بعينها فوراً (الأحداث الفورية) */
 export async function dispatch(now: Date, opt: { limit?: number; keys?: string[]; ids?: string[] } = {}): Promise<DispatchResult> {
@@ -618,7 +629,8 @@ export async function dispatch(now: Date, opt: { limit?: number; keys?: string[]
   const due = await db.select().from(s.notifications).where(and(
     eq(s.notifications.status, 'pending'), lte(s.notifications.sendAt, iso(now)),
     opt.keys ? inList(s.notifications.key, opt.keys) : undefined, opt.ids ? inList(s.notifications.id, opt.ids) : undefined,
-  )).orderBy(asc(s.notifications.sendAt)).limit(opt.limit ?? 100)
+  )).orderBy(asc(s.notifications.sendAt)).limit(opt.limit ?? DISPATCH_BATCH)
+  out.more = due.length === (opt.limit ?? DISPATCH_BATCH)
 
   for (const n of due) {
     const [claimed] = await db.update(s.notifications).set({ status: 'sending', updatedAt: iso(new Date()) })
@@ -626,88 +638,101 @@ export async function dispatch(now: Date, opt: { limit?: number; keys?: string[]
     if (!claimed) continue
     const finish = (status: 'sent' | 'skipped' | 'cancelled' | 'failed' | 'pending', extra: Partial<Row> = {}) =>
       db.update(s.notifications).set({ status, updatedAt: iso(new Date()), ...extra }).where(eq(s.notifications.id, n.id))
-    const ev = n.event as EventKey
-    const tpl = cfg.templates[ev]
-    const meta = EVENT_META[ev]
-    if (!tpl || !meta) { await finish('cancelled', { error: 'حدث غير معروف' }); out.skipped++; continue }
-    if (!tpl.enabled) { await finish('skipped', { error: 'الرسالة موقوفة من اللوحة' }); out.skipped++; continue }
-    if (n.channel === 'sms' && (!meta.sms || !tpl.sms.trim())) { await finish('skipped', { error: 'لا نص جوال لهذه الرسالة' }); out.skipped++; continue }
-    if (n.channel === 'push') {
-      if (!meta.sms) { await finish('skipped', { error: 'لا إشعار لهذه الرسالة' }); out.skipped++; continue }
-      const [sub] = n.learnerId ? await db.select({ id: s.pushSubscriptions.id }).from(s.pushSubscriptions).where(eq(s.pushSubscriptions.learnerId, n.learnerId)).limit(1) : []
-      if (!sub) { await finish('skipped', { error: 'لم يفعّل التنبيهات' }); out.skipped++; continue }
-    }
-    /* رسالة المتدرب بالبريد تصل داخل المنصة أيضاً — ولو كان البريد مقفلاً بعد */
-    const emailClosed = n.channel === 'email' && !!n.learnerId && !(await channelOpen('email'))
-    if (!emailClosed && !(await channelOpen(n.channel as Channel))) { await finish('skipped', { error: 'القناة مقفلة' }); out.skipped++; continue }
-    let email = n.channel === 'email' ? n.to : typeof n.ref?.email === 'string' ? n.ref.email : ''
-    if (!email && n.learnerId) email = (await db.select({ e: s.learners.email }).from(s.learners).where(eq(s.learners.id, n.learnerId)))[0]?.e ?? ''
-    if (meta.category !== 'transactional' && email && (await isOptedOut(email))) { await finish('skipped', { error: 'ألغى الاشتراك' }); out.skipped++; continue }
-
-    let ctx: Ctx
-    try { ctx = await contextFor(n, site, cfg, now) } catch (e) {
-      /* خطأ عابر (قاعدة، شبكة) لا يلغي الرسالة: يُعاد بالتراجع الزمني نفسه، ثم يفشل بعد آخر محاولة */
-      const error = String((e as Error).message).slice(0, 200)
-      if (n.attempts < BACKOFF_MIN.length) { await finish('pending', { attempts: n.attempts + 1, error, sendAt: iso(new Date(now.getTime() + BACKOFF_MIN[n.attempts] * MIN)) }); out.retry++ }
-      else { await finish('failed', { attempts: n.attempts + 1, error }); out.failed++ }
-      continue
-    }
-    if (!ctx.ok && ctx.later) { await finish('pending', { error: ctx.reason, sendAt: ctx.later }); out.retry++; continue }
-    if (!ctx.ok) { await finish('cancelled', { error: ctx.reason }); out.skipped++; continue }
-
-    const v = ctx.vars
-    if (n.channel === 'email' && n.learnerId) {
-      const { toInbox } = await import('../achievements')
-      await toInbox(n.learnerId, { key: n.key, kind: ev, title: fill(tpl.subject, v), body: fill(tpl.body, v).split('\n')[0], url: v.link?.startsWith(site) ? v.link.slice(site.length) || '/' : v.link ?? '' })
-    }
-    if (emailClosed) { await finish('skipped', { error: 'البريد مقفل — وصلت داخل المنصة' }); out.skipped++; continue }
-    const unsub = meta.category !== 'transactional' && email ? `${site}/unsubscribe?t=${optoutToken(email)}` : undefined
-    let r: Awaited<ReturnType<typeof send>>
-    if (n.channel === 'email') {
-      const { html, text } = renderEmail({
-        site, brand: mailBrand, heading: fill(tpl.heading, v), body: fill(tpl.body, v), preheader: fill(tpl.subject, v),
-        facts: meta.facts.map(([k, x]) => [k, v[x] ?? ''] as [string, string]),
-        cta: tpl.cta && v.link ? { label: fill(tpl.cta, v), href: v.link } : undefined, unsubscribe: unsub,
-        cta2: meta.cta2Var && tpl.cta2 && v[meta.cta2Var] ? { label: fill(tpl.cta2, v), href: v[meta.cta2Var] } : undefined,
-      })
-      /* الفاتورة أو الإشعار الدائن مرفقاً PDF — فشل توليده لا يمنع الرسالة */
-      let attachments: { filename: string; content: Uint8Array }[] | undefined
-      let wait = false
-      if ((ev === 'order_paid' || ev === 'refund_issued') && n.ref?.orderId) {
-        try {
-          const [o] = await db.select().from(s.orders).where(eq(s.orders.id, String(n.ref.orderId)))
-          const [inv] = o ? await db.select().from(s.invoices).where(and(eq(s.invoices.orderId, o.id), eq(s.invoices.kind, ev === 'order_paid' ? 'invoice' : 'credit_note'))).orderBy(desc(s.invoices.issuedAt)).limit(1) : []
-          if (o && inv) {
-            const { officialFile } = await import('../invoices')
-            const f = await officialFile(inv, { orderNumber: o.number, vatRate: o.vatRate })
-            /* فاتورة وافق (الرسمية) قيد المزامنة: تنتظر الرسالة قليلاً، ثم تخرج بالمحلية بعد السقف */
-            if (f.wait && now.getTime() - Date.parse(n.createdAt) < WAFEQ_MAIL_WAIT_MIN * MIN) {
-              wait = true
-            } else attachments = [{ filename: `${inv.number}.pdf`, content: f.bytes }]
-          }
-        } catch (e) { console.error('invoice attachment', e) }
+    /* خطأ في رسالة لا يوقف الدفعة: ما لم يُرسل يُعاد بالتراجع، وما أُرسل يُثبَّت مُرسلاً فلا يتكرر */
+    let delivered = false
+    try {
+      const ev = n.event as EventKey
+      const tpl = cfg.templates[ev]
+      const meta = EVENT_META[ev]
+      if (!tpl || !meta) { await finish('cancelled', { error: 'حدث غير معروف' }); out.skipped++; continue }
+      if (!tpl.enabled) { await finish('skipped', { error: 'الرسالة موقوفة من اللوحة' }); out.skipped++; continue }
+      if (n.channel === 'sms' && (!meta.sms || !tpl.sms.trim())) { await finish('skipped', { error: 'لا نص جوال لهذه الرسالة' }); out.skipped++; continue }
+      if (n.channel === 'push') {
+        if (!meta.sms) { await finish('skipped', { error: 'لا إشعار لهذه الرسالة' }); out.skipped++; continue }
+        const [sub] = n.learnerId ? await db.select({ id: s.pushSubscriptions.id }).from(s.pushSubscriptions).where(eq(s.pushSubscriptions.learnerId, n.learnerId)).limit(1) : []
+        if (!sub) { await finish('skipped', { error: 'لم يفعّل التنبيهات' }); out.skipped++; continue }
       }
-      if (wait) { await finish('pending', { error: 'بانتظار فاتورة وافق', sendAt: iso(new Date(now.getTime() + 5 * MIN)) }); out.retry++; continue }
-      r = await send({ channel: 'email', to: n.to, subject: fill(tpl.subject, v), text, html, kind: ev, attachments, headers: unsub ? { 'List-Unsubscribe': `<${unsub.replace('/unsubscribe?', '/api/unsubscribe?')}>`, 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' } : undefined })
-    } else if (n.channel === 'push') {
-      r = await sendPushTo(n.learnerId!, { title: fill(tpl.subject, v), body: fill(tpl.sms.trim() ? tpl.sms : tpl.heading, v).replace(/\s*https?:\/\/\S+/g, '').slice(0, 200), url: v.link ?? `${site}/learn`, tag: n.key.split(':').slice(0, 2).join(':'), icon: pushIcon }, ev)
-    } else {
-      r = await send({ channel: 'sms', to: n.to, text: fill(tpl.sms, v).slice(0, 480), kind: ev })
-    }
-    if (!r.ok && 'suppressed' in r && r.suppressed) {
-      /* عنوان مكتوم (ارتداد دائم أو شكوى): لا إعادة محاولة — يُتخطّى ويبقى في الإشعارات داخل المنصة */
-      await finish('skipped', { attempts: n.attempts + 1, error: 'العنوان مكتوم — ارتدّ البريد أو اشتكى صاحبه', messageId: r.id })
-      out.skipped++
-    } else if (r.ok) {
-      await finish('sent', { sentAt: iso(new Date()), messageId: r.id, attempts: n.attempts + 1, error: '' })
-      await ctx.after?.()
-      out.sent++
-    } else if (n.attempts < BACKOFF_MIN.length) {
-      await finish('pending', { attempts: n.attempts + 1, error: r.error ?? '', messageId: r.id, sendAt: iso(new Date(now.getTime() + BACKOFF_MIN[n.attempts] * MIN)) })
-      out.retry++
-    } else {
-      await finish('failed', { attempts: n.attempts + 1, error: r.error ?? '', messageId: r.id })
-      out.failed++
+      /* رسالة المتدرب بالبريد تصل داخل المنصة أيضاً — ولو كان البريد مقفلاً بعد */
+      const emailClosed = n.channel === 'email' && !!n.learnerId && !(await channelOpen('email'))
+      if (!emailClosed && !(await channelOpen(n.channel as Channel))) { await finish('skipped', { error: 'القناة مقفلة' }); out.skipped++; continue }
+      let email = n.channel === 'email' ? n.to : typeof n.ref?.email === 'string' ? n.ref.email : ''
+      if (!email && n.learnerId) email = (await db.select({ e: s.learners.email }).from(s.learners).where(eq(s.learners.id, n.learnerId)))[0]?.e ?? ''
+      if (meta.category !== 'transactional' && email && (await isOptedOut(email))) { await finish('skipped', { error: 'ألغى الاشتراك' }); out.skipped++; continue }
+
+      let ctx: Ctx
+      try { ctx = await contextFor(n, site, cfg, now) } catch (e) {
+        /* خطأ عابر (قاعدة، شبكة) لا يلغي الرسالة: يُعاد بالتراجع الزمني نفسه، ثم يفشل بعد آخر محاولة */
+        const error = String((e as Error).message).slice(0, 200)
+        if (n.attempts < BACKOFF_MIN.length) { await finish('pending', { attempts: n.attempts + 1, error, sendAt: iso(new Date(now.getTime() + BACKOFF_MIN[n.attempts] * MIN)) }); out.retry++ }
+        else { await finish('failed', { attempts: n.attempts + 1, error }); out.failed++ }
+        continue
+      }
+      if (!ctx.ok && ctx.later) { await finish('pending', { error: ctx.reason, sendAt: ctx.later }); out.retry++; continue }
+      if (!ctx.ok) { await finish('cancelled', { error: ctx.reason }); out.skipped++; continue }
+
+      const v = ctx.vars
+      if (n.channel === 'email' && n.learnerId) {
+        const { toInbox } = await import('../achievements')
+        await toInbox(n.learnerId, { key: n.key, kind: ev, title: fill(tpl.subject, v), body: fill(tpl.body, v).split('\n')[0], url: v.link?.startsWith(site) ? v.link.slice(site.length) || '/' : v.link ?? '' })
+      }
+      if (emailClosed) { await finish('skipped', { error: 'البريد مقفل — وصلت داخل المنصة' }); out.skipped++; continue }
+      const unsub = meta.category !== 'transactional' && email ? `${site}/unsubscribe?t=${optoutToken(email)}` : undefined
+      let r: Awaited<ReturnType<typeof send>>
+      if (n.channel === 'email') {
+        const { html, text } = renderEmail({
+          site, brand: mailBrand, heading: fill(tpl.heading, v), body: fill(tpl.body, v), preheader: fill(tpl.subject, v),
+          facts: meta.facts.map(([k, x]) => [k, v[x] ?? ''] as [string, string]),
+          cta: tpl.cta && v.link ? { label: fill(tpl.cta, v), href: v.link } : undefined, unsubscribe: unsub,
+          cta2: meta.cta2Var && tpl.cta2 && v[meta.cta2Var] ? { label: fill(tpl.cta2, v), href: v[meta.cta2Var] } : undefined,
+        })
+        /* الفاتورة أو الإشعار الدائن مرفقاً PDF — فشل توليده لا يمنع الرسالة */
+        let attachments: { filename: string; content: Uint8Array }[] | undefined
+        let wait = false
+        if ((ev === 'order_paid' || ev === 'refund_issued') && n.ref?.orderId) {
+          try {
+            const [o] = await db.select().from(s.orders).where(eq(s.orders.id, String(n.ref.orderId)))
+            const [inv] = o ? await db.select().from(s.invoices).where(and(eq(s.invoices.orderId, o.id), eq(s.invoices.kind, ev === 'order_paid' ? 'invoice' : 'credit_note'))).orderBy(desc(s.invoices.issuedAt)).limit(1) : []
+            if (o && inv) {
+              const { officialFile } = await import('../invoices')
+              const f = await officialFile(inv, { orderNumber: o.number, vatRate: o.vatRate })
+              /* فاتورة وافق (الرسمية) قيد المزامنة: تنتظر الرسالة قليلاً، ثم تخرج بالمحلية بعد السقف */
+              if (f.wait && now.getTime() - Date.parse(n.createdAt) < WAFEQ_MAIL_WAIT_MIN * MIN) {
+                wait = true
+              } else attachments = [{ filename: `${inv.number}.pdf`, content: f.bytes }]
+            }
+          } catch (e) { console.error('invoice attachment', e) }
+        }
+        if (wait) { await finish('pending', { error: 'بانتظار فاتورة وافق', sendAt: iso(new Date(now.getTime() + 5 * MIN)) }); out.retry++; continue }
+        r = await send({ channel: 'email', to: n.to, subject: fill(tpl.subject, v), text, html, kind: ev, attachments, headers: unsub ? { 'List-Unsubscribe': `<${unsub.replace('/unsubscribe?', '/api/unsubscribe?')}>`, 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' } : undefined })
+      } else if (n.channel === 'push') {
+        r = await sendPushTo(n.learnerId!, { title: fill(tpl.subject, v), body: fill(tpl.sms.trim() ? tpl.sms : tpl.heading, v).replace(/\s*https?:\/\/\S+/g, '').slice(0, 200), url: v.link ?? `${site}/learn`, tag: n.key.split(':').slice(0, 2).join(':'), icon: pushIcon }, ev)
+      } else {
+        r = await send({ channel: 'sms', to: n.to, text: fill(tpl.sms, v).slice(0, 480), kind: ev })
+      }
+      delivered = r.ok
+      if (!r.ok && 'suppressed' in r && r.suppressed) {
+        /* عنوان مكتوم (ارتداد دائم أو شكوى): لا إعادة محاولة — يُتخطّى ويبقى في الإشعارات داخل المنصة */
+        await finish('skipped', { attempts: n.attempts + 1, error: 'العنوان مكتوم — ارتدّ البريد أو اشتكى صاحبه', messageId: r.id })
+        out.skipped++
+      } else if (r.ok) {
+        await finish('sent', { sentAt: iso(new Date()), messageId: r.id, attempts: n.attempts + 1, error: '' })
+        await ctx.after?.()
+        out.sent++
+      } else if (n.attempts < BACKOFF_MIN.length) {
+        await finish('pending', { attempts: n.attempts + 1, error: r.error ?? '', messageId: r.id, sendAt: iso(new Date(now.getTime() + BACKOFF_MIN[n.attempts] * MIN)) })
+        out.retry++
+      } else {
+        await finish('failed', { attempts: n.attempts + 1, error: r.error ?? '', messageId: r.id })
+        out.failed++
+      }
+    } catch (e) {
+      const error = String((e as Error)?.message ?? e).slice(0, 200)
+      console.error('notify dispatch', n.key, error)
+      try {
+        if (delivered) { await finish('sent', { sentAt: iso(new Date()), attempts: n.attempts + 1, error }); out.sent++ }
+        else if (n.attempts < BACKOFF_MIN.length) { await finish('pending', { attempts: n.attempts + 1, error, sendAt: iso(new Date(now.getTime() + BACKOFF_MIN[n.attempts] * MIN)) }); out.retry++ }
+        else { await finish('failed', { attempts: n.attempts + 1, error }); out.failed++ }
+      } catch { /* القاعدة نفسها متعثرة — يعود الصف للطابور بعد عشر دقائق من «sending» */ }
     }
   }
   return out
@@ -716,7 +741,9 @@ export async function dispatch(now: Date, opt: { limit?: number; keys?: string[]
 /** دورة كاملة: جدولة ثم إرسال — يستدعيها المشغّل الدوري وزر «شغّل الآن» */
 export async function runNotifications(now = new Date()) {
   const cfg = await notifySettings()
-  const queued = await planScan(now, cfg)
+  /* فشل الجدولة لا يمنع إرسال المستحق من قبل */
+  let queued: Awaited<ReturnType<typeof planScan>> | null = null
+  try { queued = await planScan(now, cfg) } catch (e) { console.error('notify plan', (e as Error).message) }
   const r = await dispatch(now)
   return { queued, ...r }
 }

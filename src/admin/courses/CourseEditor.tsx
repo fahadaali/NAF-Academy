@@ -50,8 +50,9 @@ const LESSON_LABEL: Record<(typeof LESSON_TYPE)[number], string> = {
   video: 'فيديو', article: 'مقال', file: 'ملف', quiz: 'اختبار', live: 'جلسة مباشرة', onsite: 'جلسة حضورية', assignment: 'واجب', slides: 'سلايدات',
 }
 
+/* رابط الصفحة من العنوان الإنجليزي (العربي لا يُنتج رابطاً — الروابط حروف لاتينية صغيرة) ما لم يُكتب يدوياً */
 const slugify = (t: string) =>
-  t.toLowerCase().normalize('NFKD').replace(/[^\w\s-]/g, '').trim().replace(/[\s_]+/g, '-').replace(/-+/g, '-').slice(0, 60)
+  t.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/&/g, ' and ').replace(/[^a-z0-9\s-]/g, '').trim().replace(/[\s_]+/g, '-').replace(/-+/g, '-').slice(0, 60).replace(/-$/, '')
 
 type Props = {
   id: string | null
@@ -156,11 +157,11 @@ export function CourseEditor({ id, initial, previewToken, tracks, instructors, m
               <Field label="العنوان الفرعي" hint="سطر واحد يلخّص قيمة الدورة" wide>
                 <Input value={v.subtitle} onChange={(e) => set('subtitle', e.target.value)} />
               </Field>
-              <Field label="العنوان بالإنجليزية" hint="للشهادة ثنائية اللغة — اختياري" wide>
-                <Input dir="ltr" value={v.titleEn ?? ''} onChange={(e) => set('titleEn', e.target.value)} placeholder="Commercial Contract Drafting" />
+              <Field label="العنوان بالإنجليزية" hint="للشهادة ثنائية اللغة، ومنه يُولَّد رابط الصفحة" wide>
+                <Input dir="ltr" value={v.titleEn ?? ''} onChange={(e) => { const t = e.target.value; setV((o) => ({ ...o, titleEn: t, slug: slugTouched ? o.slug : slugify(t) || o.slug })) }} placeholder="Commercial Contract Drafting" />
               </Field>
               <Grid>
-                <Field label="رابط الصفحة" error={err('slug')} hint={`/courses/${v.slug || '…'}`}>
+                <Field label="رابط الصفحة" error={err('slug')} hint={`/courses/${v.slug || '…'}${id ? ' — تغييره يُبقي الرابط القديم محوِّلاً إليه' : ''}`}>
                   <Input dir="ltr" value={v.slug} onChange={(e) => { setSlugTouched(true); set('slug', e.target.value.toLowerCase()) }} placeholder="contract-drafting" />
                 </Field>
                 <Field label="المسار">

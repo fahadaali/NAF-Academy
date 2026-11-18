@@ -12,6 +12,8 @@ import { joinWindow } from '@/lib/learning'
 import { hasAccess } from '@/lib/cohorts'
 import { Achievements } from '@/site/learn/Achievements'
 import { learnerAchievements } from '@/server/achievements'
+import { identityGaps } from '@/lib/identity'
+import { ProfileGate } from '@/site/learn/ProfileGate'
 
 export default async function MyCourses() {
   const me = (await currentLearner())!
@@ -23,8 +25,12 @@ export default async function MyCourses() {
   const now = Date.now()
   const prog = new Map(await Promise.all(rows.map(async ({ c }) => { const x = await learnerCourse(c.slug, me); return [c.id, { pct: x?.pct ?? 0, resume: x?.resumeId ?? null, next: x?.upcoming[0] ?? null, cohort: x?.cohort ?? null }] as const })))
   const badges = await learnerAchievements(me.id)
+  /* الناقصة بياناته: الدروس مقفلة حتى يكملها (learnerCourse ← profile) — يُقال له ذلك أولاً بدل «ابدأ» يعود به إلى القفل */
+  const gaps = identityGaps(me)
+  const anyOpen = rows.some(({ e }) => hasAccess(e))
   return (
     <>
+    {gaps.length > 0 && anyOpen && <ProfileGate gaps={gaps} next="/learn" className={st.gate} />}
     <Achievements items={badges} />
     <div className={st.grid}>
       {rows.sort((a, b) => (prog.get(a.c.id)!.cohort?.startsAt ?? a.c.startsAt ?? '9').localeCompare(prog.get(b.c.id)!.cohort?.startsAt ?? b.c.startsAt ?? '9')).map(({ e, c: course, tier }) => {
@@ -54,7 +60,9 @@ export default async function MyCourses() {
             : <div className={`${st.next} num`}>الجلسة الحضورية القادمة: {next.title} — {formatDay(next.startsAt!)} · {formatTime(next.startsAt!)}</div>)}
           {open && e.accessUntil && <div className={`${st.meta} num`}><span>الوصول حتى {formatDay(e.accessUntil)}</span></div>}
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-            {open
+            {open && gaps.length > 0
+              ? <a className="btn" href={`/learn/profile?next=${encodeURIComponent(`/learn/${c.slug}`)}`}>أكمل بياناتك لتبدأ</a>
+              : open
               ? <a className="btn" href={p.resume ? `/learn/${c.slug}/${p.resume}` : `/learn/${c.slug}`}>{p.pct ? 'تابع التعلّم' : 'ابدأ'}</a>
               : c.visibility === 'private'
                 ? <span className={st.next}>لتجديد الوصول تواصل مع إدارة البرنامج</span>

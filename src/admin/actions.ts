@@ -62,10 +62,19 @@ export async function saveCourse(id: string | null, raw: CourseInput, opts: { co
   }
   try {
     if (id) {
+      const [before] = await db.select({ slug: s.courses.slug }).from(s.courses).where(eq(s.courses.id, id))
       /* دورة في المحذوفات لا تُحرَّر من محرّر مفتوح قديم — تُسترجع أولاً */
       const done = await db.update(s.courses).set({ ...v, updatedAt: now() }).where(and(eq(s.courses.id, id), isNull(s.courses.deletedAt))).returning({ id: s.courses.id })
       if (!done.length) return { ok: false, errors: {}, message: 'الدورة في المحذوفات — استرجعها أولاً' }
-    } else await db.insert(s.courses).values({ ...v, id: cid, previewToken: token() })
+      /* تغيّر الرابط: القديم يبقى محوِّلاً إلى الدورة (301)، والجديد لم يعد تحويلاً لغيرها */
+      if (before && before.slug !== v.slug) {
+        await db.insert(s.courseSlugs).values({ slug: before.slug, courseId: id }).onConflictDoUpdate({ target: s.courseSlugs.slug, set: { courseId: id } })
+        await db.delete(s.courseSlugs).where(eq(s.courseSlugs.slug, v.slug))
+      }
+    } else {
+      await db.insert(s.courses).values({ ...v, id: cid, previewToken: token() })
+      await db.delete(s.courseSlugs).where(eq(s.courseSlugs.slug, v.slug))
+    }
   } catch (e) {
     return uniqueError(e) ?? { ok: false, errors: {}, message: 'تعذّر الحفظ' }
   }
@@ -293,6 +302,9 @@ export async function restore(entity: Entity, id: string): Promise<{ ok: boolean
 export async function purge(entity: Entity, id: string, confirm: string): Promise<{ ok: boolean; error?: string }> {
   const admin = await requirePermission('trash.purge')
   if (!isEntity(entity) || !idInput.safeParse(id).success) return { ok: false, error: 'عنصر غير صالح' }
+  /* والحذف النهائي يحتاج صلاحية قسم العنصر نفسها (كالاسترجاع)، وفي دورات المدرب وحدها */
+  await requirePermission(OWNER[entity])
+  if (!(await inMyCourses(admin, entity, id))) return { ok: false, error: 'خارج دوراتك' }
   if (confirm !== 'حذف') return { ok: false, error: 'لم يُؤكَّد الحذف' }
   const t = tables[entity]
   const [row] = await db.select().from(t).where(and(eq(t.id, id), isNotNull(t.deletedAt)))

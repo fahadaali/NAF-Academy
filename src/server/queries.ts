@@ -3,7 +3,7 @@ import 'server-only'
 import { cache } from 'react'
 import { and, asc, count, desc, eq, gt, inArray, isNull, sum } from 'drizzle-orm'
 import { db, schema as s } from './db'
-import { getSetting } from './settings'
+import { getSetting, notMigrated } from './settings'
 import type { CohortView, Course, Instructor, MediaView, Pricing, Promo, Track } from '@/content/types'
 import { DEFAULT_HOME, DEFAULT_MENU, SCENES, type HomeContent } from '@/content/home-defaults'
 import { mergePages, type PagesContent } from '@/content/pages-defaults'
@@ -204,17 +204,18 @@ async function buildCourseDetail(slug: string, preview?: string, at?: Date): Pro
   if (!hit) return null
   const visible = (hit.row.visibility === 'public' && isPublic(hit.view.status)) || (preview && preview === hit.row.previewToken)
   if (!visible) return null
-  const mods = await db.select().from(s.modules).where(eq(s.modules.courseId, hit.row.id)).orderBy(asc(s.modules.sortOrder))
-  const les = mods.length
-    ? await db.select().from(s.lessons).where(inList(s.lessons.moduleId, mods.map((x) => x.id))).orderBy(asc(s.lessons.sortOrder))
-    : []
-  const tiers = await db.select().from(s.priceTiers).where(eq(s.priceTiers.courseId, hit.row.id)).orderBy(asc(s.priceTiers.sortOrder))
-  const rules = await db.select().from(s.groupRules).where(eq(s.groupRules.courseId, hit.row.id))
-  /* التقييمات المعتمدة فقط — الاسم كما اختاره المتدرب */
-  const revs = await db.select().from(s.reviews).where(and(eq(s.reviews.courseId, hit.row.id), eq(s.reviews.status, 'approved'))).orderBy(desc(s.reviews.createdAt))
-  const dist = [1, 2, 3, 4, 5].map((n) => revs.filter((r) => r.rating === n).length)
+  /* استعلامات مستقلة بالتوازي — كل نداء D1 رحلة شبكة، والتتابع يجمع زمنها */
   const blocks = hit.row.content ?? blocksFrom(hit.row.description)
-  const blockMedia = await mediaViews(blocks.map((b) => (b.t === 'img' ? b.mediaId : null)))
+  const [mods, les, tiers, rules, revs, blockMedia] = await Promise.all([
+    db.select().from(s.modules).where(eq(s.modules.courseId, hit.row.id)).orderBy(asc(s.modules.sortOrder)),
+    db.select({ l: s.lessons }).from(s.lessons).innerJoin(s.modules, eq(s.modules.id, s.lessons.moduleId)).where(eq(s.modules.courseId, hit.row.id)).orderBy(asc(s.lessons.sortOrder)).then((r) => r.map((x) => x.l)),
+    db.select().from(s.priceTiers).where(eq(s.priceTiers.courseId, hit.row.id)).orderBy(asc(s.priceTiers.sortOrder)),
+    db.select().from(s.groupRules).where(eq(s.groupRules.courseId, hit.row.id)),
+    /* التقييمات المعتمدة فقط — الاسم كما اختاره المتدرب */
+    db.select().from(s.reviews).where(and(eq(s.reviews.courseId, hit.row.id), eq(s.reviews.status, 'approved'))).orderBy(desc(s.reviews.createdAt)),
+    mediaViews(blocks.map((b) => (b.t === 'img' ? b.mediaId : null))),
+  ])
+  const dist = [1, 2, 3, 4, 5].map((n) => revs.filter((r) => r.rating === n).length)
   return {
     blocks, blockMedia,
     course: hit.view,
@@ -234,6 +235,18 @@ async function buildCourseDetail(slug: string, preview?: string, at?: Date): Pro
       avg: revs.length ? Math.round((revs.reduce((x, r) => x + r.rating, 0) / revs.length) * 10) / 10 : 0, count: revs.length, dist,
       items: revs.filter((r) => r.comment).slice(0, 12).map((r) => ({ id: r.id, rating: r.rating, comment: r.comment, display: r.display, at: r.createdAt })),
     },
+  }
+}
+
+/** الرابط الحالي لدورة غيّرت رابطها (course_slugs) — null إن لم يكن الرابط القديم لدورة قائمة */
+export async function movedCourse(slug: string): Promise<string | null> {
+  try {
+    const [r] = await db.select({ slug: s.courses.slug }).from(s.courseSlugs).innerJoin(s.courses, eq(s.courses.id, s.courseSlugs.courseId))
+      .where(and(eq(s.courseSlugs.slug, slug), isNull(s.courses.deletedAt)))
+    return r && r.slug !== slug ? r.slug : null
+  } catch (e) {
+    if (notMigrated(e)) return null
+    throw e
   }
 }
 

@@ -4,6 +4,8 @@ import { and, asc, count, desc, eq, gte, isNotNull, isNull, sql } from 'drizzle-
 import { db, schema as s } from '@/server/db'
 import { courseScope, inScope, requirePermission, staffCan } from '@/server/auth'
 import { inList } from '@/server/db/limits'
+import { can } from '@/lib/permissions'
+import { TRASH_OWNER } from './trash-perms'
 
 export async function adminLists() {
   const scope = await courseScope(await requirePermission('content.read'))
@@ -38,7 +40,10 @@ export async function courseForEdit(id: string) {
 }
 
 export async function trashed() {
-  const scope = await courseScope(await requirePermission('content.read'))
+  const me = await requirePermission('content.read')
+  const scope = await courseScope(me)
+  /* العنصر في السلة يُرى بصلاحية قسمه (TRASH_OWNER) — فلا تظهر أكواد الكوبونات وأسماء المؤسسات والعقود لمن لا يدير قسمها */
+  const sees = (entity: keyof typeof TRASH_OWNER) => can(me.role, TRASH_OWNER[entity], me.perms)
   const [courses, tracks, instructors, media, coupons, orgs, templates, cohorts, promos, contracts] = await Promise.all([
     db.select({ id: s.courses.id, name: s.courses.title, at: s.courses.deletedAt }).from(s.courses).where(isNotNull(s.courses.deletedAt)),
     db.select({ id: s.tracks.id, name: s.tracks.title, at: s.tracks.deletedAt }).from(s.tracks).where(isNotNull(s.tracks.deletedAt)),
@@ -54,16 +59,16 @@ export async function trashed() {
   /* المدرب: دوراته ودفعاتها وحدها */
   const mine = (id: string) => scope === null || scope.includes(id)
   return [
-    ...courses.filter((x) => mine(x.id)).map((x) => ({ ...x, entity: 'course' as const, label: 'دورة' })),
-    ...tracks.map((x) => ({ ...x, entity: 'track' as const, label: 'مسار' })),
-    ...instructors.map((x) => ({ ...x, entity: 'instructor' as const, label: 'مدرب' })),
-    ...media.map((x) => ({ ...x, entity: 'media' as const, label: 'صورة' })),
-    ...coupons.map((x) => ({ ...x, entity: 'coupon' as const, label: 'كوبون' })),
-    ...orgs.map((x) => ({ ...x, entity: 'organization' as const, label: 'مؤسسة' })),
-    ...templates.map((x) => ({ ...x, entity: 'template' as const, label: 'قالب شهادة' })),
-    ...cohorts.filter((x) => mine(x.courseId)).map(({ courseId: _, ...x }) => ({ ...x, entity: 'cohort' as const, label: 'دفعة' })),
-    ...promos.map((x) => ({ ...x, entity: 'promotion' as const, label: 'عرض عام' })),
-    ...contracts.map((x) => ({ ...x, entity: 'contract' as const, label: 'عقد مؤسسة' })),
+    ...courses.filter((x) => sees('course') && mine(x.id)).map((x) => ({ ...x, entity: 'course' as const, label: 'دورة' })),
+    ...tracks.filter(() => sees('track')).map((x) => ({ ...x, entity: 'track' as const, label: 'مسار' })),
+    ...instructors.filter(() => sees('instructor')).map((x) => ({ ...x, entity: 'instructor' as const, label: 'مدرب' })),
+    ...media.filter(() => sees('media')).map((x) => ({ ...x, entity: 'media' as const, label: 'صورة' })),
+    ...coupons.filter(() => sees('coupon')).map((x) => ({ ...x, entity: 'coupon' as const, label: 'كوبون' })),
+    ...orgs.filter(() => sees('organization')).map((x) => ({ ...x, entity: 'organization' as const, label: 'مؤسسة' })),
+    ...templates.filter(() => sees('template')).map((x) => ({ ...x, entity: 'template' as const, label: 'قالب شهادة' })),
+    ...cohorts.filter((x) => sees('cohort') && mine(x.courseId)).map(({ courseId: _, ...x }) => ({ ...x, entity: 'cohort' as const, label: 'دفعة' })),
+    ...promos.filter(() => sees('promotion')).map((x) => ({ ...x, entity: 'promotion' as const, label: 'عرض عام' })),
+    ...contracts.filter(() => sees('contract')).map((x) => ({ ...x, entity: 'contract' as const, label: 'عقد مؤسسة' })),
   ].sort((a, b) => String(b.at).localeCompare(String(a.at)))
 }
 

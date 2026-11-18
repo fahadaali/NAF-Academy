@@ -1,7 +1,7 @@
 /* المشغّل الدوري للرسائل — يستدعيه معالج scheduled في Worker كل 5 دقائق بسرّ CRON_SECRET.
    في التطوير فقط: ?now= لتجربة الجدولة بوقت مزيّف. */
 import { timingSafeEqual } from 'node:crypto'
-import { runNotifications } from '@/server/notify/engine'
+import { dispatch, runNotifications } from '@/server/notify/engine'
 import { envVar } from '@/server/runtime'
 import { autoMigrate } from '@/server/setup'
 import { streamState } from '@/server/stream'
@@ -23,6 +23,10 @@ export async function POST(req: Request) {
   if (!authorized(req)) return new Response('Unauthorized', { status: 401 })
   const q = new URL(req.url).searchParams.get('now')
   const now = q && process.env.NODE_ENV !== 'production' && !Number.isNaN(Date.parse(q)) ? new Date(q) : new Date()
+  /* التصريف: دفعة إرسال أخرى في استدعاء مستقل (لكل استدعاء سقف استعلامات D1) — يكرّره المعالج الدوري ما بقي مستحق */
+  if (new URL(req.url).searchParams.get('drain') === '1') {
+    try { return Response.json(await dispatch(now)) } catch (e) { console.error('notify drain', (e as Error).message); return Response.json({ more: false, error: true }, { status: 500 }) }
+  }
   /* بعد كل نشر: ترحيلات جديدة تُطبَّق وحدها هنا (كل 5 دقائق) — قبل أي استعلام يحتاجها */
   let migrated: Awaited<ReturnType<typeof autoMigrate>> = null
   try { migrated = await autoMigrate() } catch (e) { console.error('auto-migrate', e) }
@@ -35,7 +39,8 @@ export async function POST(req: Request) {
   /* وافق: المستندات المعلّقة قبل الرسائل — فيخرج بريد «تم الدفع» بفاتورتها الرسمية */
   let wafeq: Awaited<ReturnType<typeof retryWafeq>> | null = null
   try { wafeq = await retryWafeq(now) } catch (e) { console.error('wafeq retry', (e as Error).message) }
-  const r = await runNotifications(now)
+  let r: Awaited<ReturnType<typeof runNotifications>> | { error: true; more: false }
+  try { r = await runNotifications(now) } catch (e) { console.error('notify run', (e as Error).message); r = { error: true, more: false } }
   /* فيديوهات Stream العالقة في الانتظار أو المعالجة — احتياط إن لم يصل Webhook الاكتمال */
   let stream = 0
   if (streamState().configured) try { stream = await refreshUnsettled() } catch (e) { console.error('stream refresh', (e as Error).message) }

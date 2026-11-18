@@ -30,10 +30,16 @@ const guardSelf = (me: Staff, userId: string) => (me.role !== 'owner' && userId 
 
 export type LinkResult = { ok: boolean; error?: string; link?: string; mailed?: boolean }
 
+/** حساب المدرب مقيّد بدوراته — وإدارة الفريق (دعوة حساب وربطه بملف مدرب آخر، روابط حسابات زملائه) تخرجه من قيده */
+const SCOPED = 'إدارة الفريق ليست لحساب مدرب — تُسند لعضو غير مقيّد بدورات'
+/** روابط الحساب وتحققه الثنائي لصاحبه من «حسابي» بكلمة مروره الحالية — لا من «الفريق»: جلسة مسروقة لا تستولي بها على الحساب */
+const OWN = 'لحسابك أنت: غيّر كلمة المرور أو التحقق الثنائي من «حسابي» (بكلمة مرورك الحالية)'
+
 const NOT_READY = 'الروابط الموقّعة تحتاج السرّ ADMIN_SECRET في Cloudflare ← Variables and Secrets — أضفه ثم أعد المحاولة'
 
 export async function inviteMember(raw: { email: string; name: string; role: string }): Promise<LinkResult> {
   const me = await requirePermission('team.manage')
+  if (me.role === 'instructor') return { ok: false, error: SCOPED }
   if (!authReady()) return { ok: false, error: NOT_READY }
   const p = z.object({ email: z.string().trim().toLowerCase().email('بريد غير صالح').max(160), name: z.string().trim().max(120), role: z.enum(ROLES) }).safeParse(raw)
   if (!p.success) return { ok: false, error: p.error.issues[0]?.message }
@@ -52,8 +58,10 @@ export async function inviteMember(raw: { email: string; name: string; role: str
 /** رابط تعيين كلمة المرور لعضو: دعوة إن لم يعيّنها بعد، وإعادة تعيين إن عيّنها (يُخرجه من أجهزته متى استُعمل) */
 export async function memberPasswordLink(userId: string): Promise<LinkResult> {
   const me = await requirePermission('team.manage')
+  if (me.role === 'instructor') return { ok: false, error: SCOPED }
   if (!authReady()) return { ok: false, error: NOT_READY }
   if (typeof userId !== 'string') return { ok: false, error: 'بيانات غير صالحة' }
+  if (userId === me.id) return { ok: false, error: OWN }
   const [m] = await db.select().from(s.members).where(eq(s.members.userId, userId))
   if (!m) return { ok: false, error: 'العضو غير موجود' }
   if (!m.isActive) return { ok: false, error: 'فعّل العضو أولاً' }
@@ -70,7 +78,9 @@ export async function memberPasswordLink(userId: string): Promise<LinkResult> {
 /** لعضو فقد جهاز المصادقة: يُلغى تحققه الثنائي وتسقط جلساته، فيدخل بكلمة المرور ثم يفعّله من جديد */
 export async function resetMemberTwoStep(userId: string): Promise<{ ok: boolean; error?: string }> {
   const me = await requirePermission('team.manage')
+  if (me.role === 'instructor') return { ok: false, error: SCOPED }
   if (typeof userId !== 'string') return { ok: false, error: 'بيانات غير صالحة' }
+  if (userId === me.id) return { ok: false, error: OWN }
   const [m] = await db.select().from(s.members).where(eq(s.members.userId, userId))
   if (!m) return { ok: false, error: 'العضو غير موجود' }
   if (guardOwner(me, m)) return { ok: false, error: 'حساب المالك يديره مالك فقط' }
@@ -84,6 +94,7 @@ export async function resetMemberTwoStep(userId: string): Promise<{ ok: boolean;
 
 export async function setMemberRole(userId: string, role: Role): Promise<{ ok: boolean; error?: string }> {
   const me = await requirePermission('team.manage')
+  if (me.role === 'instructor') return { ok: false, error: SCOPED }
   if (typeof userId !== 'string' || !ROLES.includes(role)) return { ok: false, error: 'دور غير معروف' }
   const self = guardSelf(me, userId)
   if (self) return { ok: false, error: self }
@@ -102,6 +113,7 @@ export async function setMemberRole(userId: string, role: Role): Promise<{ ok: b
 
 export async function setMemberActive(userId: string, active: boolean): Promise<{ ok: boolean; error?: string }> {
   const me = await requirePermission('team.manage')
+  if (me.role === 'instructor') return { ok: false, error: SCOPED }
   if (typeof active !== 'boolean' || typeof userId !== 'string') return { ok: false, error: 'بيانات غير صالحة' }
   const [m] = await db.select().from(s.members).where(eq(s.members.userId, userId))
   if (!m) return { ok: false, error: 'العضو غير موجود' }
@@ -121,6 +133,7 @@ export async function setMemberActive(userId: string, active: boolean): Promise<
 /** تخصيص صلاحيات عضو فوق دوره: منح ما ليس في الدور، أو حجب ما فيه. */
 export async function setMemberPerms(userId: string, raw: { add: string[]; remove: string[] }): Promise<{ ok: boolean; error?: string }> {
   const me = await requirePermission('team.manage')
+  if (me.role === 'instructor') return { ok: false, error: SCOPED }
   const p = z.object({ add: z.array(z.enum(PERMS)).max(PERMS.length), remove: z.array(z.enum(PERMS)).max(PERMS.length) }).safeParse(raw)
   if (!p.success || typeof userId !== 'string') return { ok: false, error: 'بيانات غير صالحة' }
   const self = guardSelf(me, userId)
@@ -149,6 +162,7 @@ export async function setMemberPerms(userId: string, raw: { add: string[]; remov
 /** ربط عضو بملف مدرب — دور «مدرب» يُحصر في دورات هذا الملف */
 export async function setMemberInstructor(userId: string, instructorId: string | null): Promise<{ ok: boolean; error?: string }> {
   const me = await requirePermission('team.manage')
+  if (me.role === 'instructor') return { ok: false, error: SCOPED }
   if (typeof userId !== 'string' || (instructorId !== null && !z.string().uuid().safeParse(instructorId).success)) return { ok: false, error: 'بيانات غير صالحة' }
   const self = guardSelf(me, userId)
   if (self) return { ok: false, error: self }

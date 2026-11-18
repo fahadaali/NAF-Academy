@@ -213,7 +213,7 @@ export const modules = sqliteTable('modules', {
   courseId: text('course_id').notNull().references(() => courses.id, { onDelete: 'cascade' }),
   title: text('title').notNull(),
   sortOrder: integer('sort_order').notNull().default(0),
-})
+}, (t) => [index('modules_course_idx').on(t.courseId)])
 
 export const lessons = sqliteTable('lessons', {
   id: id(),
@@ -249,7 +249,7 @@ export const lessons = sqliteTable('lessons', {
   streamStatus: text('stream_status', { enum: STREAM_STATUS }),
   durationSeconds: integer('duration_seconds'),
   thumbnailUrl: text('thumbnail_url'),
-})
+}, (t) => [index('lessons_module_idx').on(t.moduleId)])
 
 /** كل فيديو رُفع إلى Stream من المنصة — أينما استُعمل (درس، تشويقي، تسجيل). الحالة تُحدَّث من Webhook أو بالسؤال الدوري. */
 export const streamVideos = sqliteTable('stream_videos', {
@@ -267,6 +267,14 @@ export const streamVideos = sqliteTable('stream_videos', {
   createdAt: text('created_at').notNull().default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ','now'))`),
   updatedAt: text('updated_at').notNull().default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ','now'))`),
 }, (t) => [index('stream_videos_status').on(t.status)])
+
+/** روابط الدورات السابقة: تغيير «رابط الصفحة» يُبقي القديم محوِّلاً (301) إلى الدورة — فلا تنكسر الروابط المنشورة ولا نتائج البحث.
+    الدورة الحالية بالرابط نفسه أولى منه دائماً (يُقرأ عند عدم وجودها فقط) */
+export const courseSlugs = sqliteTable('course_slugs', {
+  slug: text('slug').primaryKey(),
+  courseId: text('course_id').notNull().references(() => courses.id, { onDelete: 'cascade' }),
+  createdAt: stamps.createdAt,
+}, (t) => [index('course_slugs_course').on(t.courseId)])
 
 /** إعدادات ومحتوى الصفحات (مفتاح ← JSON) */
 export const settings = sqliteTable('settings', {
@@ -435,7 +443,7 @@ export const orderItems = sqliteTable('order_items', {
   listPrice: integer('list_price').notNull(),
   quantity: integer('quantity').notNull().default(1),
   lineTotal: integer('line_total').notNull(),
-})
+}, (t) => [index('order_items_order_idx').on(t.orderId), index('order_items_course_idx').on(t.courseId)])
 
 export const payments = sqliteTable('payments', {
   id: id(),
@@ -512,7 +520,7 @@ export const enrollments = sqliteTable(
     ...stamps,
   },
   (t) => [
-    index('enroll_course_idx').on(t.courseId), index('enroll_learner_idx').on(t.learnerId), index('enroll_cohort_idx').on(t.cohortId),
+    index('enroll_course_idx').on(t.courseId), index('enroll_learner_idx').on(t.learnerId), index('enroll_cohort_idx').on(t.cohortId), index('enroll_order_idx').on(t.orderId),
     /* تسجيل نشط واحد للمتدرب في الدورة — مهما تسابقت الطلبات */
     uniqueIndex('enroll_one_active').on(t.learnerId, t.courseId).where(sql`status = 'active'`),
   ],
@@ -527,7 +535,7 @@ export const seatGrants = sqliteTable('seat_grants', {
   email: text('email'),
   enrollmentId: text('enrollment_id'),
   ...stamps,
-})
+}, (t) => [index('seat_grants_order_idx').on(t.orderId), index('seat_grants_course_idx').on(t.courseId), index('seat_grants_cohort_idx').on(t.cohortId)])
 
 export const INTEREST_KIND = ['notify_open', 'waitlist', 'next_cohort', 'register'] as const
 export const interest = sqliteTable(
@@ -604,7 +612,7 @@ export const otpCodes = sqliteTable(
     ip: text('ip').notNull().default(''),
     ...stamps,
   },
-  (t) => [index('otp_target_idx').on(t.target)],
+  (t) => [index('otp_target_idx').on(t.target), index('otp_ip_idx').on(t.ip, t.createdAt)],
 )
 
 /** جلسات المتدربين — يُخزَّن تجزيء الرمز، والكوكي يحمل الرمز */

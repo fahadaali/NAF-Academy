@@ -9,6 +9,7 @@ import { Blocks } from '@/components/Blocks'
 import { Riyal } from '@/components/Riyal'
 import { CouponBanner } from './CouponBanner'
 import { Teaser } from './Teaser'
+import { EnrollCta } from './EnrollCta'
 import { formatAmount } from '@/lib/pricing'
 import { mergeRules } from '@/lib/certificate'
 import { levelLabel, modeLabel, statusView } from '@/lib/course-meta'
@@ -246,7 +247,8 @@ export function CourseView({ data, preview, corporate = true, vat = 0 }: { data:
                 <span className="num">{left && left > 0 ? `بقي ${left} مقعداً من ${c.seats.total}` : 'اكتمل العدد'}</span>
               </div>
             )}
-            <a href={enroll} className={`btn ${st.tone === 'open' ? '' : 'ghost'} ${s.cta}`}>{st.cta}</a>
+            {preview ? <a href={enroll} className={`btn ${st.tone === 'open' ? '' : 'ghost'} ${s.cta}`}>{st.cta}</a>
+              : <EnrollCta slug={c.slug} href={enroll} label={st.cta} className={`btn ${st.tone === 'open' ? '' : 'ghost'} ${s.cta}`} />}
             <ul role="list" className={s.includes}>
               <li>{modeLabel[c.mode]}{c.startsAt ? ` · ${formatDay(c.startsAt)}` : ''}</li>
               <li className="num">{c.hours} ساعة تدريبية</li>
@@ -277,7 +279,7 @@ export function CourseView({ data, preview, corporate = true, vat = 0 }: { data:
 
       <div className={s.mobileBar} data-dim={st.dim ? '1' : '0'}>
         {fromPrice !== null ? <span className={`num ${s.from}`} style={{ fontSize: 20 }}>من {formatAmount(fromPrice)} <Riyal /></span> : <PriceTag pricing={c.pricing} size="s" />}
-        <a href={enroll} className="btn">{st.cta}</a>
+        {preview ? <a href={enroll} className="btn">{st.cta}</a> : <EnrollCta slug={c.slug} href={enroll} label={st.cta} className="btn" />}
       </div>
     </article>
   )
