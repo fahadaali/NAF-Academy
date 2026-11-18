@@ -1,5 +1,7 @@
 /* نسخة JPEG للصور التي لا تقرؤها صور المشاركة (WebP/AVIF) — يرسمها المتصفح عند الرفع، فلا مكتبة صور على الخادم.
    تحويل صيغة فقط، بعرض أقصى 1600. */
+import { packForm } from '@/lib/upload-wire'
+
 const MAX_W = 1600
 
 async function jpegTwin(f: File): Promise<File | null> {
@@ -26,5 +28,5 @@ export async function uploadForm(f: File) {
   fd.set('file', f)
   const twin = await jpegTwin(f)
   if (twin) fd.set('og', twin)
-  return fd
+  return packForm(fd)
 }

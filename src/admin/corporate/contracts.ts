@@ -10,6 +10,7 @@ import { audit } from '@/server/audit'
 import { putObject } from '@/server/storage'
 import { assignContractSeat } from '@/server/contracts'
 import { contractInput, errorsOf, type ContractInput, type Errors } from '@/admin/schemas'
+import { fileOf } from '@/lib/upload-wire'
 
 const refresh = (orgId: string) => { revalidatePath(`/admin/organizations/${orgId}`); revalidatePath('/learn/org') }
 
@@ -47,7 +48,7 @@ const MAX = 15 * 1024 * 1024
 /** ملف العقد الموقّع — PDF في التخزين الخاص، لا يُنزَّل إلا لمن يدير المؤسسات */
 export async function uploadContractFile(form: FormData): Promise<{ ok: true; id: string; name: string } | { ok: false; error: string }> {
   const st = await requirePermission('corporate.manage')
-  const file = form.get('file')
+  const file = fileOf(form)
   if (!(file instanceof File) || !file.size) return { ok: false, error: 'لم يُرفق ملف' }
   if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) return { ok: false, error: 'العقد بصيغة PDF' }
   if (file.size > MAX) return { ok: false, error: 'الحد الأقصى 15 ميغابايت' }

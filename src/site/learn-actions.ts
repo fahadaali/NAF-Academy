@@ -12,6 +12,7 @@ import { putObject } from '@/server/storage'
 import { limited } from '@/server/ratelimit'
 import { EXT_MIME } from '@/lib/files'
 import { onProgress } from '@/server/notify/engine'
+import { fileOf } from '@/lib/upload-wire'
 
 /** يتحقق أن الدرس مفتوح لهذا المتدرب المسجّل */
 async function gate(slug: string, lessonId: string) {
@@ -173,7 +174,7 @@ export async function submitAssignment(form: FormData): Promise<{ ok: boolean; e
   const lessonId = String(form.get('lessonId') ?? '')
   const { me, ctx, lesson } = await gate(slug, lessonId)
   if (lesson.type !== 'assignment' || !lesson.assignment) return { ok: false, error: 'لا واجب' }
-  const file = form.get('file')
+  const file = fileOf(form)
   if (!(file instanceof File) || !file.size) return { ok: false, error: 'أرفق ملف الواجب' }
   const ext = file.name.split('.').pop()?.toLowerCase() ?? ''
   if (!lesson.assignment.accept.includes(ext) || !EXT_MIME[ext]) return { ok: false, error: `الصيغ المقبولة: ${lesson.assignment.accept.join('، ')}` }

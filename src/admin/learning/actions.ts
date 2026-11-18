@@ -22,13 +22,14 @@ import { onProgress } from '@/server/notify/engine'
 import { formatDay, formatTime } from '@/lib/dates'
 import { hasAccess, withSession } from '@/lib/cohorts'
 import { sessionsOf } from '@/server/cohorts'
+import { fileOf } from '@/lib/upload-wire'
 
 const MAX = 25 * 1024 * 1024
 
 /** مرفق درس — يُخزَّن خاصاً ولا يُنزَّل إلا للمسجّل أو لدرس معاينة */
 export async function uploadLessonFile(form: FormData): Promise<{ ok: true; file: { assetId: string; name: string; size: number } } | { ok: false; error: string }> {
   const st = await requirePermission('content.write')
-  const file = form.get('file')
+  const file = fileOf(form)
   if (!(file instanceof File) || !file.size) return { ok: false, error: 'لم يُرفق ملف' }
   const ext = file.name.split('.').pop()?.toLowerCase() ?? ''
   if (!EXT_MIME[ext]) return { ok: false, error: `الصيغ المقبولة: ${Object.keys(EXT_MIME).join('، ')}` }
@@ -45,7 +46,7 @@ export async function uploadLessonFile(form: FormData): Promise<{ ok: true; file
 /** سلايدات درس: PDF فقط، ويُحسب عدد صفحاته هنا (pdf-lib) فيُخزَّن مع الدرس — الإكمال يُقاس به على الخادم */
 export async function uploadSlides(form: FormData): Promise<{ ok: true; slides: { assetId: string; name: string; size: number; pages: number } } | { ok: false; error: string }> {
   const st = await requirePermission('content.write')
-  const file = form.get('file')
+  const file = fileOf(form)
   if (!(file instanceof File) || !file.size) return { ok: false, error: 'لم يُرفق ملف' }
   if (file.name.split('.').pop()?.toLowerCase() !== 'pdf') return { ok: false, error: 'السلايدات ملف PDF — من PowerPoint: حفظ باسم ← PDF' }
   if (file.size > MAX) return { ok: false, error: 'الحد الأقصى 25 ميغابايت' }
@@ -225,7 +226,7 @@ export async function setAttendance(learnerId: string, lessonId: string, present
 /** ملف ترجمة (VTT أو SRT ← VTT) لفيديو برابط مباشر — يُخزَّن خاصاً ويُقدَّم لمن يحق له الدرس */
 export async function uploadCaption(form: FormData): Promise<{ ok: true; caption: { lang: string; label: string; assetId: string } } | { ok: false; error: string }> {
   const st = await requirePermission('content.write')
-  const file = form.get('file')
+  const file = fileOf(form)
   const lang = String(form.get('lang') ?? '')
   const label = String(form.get('label') ?? '').trim().slice(0, 40)
   if (!(file instanceof File) || !file.size) return { ok: false, error: 'لم يُرفق ملف' }
@@ -264,7 +265,7 @@ export async function streamCaptionAdd(form: FormData): Promise<{ ok: boolean; e
   const st = await requirePermission('content.write')
   const uid = String(form.get('uid') ?? '')
   const lang = String(form.get('lang') ?? '')
-  const file = form.get('file')
+  const file = fileOf(form)
   if (!streamState().configured) return { ok: false, error: streamState().problem }
   if (!LANG.test(lang) || !(await uidAllowed(st, uid))) return { ok: false, error: 'طلب غير صالح' }
   if (!(file instanceof File) || file.size > 2 * 1024 * 1024) return { ok: false, error: 'ملف ترجمة حتى 2 ميغابايت' }

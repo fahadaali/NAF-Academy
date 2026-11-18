@@ -17,8 +17,9 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   experimental: {
-    /* رفع الصور عبر إجراءات الخادم — الحد في التطبيق 8 ميغابايت */
-    serverActions: { bodySizeLimit: '26mb' },
+    /* الملفات تُرفع عبر إجراءات الخادم مرمَّزةً base64 (src/lib/upload-wire.ts) فتكبر بنحو الثلث:
+       أكبر ملف في التطبيق 25 ميغابايت ← نحو 33.4 مرمَّزاً، والحد فوقه بهامش */
+    serverActions: { bodySizeLimit: '36mb' },
   },
   /* المتصفحات تطلب /favicon.ico مباشرة — يُحوَّل لأيقونة اللوحة إن وُجدت عبر المسار، وإلا الافتراضية */
   async rewrites() {
