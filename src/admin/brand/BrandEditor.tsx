@@ -14,6 +14,7 @@ import { MediaPicker, urlOf } from '@/admin/ui/MediaPicker'
 import { listMedia, uploadMedia } from '@/admin/actions'
 import { saveBrand } from './actions'
 import b from './brand.module.css'
+import { packForm } from '@/lib/upload-wire'
 
 /** ارتفاع النسخة النقطية المولّدة — تكفي للطباعة في الشهادة وللشاشات عالية الكثافة */
 const RASTER_H = 480
@@ -38,7 +39,7 @@ async function rasterize(m: Media): Promise<string | null> {
   const fd = new FormData()
   fd.set('file', new File([blob], `${(m.alt || 'logo').slice(0, 60)}.png`, { type: 'image/png' }))
   fd.set('alt', `${m.alt || 'شعار'} (PNG)`)
-  const r = await uploadMedia(fd)
+  const r = await uploadMedia(await packForm(fd))
   return r.ok ? r.id ?? null : null
 }
 

@@ -21,6 +21,7 @@ import { COURSE_STATUS } from '@/lib/enums'
 import { chunksOf, inList } from '@/server/db/limits'
 import { blocksText } from '@/lib/blocks'
 import { zoomMeetingId } from '@/lib/zoom'
+import { fileOf } from '@/lib/upload-wire'
 import {
   courseInput, errorsOf, homeInput, instructorInput, pagesInput, trackInput,
   type CourseInput, type InstructorInput, type Result, type TrackInput,
@@ -354,7 +355,7 @@ const MAX = 8 * 1024 * 1024
 
 export async function uploadMedia(form: FormData): Promise<{ ok: boolean; id?: string; error?: string }> {
   const admin = await requirePermission('content.write')
-  const file = form.get('file')
+  const file = fileOf(form)
   if (!(file instanceof File)) return { ok: false, error: 'لم يُرفق ملف' }
   const ext = MIME[file.type]
   if (!ext) return { ok: false, error: 'الصيغ المقبولة: JPG وPNG وWebP وAVIF وSVG (للشعارات)' }
@@ -381,7 +382,7 @@ export async function uploadMedia(form: FormData): Promise<{ ok: boolean; id?: s
   const alt = String(form.get('alt') ?? '').slice(0, 200) || file.name.replace(/\.[^.]+$/, '').slice(0, 200)
   /* توأم JPEG لصور المشاركة (WebP/AVIF لا تقرؤها) — يُقبل JPEG صالحاً فقط */
   let ogKey: string | null = null
-  const og = form.get('og')
+  const og = fileOf(form, 'og')
   if ((file.type === 'image/webp' || file.type === 'image/avif') && og instanceof File && og.type === 'image/jpeg' && og.size <= MAX) {
     const b = new Uint8Array(await og.arrayBuffer())
     if (b[0] === 0xff && b[1] === 0xd8) { ogKey = `${id.slice(0, 8)}${Date.now().toString(36)}-og.jpg`; await putObject(ogKey, b, 'image/jpeg') }

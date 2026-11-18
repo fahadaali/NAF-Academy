@@ -6,6 +6,7 @@ import type { PublicQuiz } from '@/lib/learning-types'
 import { markComplete, mySubmissions, quizQuestions, startQuiz, submitAssignment, submitQuiz } from '@/site/learn-actions'
 import { Words } from '@/components/Words'
 import s from './parts.module.css'
+import { packForm } from '@/lib/upload-wire'
 
 export function CompleteButton({ slug, lessonId, done }: { slug: string; lessonId: string; done: boolean }) {
   const router = useRouter()
@@ -137,7 +138,7 @@ export function AssignmentPanel({ slug, lessonId, accept, maxMb }: { slug: strin
           setBusy(true); setErr('')
           const fd = new FormData(e.currentTarget)
           fd.set('slug', slug); fd.set('lessonId', lessonId)
-          const r = await submitAssignment(fd)
+          const r = await submitAssignment(await packForm(fd))
           setBusy(false)
           if (!r.ok) return setErr(r.error ?? '')
           ;(e.target as HTMLFormElement).reset()

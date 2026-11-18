@@ -14,6 +14,7 @@ import d from './lesson.module.css'
 import p from '@/admin/ui/panel.module.css'
 import { StreamUpload } from './StreamUpload'
 import { fileSize } from '@/lib/files'
+import { packForm } from '@/lib/upload-wire'
 
 type Lesson = CourseInput['curriculum'][number]['lessons'][number]
 type Video = NonNullable<Lesson['video']>
@@ -128,7 +129,7 @@ function Captions({ value, onChange }: { value: Caption[]; onChange: (v: Caption
     const fd = new FormData()
     fd.set('file', f); fd.set('lang', lang); fd.set('label', label)
     setMsg('يُرفع…')
-    const r = await uploadCaption(fd)
+    const r = await uploadCaption(await packForm(fd))
     if (!r.ok) return setMsg(r.error)
     onChange([...value.filter((c) => c.lang !== lang), r.caption])
     setMsg('')
@@ -179,7 +180,7 @@ function StreamCaptions({ uid }: { uid: string }) {
             const f = e.target.files?.[0]; e.target.value = ''
             if (!f) return
             const fd = new FormData(); fd.set('uid', uid); fd.set('lang', lang); fd.set('file', f)
-            const r = await streamCaptionAdd(fd); setMsg(r.ok ? 'رُفعت الترجمة' : r.error ?? ''); if (r.ok) refresh()
+            const r = await streamCaptionAdd(await packForm(fd)); setMsg(r.ok ? 'رُفعت الترجمة' : r.error ?? ''); if (r.ok) refresh()
           }} />
           <button type="button" className={d.add} onClick={() => file.current?.click()}>+ ملف</button>
           <button type="button" className={d.add} onClick={async () => { const r = await streamCaptionAuto(uid, lang); setMsg(r.ok ? 'بدأ التوليد — يظهر خلال دقائق' : r.error ?? ''); if (r.ok) refresh() }}>توليد تلقائي</button>
@@ -220,7 +221,7 @@ function SlidesField({ value, onChange, error }: { value: Slides | null; onChang
     const fd = new FormData()
     fd.append('file', f)
     /* استجابة غير متوقعة من الخادم (انقطاع، أو توقّف العامل أثناء قراءة الملف) ترمي استثناءً لا نتيجة — فلا تبقى «جارٍ رفع…» معلّقة */
-    const r = await uploadSlides(fd).catch((e) => { console.error('upload slides', e); return null })
+    const r = await uploadSlides(await packForm(fd)).catch((e) => { console.error('upload slides', e); return null })
     if (!r) { setMsg(UPLOAD_FAILED); return }
     if (!r.ok) { setMsg(r.error); return }
     onChange({ ...r.slides, download: value?.download ?? false })
@@ -253,7 +254,7 @@ function Attachments({ value, onChange }: { value: { assetId: string; name: stri
       setMsg(`جارٍ رفع ${f.name}…`)
       const fd = new FormData()
       fd.append('file', f)
-      const r = await uploadLessonFile(fd).catch((e) => { console.error('upload file', e); return null })
+      const r = await uploadLessonFile(await packForm(fd)).catch((e) => { console.error('upload file', e); return null })
       if (!r) { setMsg(UPLOAD_FAILED); return }
       if (!r.ok) { setMsg(r.error); return }
       next.push(r.file)

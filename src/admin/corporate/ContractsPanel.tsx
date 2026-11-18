@@ -13,6 +13,7 @@ import p from '@/admin/ui/panel.module.css'
 import c from './corporate.module.css'
 import { History } from '@/admin/ui/History'
 import { trash } from '@/admin/actions'
+import { packForm } from '@/lib/upload-wire'
 
 type Course = { id: string; title: string; cohorts: { id: string; title: string }[] }
 type Seat = { id: string; email: string; name: string; course: string }
@@ -40,7 +41,7 @@ export function ContractsPanel({ orgId, items, courses }: { orgId: string; items
   const upload = async (f: File) => {
     const fd = new FormData()
     fd.set('file', f)
-    const r = await uploadContractFile(fd)
+    const r = await uploadContractFile(await packForm(fd))
     if (!r.ok) return setMsg(r.error)
     set('fileId', r.id)
     setEdit((e) => (e ? { ...e, fileName: r.name } : e))
