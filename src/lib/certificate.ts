@@ -102,6 +102,9 @@ export const SPLIT_BLOCKS: Record<BlockKey, Block> = {
   qr: b(91, 84, 46),
 }
 
+/** قالب البذرة الافتراضي (وترحيل 0022 للقاعدة القائمة): الشهادة الثنائية بعمودين — بقرار المالك */
+export const SPLIT_TEMPLATE = { name: 'شهادة ثنائية — عربي وإنجليزي', design: { ...DEFAULT_DESIGN, layout: 'split', bilingual: true, blocks: SPLIT_BLOCKS } as CertDesign }
+
 /** العمودان في التخطيط المنقسم — مركز كل عمود وعرضه الأقصى بالنسب (العربي يميناً) */
 export const SPLIT = { ar: 74, en: 26, width: 40, divider: { from: 24, to: 80 } } as const
 

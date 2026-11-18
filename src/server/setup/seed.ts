@@ -7,7 +7,7 @@ import * as s from '../db/schema'
 import { corporate, courses, hero, instructors, ladder, stats, tracks } from '@/content/seed'
 import { DEFAULT_HOME } from '@/content/home-defaults'
 import { EMPTY_ASSIGNMENT, EMPTY_QUIZ, type Quiz } from '@/lib/learning-types'
-import { DEFAULT_DESIGN } from '@/lib/certificate'
+import { SPLIT_TEMPLATE } from '@/lib/certificate'
 
 /** فارغة؟ (لا مسارات) */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -101,7 +101,7 @@ export async function seedContent(db: LibSQLDatabase<any>): Promise<{ tracks: nu
     }
   }
 
-  await db.insert(s.certificateTemplates).values({ id: randomUUID(), name: 'القالب الافتراضي', design: DEFAULT_DESIGN, isDefault: true })
+  await db.insert(s.certificateTemplates).values({ id: randomUUID(), name: SPLIT_TEMPLATE.name, design: SPLIT_TEMPLATE.design, isDefault: true })
   await db.insert(s.coupons).values({ id: randomUUID(), code: 'WELCOME10', label: 'ترحيب — كوبون تجريبي', kind: 'percent', value: 10, maxPerLearner: 1, stackWithSale: true })
   await db.insert(s.settings).values({ key: 'home', value: { ...DEFAULT_HOME, hero, ladder, stats, corporate } })
   await db.insert(s.auditLog).values({ actor: 'system', action: 'seed', entity: 'site', entityId: '-', summary: 'بذر المحتوى المبدئي' })
