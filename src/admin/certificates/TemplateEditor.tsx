@@ -17,7 +17,7 @@ import t from './template.module.css'
 /** في التخطيط المنقسم موضع النصوص الأفقي يحدده العمودان — السحب يحرّكها رأسياً وحده */
 const COLUMN_BLOCKS = new Set<BlockKey>(['title', 'lead', 'name', 'idNumber', 'course', 'hours', 'date'])
 
-const SAMPLE = { name: 'سارة عبدالله المتدربة', course: 'نظام الإثبات: من النص إلى المرافعة', hours: 12, date: '5 نوفمبر 2026', hijri: '14 جمادى الأولى 1448', code: 'NAF-DEMO-2026', nameEn: 'Sarah Abdullah', courseEn: 'Evidence Law: From Text to Pleading', dateEn: '5 November 2026', idNumber: SAMPLE_ID }
+const SAMPLE = { name: 'سارة عبدالله المتدربة', course: 'نظام الإثبات: من النص إلى المرافعة', hours: 12, date: '5 نوفمبر 2026', hijri: '14 جمادى الأولى 1448', code: 'NAF-DEMO-2026', nameEn: 'Sarah Abdullah', courseEn: 'Evidence Law: From Text to Pleading', dateEn: '5 November 2026', dayAr: 'الخميس', dayEn: 'Thursday', idNumber: SAMPLE_ID }
 
 export function TemplateEditor({ id, initial, media, brand }: { id: string | null; initial: { name: string; isDefault: boolean; design: CertDesign }; media: Media[]; brand: BrandView }) {
   const router = useRouter()
@@ -105,6 +105,7 @@ export function TemplateEditor({ id, initial, media, brand }: { id: string | nul
             <MediaPicker label="صورة خلفية (اختيارية — PNG أو JPG بنسبة A4 أفقية)" value={d.backgroundId} onChange={(backgroundId) => setD({ backgroundId })} library={images} ratio="842 / 595" accept={['image/png', 'image/jpeg']} />
             {errors['design.backgroundId'] && <span className={t.err}>{errors['design.backgroundId']}</span>}
             <MediaPicker label="الختم (PNG شفاف) — يُرسم في موضع «الختم»، ويُحرَّك ويُكبَّر من «العناصر»" value={d.stampId ?? null} onChange={(stampId) => setD({ stampId })} library={images} ratio="1 / 1" accept={['image/png']} />
+            {d.stampId && <Field label="ميلان الختم (درجة)" hint="موجب يميناً مع عقارب الساعة، وسالب يساراً — من −45 إلى 45"><Input type="number" dir="ltr" min={-45} max={45} value={d.stampRotate} onChange={(e) => setD({ stampRotate: Math.max(-45, Math.min(45, Number(e.target.value) || 0)) })} /></Field>}
           </Section>
 
           <Section title="النصوص" desc="«~» ثم رقم لموضع الكشيدة: إتم~4ام">

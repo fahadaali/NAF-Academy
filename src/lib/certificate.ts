@@ -40,6 +40,8 @@ export type CertDesign = {
   backgroundId: string | null
   /** صورة الختم (PNG شفاف) — تُرسم في عنصر stamp إن رُفعت */
   stampId: string | null
+  /** ميلان الختم بالدرجات مع عقارب الساعة (يميناً) — كختم مطبوع باليد */
+  stampRotate: number
   title: string
   lead: string
   courseLead: string
@@ -68,6 +70,7 @@ export const DEFAULT_DESIGN: CertDesign = {
   tone: 'ivory',
   backgroundId: null,
   stampId: null,
+  stampRotate: 12,
   title: 'شهادة إتم~4ام',
   lead: 'تُمنح هذه الشهادة إلى',
   courseLead: 'لإتمام متطلبات دورة',
@@ -107,9 +110,9 @@ export const SPLIT_BLOCKS: Record<BlockKey, Block> = {
   hours: b(50, 70.5, 11),
   date: b(50, 77, 9.5),
   signatures: b(50, 87.5, 10.5),
-  qr: b(91, 84, 46),
+  qr: b(88.5, 84, 46),
   /* الختم يساراً مقابل رمز التحقق يميناً */
-  stamp: b(9, 84, 62),
+  stamp: b(10.5, 83.5, 92),
 }
 
 /** قالب البذرة الافتراضي (وترحيل 0022 للقاعدة القائمة): الشهادة الثنائية بعمودين — بقرار المالك */
@@ -117,6 +120,12 @@ export const SPLIT_TEMPLATE = { name: 'شهادة ثنائية — عربي وإ
 
 /** العمودان في التخطيط المنقسم — مركز كل عمود وعرضه الأقصى بالنسب (العربي يميناً) */
 export const SPLIT = { ar: 74, en: 26, width: 40, divider: { from: 24, to: 80 } } as const
+
+/** سطر التاريخ في التخطيط المنقسم (بقرار المالك): العربي باليوم والهجري «صدرت يوم الخميس 14 جمادى الأولى 1448هـ»،
+    والإنجليزي باليوم والميلادي «Issued on Thursday, 5 November 2026». بلا هجري يعود إلى الميلادي */
+type DateParts = { date: string; hijri: string; dateEn?: string; dayAr?: string; dayEn?: string }
+export const splitDateAr = (d: DateParts) => (d.hijri ? `صدرت يوم ${d.dayAr ? `${d.dayAr} ` : ''}${d.hijri}هـ` : `صدرت في ${d.date}`)
+export const splitDateEn = (d: DateParts, issued: string) => (d.dateEn ? `${issued} ${d.dayEn ? `${d.dayEn}, ` : ''}${d.dateEn}` : '')
 
 /** «{{hours}}» في سطر الساعات — للصفحة وملف PDF */
 export const hoursOf = (t: string, h: number) => t.replace(/\{\{\s*hours\s*\}\}/g, String(h))

@@ -3,9 +3,9 @@ import 'server-only'
    النص يُرسم مسارات متجهة من fontkit مباشرة: التشكيل العربي والوصل والحركات والكشيدة كما يرسمها الخط تماماً،
    بلا اعتماد على تضمين الخط في PDF (pdf-lib يُسقط بدائل التشكيل السياقية). والملف صغير (~10 ك.ب).
    fontkit يرتّب المقطع العربي بصرياً لكنه يقلب الأرقام واللاتينية داخله، فنقسّم السطر مقاطع ونرصّها من اليمين. */
-import { PDFDocument, LineCapStyle, rgb, type PDFPage } from 'pdf-lib'
+import { PDFDocument, LineCapStyle, degrees, rgb, type PDFPage } from 'pdf-lib'
 import QRCode from 'qrcode'
-import { hoursOf, mergeDesign, PAGE, signerEn, SPLIT, TONES, type CertDesign } from '@/lib/certificate'
+import { hoursOf, mergeDesign, PAGE, signerEn, SPLIT, splitDateAr, splitDateEn, TONES, type CertDesign } from '@/lib/certificate'
 import { parse, render } from '@/motion/kashida'
 import { EMBLEM } from '@/components/Emblem'
 import { bidiRuns, FONTS, loadFont, shape, widthOf, type Font, type Fonts } from '../vector-text'
@@ -67,7 +67,7 @@ async function image(doc: PDFDocument, id: string | null) {
   return null
 }
 
-export type CertData = { name: string; course: string; hours: number; date: string; hijri: string; code: string; verifyUrl: string; nameEn?: string; courseEn?: string; dateEn?: string; idNumber?: string }
+export type CertData = { name: string; course: string; hours: number; date: string; hijri: string; code: string; verifyUrl: string; nameEn?: string; courseEn?: string; dateEn?: string; idNumber?: string; dayAr?: string; dayEn?: string }
 
 /** الهوية في الشهادة: الأسماء وبايتات شعار الأكاديمية (PNG) بالنسخة المناسبة لخلفية القالب. full: الشعار الكامل */
 export type CertBrand = {
@@ -144,8 +144,8 @@ export async function certificatePdf(input: CertDesign, d: CertData, brand: Cert
     }
     if (B.hours.show && d.hours > 0) pair(hoursOf(design.hoursText, d.hours), hoursOf(en.hoursText, d.hours), py(B.hours.y), B.hours.size, f.sans, T.soft, 1)
     if (B.date.show) {
-      pair(`صدرت في ${d.date}`, d.dateEn ? `${en.issued} ${d.dateEn}` : '', py(B.date.y), B.date.size, f.sans, T.ink, 1)
-      if (d.hijri) line(page, `الموافق ${d.hijri}`, { x: AR, y: py(B.date.y) + B.date.size * 1.5, size: B.date.size * 0.9, font: f.sans, color: T.soft })
+      /* العربي باليوم والهجري، والإنجليزي باليوم والميلادي — بقرار المالك */
+      pair(splitDateAr(d), splitDateEn(d, en.issued), py(B.date.y), B.date.size, f.sans, T.ink, 1)
     }
   } else {
     if (B.title.show) {
@@ -209,7 +209,11 @@ export async function certificatePdf(input: CertDesign, d: CertData, brand: Cert
     const img = await image(doc, design.stampId)
     if (img) {
       const h = B.stamp.size, w = (img.width / img.height) * h
-      page.drawImage(img, { x: px(B.stamp.x) - w / 2, y: PAGE.h - py(B.stamp.y) - h / 2, width: w, height: h })
+      /* الدوران في pdf-lib عكس عقارب الساعة حول الزاوية السفلى — نحسب الزاوية فيبقى المركز في موضعه */
+      const t = (-(design.stampRotate ?? 0) * Math.PI) / 180
+      const cx = px(B.stamp.x), cy = PAGE.h - py(B.stamp.y)
+      const ox = (w / 2) * Math.cos(t) - (h / 2) * Math.sin(t), oy = (w / 2) * Math.sin(t) + (h / 2) * Math.cos(t)
+      page.drawImage(img, { x: cx - ox, y: cy - oy, width: w, height: h, rotate: degrees((t * 180) / Math.PI) })
     }
   }
   if (B.qr.show) {

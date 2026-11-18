@@ -209,15 +209,32 @@ test('ترحيل 0022: القالب الثنائي افتراضياً بنصوص
   assert.equal(d.layout, 'split')
   assert.equal(d.title, 'شهادة حضور')
   assert.equal(d.signatories[0].name, 'فهد')
-  assert.deepEqual(d.blocks, SPLIT_BLOCKS)
+  /* الترحيل مطبَّق في الإنتاج بمواضع يومها — لا يُقارن بما تغيّر بعده (رمز التحقق والختم: ترحيل 0023) */
+  for (const k of ['title', 'name', 'idNumber', 'course', 'date', 'signatures'] as const) assert.deepEqual(d.blocks[k], SPLIT_BLOCKS[k])
 })
 
 test('الختم: مقابل رمز التحقق في التخطيط المنقسم، والقديم بلا ختم كما هو', async () => {
   const { signerEn } = await import('../src/lib/certificate')
   const d = mergeDesign({ layout: 'split' })
   assert.equal(d.stampId, null)
-  assert.equal(d.blocks.stamp.x, 100 - d.blocks.qr.x)
-  assert.equal(d.blocks.stamp.y, d.blocks.qr.y)
+  assert.ok(d.blocks.stamp.x < 15 && d.blocks.stamp.size >= 90)
+  assert.ok(Math.abs(d.blocks.stamp.y - d.blocks.qr.y) <= 1, 'على ارتفاع رمز التحقق')
+  assert.equal(d.stampRotate, 12, 'مائل يميناً كالختم المطبوع')
   assert.equal(signerEn({ name: 'فهد', title: 'المدير', signatureId: null, nameEn: 'Fahad', titleEn: 'Director' }), 'Fahad, Director')
   assert.equal(signerEn({ name: 'فهد', title: 'المدير', signatureId: null }), '')
+})
+
+test('ترحيل 0023: يكبّر الختم الافتراضي القديم ولا يمسّ مقاساً عدّله صاحبه', async () => {
+  const { readFileSync } = await import('node:fs')
+  const { sql } = await import('drizzle-orm')
+  const base = mergeDesign({ layout: 'split' })
+  await db.insert(s.certificateTemplates).values([
+    { id: 't-62', name: 'قديم', design: { ...base, blocks: { ...base.blocks, stamp: { x: 9, y: 84, size: 62, show: true }, qr: { x: 91, y: 84, size: 46, show: true } } } },
+    { id: 't-80', name: 'معدّل', design: { ...base, blocks: { ...base.blocks, stamp: { x: 12, y: 80, size: 80, show: true } } } },
+  ])
+  for (const q of readFileSync('migrations/0023_larger_certificate_stamp.sql', 'utf8').split('--> statement-breakpoint')) await db.run(sql.raw(q))
+  const rows = await db.select().from(s.certificateTemplates)
+  assert.equal(rows.find((r) => r.id === 't-62')!.design.blocks.stamp.size, 92)
+  assert.equal(rows.find((r) => r.id === 't-80')!.design.blocks.stamp.size, 80)
+  assert.equal(rows.find((r) => r.id === 't-62')!.design.blocks.qr.x, 88.5)
 })
