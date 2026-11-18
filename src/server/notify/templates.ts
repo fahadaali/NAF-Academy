@@ -8,6 +8,12 @@ const C = {
   dBg: '#070d14', dCard: '#101b27', dLine: '#1f2c3a', dInk: '#efe9db', dSoft: '#c7c1b3',
 }
 
+/** سطح كحلي ثابت: الوضع الداكن في تطبيق Gmail يعكس لون الخلفية (فيفتح الكحلي ويختفي الشعار الفاتح فوقه) ولا يمسّ صور الخلفية —
+    فالتدرّج بلون واحد يُبقيه كحلياً، ولون الخلفية لما لا يقرأ التدرّج (Outlook) */
+const nightBg = () => `background-color:${C.night};background-image:linear-gradient(${C.night},${C.night})`
+/** نص فاتح فوق السطح الكحلي: Gmail يعكس لون النص أيضاً فيصير داكناً — طبقتا مزج تعيدانه كما هو في Gmail وحده (u + .body) */
+const keepLight = (html: string) => `<span class="gm-screen"><span class="gm-diff">${html}</span></span>`
+
 export const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!)
 
 /** الهوية في البريد — روابط مطلقة للشعارات (PNG) من اللوحة */
@@ -69,7 +75,7 @@ export function renderEmail(p: EmailParts): { html: string; text: string } {
     ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="box" ${d} style="margin:8px 0 22px;direction:${dir};background:${C.bg};border-radius:14px">${facts.map(([k, v]) => `<tr><td ${d} style="padding:10px 16px;direction:${dir};text-align:${start};font-size:13px;color:${C.muted};white-space:nowrap;vertical-align:top" class="muted">${esc(k)}</td><td class="ink" ${d} style="padding:10px 16px;direction:${dir};text-align:${end};font-size:15px;font-weight:700;color:${C.ink}"><span dir="auto" style="unicode-bidi:isolate">${esc(v)}</span></td></tr>`).join('')}</table>`
     : ''
   const code = p.code
-    ? `<div style="margin:24px 0;padding:18px;border-radius:14px;background:${C.night};color:#e0bc6e;font:800 34px/1 'Courier New',monospace;letter-spacing:10px;text-align:center;direction:ltr">${esc(p.code)}</div>`
+    ? `<div style="margin:24px 0;padding:18px;border-radius:14px;${nightBg()};color:#e0bc6e;font:800 34px/1 'Courier New',monospace;letter-spacing:10px;text-align:center;direction:ltr">${keepLight(esc(p.code))}</div>`
     : ''
   const cta = p.cta
     ? `<table role="presentation" cellpadding="0" cellspacing="0" ${d} style="margin:6px 0 8px;direction:${dir}"><tr><td style="border-radius:999px;background:${C.gold}"><a href="${esc(p.cta.href)}" style="display:inline-block;padding:14px 30px;font-family:${font};font-size:16px;font-weight:700;color:${C.night};text-decoration:none;border-radius:999px">${esc(p.cta.label)}</a></td></tr></table>`
@@ -87,12 +93,13 @@ export function renderEmail(p: EmailParts): { html: string; text: string } {
 @media (prefers-color-scheme:dark){${dark}}
 ${p.forceDark ? dark : ''}
 @media (max-width:480px){.pad{padding:24px 20px!important}}
+u + .body .gm-screen{display:inline-block;background:#000;mix-blend-mode:screen}u + .body .gm-diff{display:inline-block;background:#000;mix-blend-mode:difference}
 </style></head>
-<body class="bg" ${d} style="margin:0;padding:0;direction:${dir};background:${C.bg};font-family:${font};color:${C.ink};-webkit-text-size-adjust:100%">
+<body class="bg body" ${d} style="margin:0;padding:0;direction:${dir};background:${C.bg};font-family:${font};color:${C.ink};-webkit-text-size-adjust:100%">
 ${p.preheader ? `<div style="display:none;max-height:0;overflow:hidden;opacity:0">${esc(p.preheader)}</div>` : ''}
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="bg" ${d} style="direction:${dir};background:${C.bg};padding:32px 12px"><tr><td align="center" ${d}>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="card" ${d} style="direction:${dir};max-width:560px;background:${C.card};border-radius:20px;overflow:hidden;border:1px solid ${C.line}">
-<tr><td ${d} style="background:${C.night};padding:20px 32px;direction:${dir};text-align:${start}">${p.brand.logo ? `<img src="${esc(p.brand.logo)}" alt="${esc(p.brand.name)}" height="36" style="height:36px;width:auto;border:0;vertical-align:middle;display:inline-block">` : ''}${p.brand.showName || !p.brand.logo ? ` <span dir="auto" style="unicode-bidi:isolate"><span style="font-family:${font};color:${C.ivory};font-size:19px;font-weight:700;vertical-align:middle">${esc(p.brand.name)}</span>${p.brand.tagline ? ` <span style="color:${C.gold};font-size:13px;vertical-align:middle">${esc(p.brand.tagline)}</span>` : ''}</span>` : ''}</td></tr>
+<tr><td ${d} style="${nightBg()};padding:20px 32px;direction:${dir};text-align:${start}">${p.brand.logo ? `<img src="${esc(p.brand.logo)}" alt="${esc(p.brand.name)}" height="36" style="height:36px;width:auto;border:0;vertical-align:middle;display:inline-block">` : ''}${p.brand.showName || !p.brand.logo ? ` <span dir="auto" style="unicode-bidi:isolate;vertical-align:middle">${keepLight(`<span style="font-family:${font};color:${C.ivory};font-size:19px;font-weight:700">${esc(p.brand.name)}</span>${p.brand.tagline ? ` <span style="color:${C.gold};font-size:13px">${esc(p.brand.tagline)}</span>` : ''}`)}</span>` : ''}</td></tr>
 <tr><td style="height:3px;background:${C.gold};line-height:3px;font-size:0">&nbsp;</td></tr>
 <tr><td class="pad" ${d} style="padding:34px 32px 26px;direction:${dir};text-align:${start}">
 <h1 class="ink" ${d} style="margin:0 0 14px;direction:${dir};text-align:${start};font-family:${font};font-size:26px;line-height:1.4;font-weight:700;color:${C.ink}">${esc(p.heading)}</h1>
