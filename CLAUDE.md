@@ -110,6 +110,7 @@
   من صفحة `/setup` (بكلمة `ADMIN_PASSWORD`: الترحيلات ← البذرة ← حزمة الهوية إلى R2 من `public/_kit` ← المالك الأول)، وتلقائياً في المشغّل الدوري.
   البذرة `seedContent()` وحزمة الهوية `applyBrandKit()` في `src/server/setup/` مشتركتان مع `db-setup` محلياً. ترحيل جديد يكفيه `db:generate` والنشر.
   قبل التهيئة لا جداول: `getSetting()` يعيد الافتراضي (`notMigrated`) فتعمل الصفحة.
+  **`/setup` مقفلة بعد التهيئة** (`SETUP_LOCKED` في `wrangler.jsonc` ← `isSetupLocked()`): الصفحة وإجراءاها معاً، والفتح بتغيير المتغير في Cloudflare لا بكلمة مرور.
 - القراءة العامة من `src/server/queries.ts` فقط، والكتابة من `src/admin/actions.ts` فقط.
   كل إجراء كتابة: `requireAdmin()` ← تحقق zod (`src/admin/schemas.ts`) ← كتابة ← `audit()` ← `revalidatePath`.
 - الحذف ناعم دائماً (`deletedAt`) ويمرّ بسلة المحذوفات؛ الحذف النهائي من السلة فقط وبتأكيد مكتوب.
