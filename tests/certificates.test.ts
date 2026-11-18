@@ -188,3 +188,26 @@ test('غير المسجّل لا تُنشأ له شهادة', async () => {
   await db.delete(s.certificates).where(eq(s.certificates.learnerId, 'b'))
   assert.equal(await c.checkCertificate('b', 'c1'), null)
 })
+
+test('ترحيل 0022: القالب الثنائي افتراضياً بنصوص القالب القائم وموقّعيه، ومرة واحدة', async () => {
+  const { readFileSync } = await import('node:fs')
+  const { sql } = await import('drizzle-orm')
+  const { SPLIT_BLOCKS } = await import('../src/lib/certificate')
+  const ID = '4009e14e-7009-4d28-b3c9-64c2581e6099'
+  /* قاعدة قائمة: قالب افتراضي معدَّل (القاعدة المؤقتة هنا فارغة القوالب فلم يُطبَّق عليها شيء) */
+  assert.equal((await db.select().from(s.certificateTemplates)).length, 0)
+  await db.insert(s.certificateTemplates).values({ id: 't-old', name: 'قالبنا', isDefault: true, design: mergeDesign({ title: 'شهادة حضور', signatories: [{ name: 'فهد', title: 'المدير', signatureId: null }] }) })
+  const run = async () => { for (const q of readFileSync('migrations/0022_split_default_certificate.sql', 'utf8').split('--> statement-breakpoint')) await db.run(sql.raw(q)) }
+  await run()
+  await run()
+  const rows = await db.select().from(s.certificateTemplates)
+  assert.equal(rows.length, 2)
+  const t = rows.find((r) => r.id === ID)!
+  assert.equal(t.isDefault, true)
+  assert.equal(rows.find((r) => r.id === 't-old')!.isDefault, false)
+  const d = mergeDesign(t.design)
+  assert.equal(d.layout, 'split')
+  assert.equal(d.title, 'شهادة حضور')
+  assert.equal(d.signatories[0].name, 'فهد')
+  assert.deepEqual(d.blocks, SPLIT_BLOCKS)
+})
