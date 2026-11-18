@@ -8,7 +8,7 @@ import { z } from 'zod'
 import { db, schema as s } from '@/server/db'
 import { courseScope, inScope, requirePermission, type Staff } from '@/server/auth'
 import { audit } from '@/server/audit'
-import { certBrand, dateAr, hijriAr, issueCertificate, recheckCourse, regeneratePdf } from '@/server/certificates'
+import { certBrand, dateAr, dayAr, dayEn, hijriAr, issueCertificate, recheckCourse, regeneratePdf } from '@/server/certificates'
 import { certificatePdf } from '@/server/certificates/pdf'
 import { BLOCKS, DEFAULT_DESIGN, type CertDesign } from '@/lib/certificate'
 import { SAMPLE_ID } from '@/lib/identity'
@@ -107,6 +107,7 @@ const designInput = z.object({
   tone: z.enum(['ivory', 'night']),
   backgroundId: z.string().nullable(),
   stampId: z.string().nullable().default(null),
+  stampRotate: z.number().min(-45).max(45).default(12),
   title: z.string().trim().min(1, 'العنوان مطلوب').max(80),
   lead: z.string().trim().max(120),
   courseLead: z.string().trim().max(120),
@@ -166,7 +167,7 @@ export async function previewTemplatePdf(design: CertDesign): Promise<string> {
   const bytes = await certificatePdf(d, {
     name: 'سارة عبدالله المتدربة', course: 'نظام الإثبات: من النص إلى المرافعة', hours: 12, date: dateAr(now), hijri: hijriAr(now),
     code: 'NAF-DEMO-2026', verifyUrl: 'https://academy.example/certificates/NAF-DEMO-2026', nameEn: 'Sarah Abdullah', courseEn: 'Evidence Law: From Text to Pleading',
-    dateEn: new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Riyadh', day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(now)), idNumber: SAMPLE_ID,
+    dateEn: new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Riyadh', day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(now)), dayAr: dayAr(now), dayEn: dayEn(now), idNumber: SAMPLE_ID,
   }, await certBrand(d.tone))
   return `data:application/pdf;base64,${Buffer.from(bytes).toString('base64')}`
 }

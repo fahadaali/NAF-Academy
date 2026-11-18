@@ -1,13 +1,13 @@
 /* عرض الشهادة في الصفحة — نفس المواضع والمقاسات النسبية لملف PDF (الصفحة 842×595 نقطة).
    المقاسات بوحدة cqw فيتناسب العرض مع أي عرض حاوية. */
-import { BLOCKS, hoursOf, mergeDesign, PAGE, signerEn, SPLIT, TONES, type BlockKey, type CertDesign } from '@/lib/certificate'
+import { BLOCKS, hoursOf, mergeDesign, PAGE, signerEn, SPLIT, splitDateAr, splitDateEn, TONES, type BlockKey, type CertDesign } from '@/lib/certificate'
 import { parse, render } from '@/motion/kashida'
 import { Emblem } from './Emblem'
 import { LogoMark } from './Logo'
 import { hasLogo, large, type BrandView } from '@/lib/brand'
 import c from './certificate.module.css'
 
-export type CertViewData = { name: string; course: string; hours: number; date: string; hijri: string; code: string; qrSvg?: string; nameEn?: string; courseEn?: string; dateEn?: string; idNumber?: string }
+export type CertViewData = { name: string; course: string; hours: number; date: string; hijri: string; code: string; qrSvg?: string; nameEn?: string; courseEn?: string; dateEn?: string; idNumber?: string; dayAr?: string; dayEn?: string }
 
 const cq = (pt: number) => `${(pt / PAGE.w) * 100}cqw`
 
@@ -50,8 +50,8 @@ export function CertificateView({ design: input, data, brand, onPick, active, dr
       <div className={c.course} style={{ fontSize: cq(B.course.size) }}><span>{en.courseLead}</span><strong style={{ fontSize: data.courseEn ? '0.85em' : undefined }}>{data.courseEn || data.course}</strong></div>),
     hours: data.hours > 0 ? pair('hours', <div className={c.soft} style={{ fontSize: cq(B.hours.size) }}>{hoursOf(design.hoursText, data.hours)}</div>,
       <div className={c.soft} style={{ fontSize: cq(B.hours.size) }}>{hoursOf(en.hoursText, data.hours)}</div>) : null,
-    date: pair('date', <div className={c.date} style={{ fontSize: cq(B.date.size) }}><span>صدرت في {data.date}</span>{data.hijri && <small>الموافق {data.hijri}</small>}</div>,
-      data.dateEn ? <div className={c.date} style={{ fontSize: cq(B.date.size) }}><span>{en.issued} {data.dateEn}</span></div> : null),
+    date: pair('date', <div className={c.date} style={{ fontSize: cq(B.date.size) }}><span>{splitDateAr(data)}</span></div>,
+      data.dateEn ? <div className={c.date} style={{ fontSize: cq(B.date.size) }}><span>{splitDateEn(data, en.issued)}</span></div> : null),
   } : {}
   const nodes: Record<BlockKey, React.ReactNode> = {
     /* شعار الأكاديمية وحده — الكامل إن رُفع، وإلا صيغة الشريط — كما في ملف PDF */
@@ -79,7 +79,7 @@ export function CertificateView({ design: input, data, brand, onPick, active, dr
     /* الختم مقابل رمز التحقق — بلا صورة يظهر موضعه في المحرّر وحده */
     stamp: at('stamp', design.stampId && images[design.stampId]
       // eslint-disable-next-line @next/next/no-img-element
-      ? <img className={c.stamp} src={images[design.stampId]} alt="" style={{ blockSize: cq(B.stamp.size) }} />
+      ? <img className={c.stamp} src={images[design.stampId]} alt="" style={{ blockSize: cq(B.stamp.size), rotate: `${design.stampRotate}deg` }} />
       : onPick ? <span className={c.stampPh} style={{ blockSize: cq(B.stamp.size), inlineSize: cq(B.stamp.size) }}>الختم</span> : null),
     qr: at('qr', <div className={c.qr} style={{ inlineSize: cq(B.qr.size) }}>
       {data.qrSvg ? <span className={c.qrBox} dangerouslySetInnerHTML={{ __html: data.qrSvg }} /> : <span className={c.qrBox} data-ph="1" />}

@@ -162,6 +162,13 @@
       "when": 1795023089142,
       "tag": "0022_split_default_certificate",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "6",
+      "when": 1795027349825,
+      "tag": "0023_larger_certificate_stamp",
+      "breakpoints": true
     }
   ]
 }

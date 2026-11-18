@@ -136,6 +136,10 @@ export async function issueAwaitingId(learnerId: string) {
 const dateAr = (iso: string) => new Intl.DateTimeFormat('ar-SA-u-nu-latn-ca-gregory', { timeZone: 'Asia/Riyadh', day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(iso))
 const hijriAr = (iso: string) => `${formatHijri(iso)} ${new Intl.DateTimeFormat('ar-SA-u-nu-latn-ca-islamic-umalqura', { timeZone: 'Asia/Riyadh', year: 'numeric' }).format(new Date(iso)).replace(/[^\d]/g, '')}`
 
+/** اسم اليوم بالعربية والإنجليزية — بتوقيت الرياض */
+const dayAr = (iso: string) => new Intl.DateTimeFormat('ar-SA', { timeZone: 'Asia/Riyadh', weekday: 'long' }).format(new Date(iso))
+const dayEn = (iso: string) => new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Riyadh', weekday: 'long' }).format(new Date(iso))
+
 const dateEn = (iso: string) => new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Riyadh', day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(iso))
 
 /** رابط التحقق المطلق — null في الإنتاج بلا SITE_URL: لا يُطبع في ملف يخرج من المنصة (PDF وQR) رابط نسبي لا يُفتح */
@@ -163,7 +167,7 @@ async function renderPdf(c: typeof s.certificates.$inferSelect, design?: CertDes
   if (!url) throw new Error('SITE_URL غير مضبوط — لا تُولَّد الشهادة برابط تحقق نسبي')
   return certificatePdf(d, {
     name: c.name, course: c.courseTitle, hours: c.hours, date: dateAr(c.issuedAt ?? nowIso()), hijri: hijriAr(c.issuedAt ?? nowIso()),
-    nameEn: c.nameEn, courseEn: c.courseTitleEn, dateEn: dateEn(c.issuedAt ?? nowIso()), idNumber: c.nationalId,
+    nameEn: c.nameEn, courseEn: c.courseTitleEn, dateEn: dateEn(c.issuedAt ?? nowIso()), dayAr: dayAr(c.issuedAt ?? nowIso()), dayEn: dayEn(c.issuedAt ?? nowIso()), idNumber: c.nationalId,
     code: c.code ?? 'NAF-XXXX-XXXX', verifyUrl: url,
   }, await certBrand(d.tone))
 }
@@ -225,10 +229,10 @@ export async function viewData(c: typeof s.certificates.$inferSelect) {
     ? (await QRCode.toString(abs, { type: 'svg', margin: 0, errorCorrectionLevel: 'M' })).replace(/fill="#ffffff"/gi, 'fill="transparent"').replace(/#000000/g, 'currentColor')
     : undefined
   /* الصفحة عامة برابط التحقق: رقم الهوية مقنّع فيها، وكاملاً في ملف PDF وحده (وثيقة المتدرب) */
-  return { name: c.name, course: c.courseTitle, hours: c.hours, date: dateAr(at), hijri: hijriAr(at), code: c.code ?? 'NAF-XXXX-XXXX', qrSvg, nameEn: c.nameEn, courseEn: c.courseTitleEn, dateEn: dateEn(at), idNumber: maskId(c.nationalId) }
+  return { name: c.name, course: c.courseTitle, hours: c.hours, date: dateAr(at), hijri: hijriAr(at), code: c.code ?? 'NAF-XXXX-XXXX', qrSvg, nameEn: c.nameEn, courseEn: c.courseTitleEn, dateEn: dateEn(at), dayAr: dayAr(at), dayEn: dayEn(at), idNumber: maskId(c.nationalId) }
 }
 
-export { dateAr, hijriAr }
+export { dateAr, dayAr, dayEn, hijriAr }
 
 /** روابط صور القالب (الخلفية والتوقيعات) بمعرّفاتها — لعرض الشهادة في الصفحة مطابقاً لملف PDF */
 export async function certImages(design: CertDesign | null | undefined): Promise<Record<string, string>> {
