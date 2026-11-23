@@ -119,7 +119,7 @@ export function CourseEditor({ id, initial, previewToken, tracks, instructors, m
       status: (v.status === 'draft' || v.status === 'scheduled' || v.status === 'archived' ? 'open' : v.status) as CourseStatus,
       startsAt: v.startsAt ?? undefined, hours: v.hours, city: v.city || undefined,
       seats: v.seatsTotal ? { total: v.seatsTotal, taken: Math.min(v.seatsTaken, v.seatsTotal) } : undefined,
-      pricing: { amount: v.price, compareAt: v.compareAt ?? undefined, saleEndsAt: v.saleEndsAt ?? undefined, free: v.free },
+      pricing: { amount: v.price, compareAt: v.compareAt ?? undefined, saleStartsAt: v.saleStartsAt ?? undefined, saleEndsAt: v.saleEndsAt ?? undefined, free: v.free },
       instructor: inst[0] ?? '', instructors: inst,
       cover: cover ? { url: urlOf(cover), alt: cover.alt, x: cover.focalX, y: cover.focalY, w: cover.width, h: cover.height } : undefined,
     }
@@ -184,6 +184,11 @@ export function CourseEditor({ id, initial, previewToken, tracks, instructors, m
           {tab === 'pricing' && (
             <Section title="التسعير والعروض" desc="السعر الأصلي يظهر مشطوباً بجانب سعر العرض، ويعود تلقائياً عند انتهاء العرض">
               <Switch checked={v.free} onChange={(x) => set('free', x)} label="دورة مجانية" />
+              {v.free && (
+                <Field label="السعر السابق (اختياري)" error={err('compareAt')} hint="يظهر مشطوباً بجانب «مجاناً» — اتركه فارغاً لإخفائه">
+                  <Money value={v.compareAt} onChange={(x) => set('compareAt', x)} placeholder="2490" />
+                </Field>
+              )}
               {!v.free && (
                 <>
                   <Grid>
@@ -205,7 +210,7 @@ export function CourseEditor({ id, initial, previewToken, tracks, instructors, m
                 </>
               )}
               <div className={styles.priceNote}>
-                {v.free ? 'ستظهر «مجاناً».' : pv.original ? `ستظهر بخصم ${pv.savePct}% — يدفع المتدرب ${(pv.current / 100).toLocaleString('en-US')} ريالاً.` : 'ستظهر بسعر واحد بلا عرض.'}
+                {pv.free ? (pv.original ? `ستظهر «مجاناً» والسعر ${(pv.original / 100).toLocaleString('en-US')} ريالاً مشطوباً${pv.endsAt ? ' حتى نهاية العرض' : ''}.` : 'ستظهر «مجاناً».') : pv.original ? `ستظهر بخصم ${pv.savePct}% — يدفع المتدرب ${(pv.current / 100).toLocaleString('en-US')} ريالاً.` : 'ستظهر بسعر واحد بلا عرض.'}
                 <span>{v.tiers.length ? 'للدورة باقات — سعر الباقة يحلّ محل السعر الأساسي، ونافذة العرض تسري على الباقات أيضاً.' : 'الكوبونات والعروض العامة (على المنصة أو مسار) تُدار من قسم المبيعات.'}</span>
               </div>
             </Section>

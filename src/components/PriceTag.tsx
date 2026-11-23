@@ -24,21 +24,24 @@ export function PriceTag({ pricing, size = 'm' }: { pricing: Pricing; size?: 's'
   }, [])
   const v = priceView(pricing, now ? new Date(now) : undefined)
 
-  if (v.free) return <div className={`${styles.tag} ${styles[size]}`}><strong className={styles.current}>مجاناً</strong></div>
-
   const left = v.endsAt && now ? remaining(v.endsAt, now) : null
   return (
     <div className={`${styles.tag} ${styles[size]}`}>
       <div className={styles.row}>
-        <strong className={`${styles.current} num`}>
-          {pricing.from && <span className={styles.from}>من </span>}{formatAmount(v.current)} <Riyal />
-        </strong>
+        {v.free
+          /* «مجاناً» — ومن كانت بسعر قبلها (دائمة أو في نافذة عرض) يبقى سعرها السابق مشطوباً كأي خصم */
+          ? <strong className={styles.current}>{pricing.from ? 'تبدأ مجاناً' : 'مجاناً'}</strong>
+          : (
+            <strong className={`${styles.current} num`}>
+              {pricing.from && <span className={styles.from}>من </span>}{formatAmount(v.current)} <Riyal />
+            </strong>
+          )}
         {v.original && (
-          <s className={`${styles.original} num`} aria-label={`السعر قبل العرض ${formatAmount(v.original)} ريال`}>
+          <s className={`${styles.original} num`} aria-label={`${v.free ? 'السعر السابق' : 'السعر قبل العرض'} ${formatAmount(v.original)} ريال`}>
             {formatAmount(v.original)} <Riyal />
           </s>
         )}
-        {v.savePct ? <span className={`${styles.save} num`}>وفّر {v.savePct}%</span> : null}
+        {v.savePct && !v.free ? <span className={`${styles.save} num`}>وفّر {v.savePct}%</span> : null}
       </div>
       {v.label && <span className={styles.promo}>{v.label}</span>}
       {left && !left.done && (
