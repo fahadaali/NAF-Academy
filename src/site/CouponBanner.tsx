@@ -56,7 +56,7 @@ export function CouponBanner({ slug }: { slug: string }) {
       padding: '10px 16px', background: 'var(--gold-3)', color: 'var(--night-1)', fontWeight: 700, fontSize: 15, animation: 'none',
     }}>
       <span>كوبون {code.toUpperCase()} مفعّل</span>
-      <span className="num">السعر بعد الخصم: {formatAmount(q.total)} <Riyal /> {q.saleActive || q.couponDiscount ? <s style={{ opacity: 0.6, fontWeight: 500 }}>{formatAmount(q.unitList)}</s> : null}</span>
+      <span className="num">السعر بعد الخصم: {q.total > 0 ? <>{formatAmount(q.total)} <Riyal /></> : 'مجاناً'} {q.saleActive || q.couponDiscount ? <s style={{ opacity: 0.6, fontWeight: 500 }}>{formatAmount(q.unitList)}</s> : null}</span>
     </div>
   )
 }

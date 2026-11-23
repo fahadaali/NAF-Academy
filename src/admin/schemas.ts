@@ -158,6 +158,8 @@ export const courseInput = z
   .superRefine((v, ctx) => {
     if (v.compareAt !== null && !v.free && v.compareAt <= v.price)
       ctx.addIssue({ code: 'custom', path: ['compareAt'], message: 'السعر قبل العرض يجب أن يكون أعلى من الحالي' })
+    if (v.compareAt !== null && v.free && v.compareAt <= 0)
+      ctx.addIssue({ code: 'custom', path: ['compareAt'], message: 'السعر السابق أكبر من صفر — أو اتركه فارغاً' })
     if (v.saleStartsAt && v.saleEndsAt && Date.parse(v.saleStartsAt) >= Date.parse(v.saleEndsAt))
       ctx.addIssue({ code: 'custom', path: ['saleEndsAt'], message: 'نهاية العرض بعد بدايته' })
     if (v.status === 'scheduled' && !v.publishAt)

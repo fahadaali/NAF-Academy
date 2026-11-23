@@ -1,6 +1,7 @@
 import type { Pricing, Promo } from '@/content/types'
 
 export type PriceView = {
+  /** يُدفع صفراً الآن — دائماً أو في نافذة عرض (ومعه `original` إن كان للدورة سعر قبله) */
   free: boolean
   /** السعر الذي يُدفع الآن بالهللة */
   current: number
@@ -26,9 +27,13 @@ export const promoPrice = (base: number, p: Pick<Promo, 'kind' | 'value'>) =>
 /** يحسب ما يُعرض من السعر في لحظة معيّنة: عرض الدورة في نافذته (من البداية إلى النهاية) أو أفضل عرض عام منطبق —
     الأفضل للمشتري بلا تراكم — وخارج النوافذ يعود السعر الأصلي تلقائياً */
 export function priceView(p: Pricing, now: Date = new Date()): PriceView {
-  if (p.free || p.amount <= 0) return { free: true, current: 0 }
+  const hasSale = p.compareAt !== undefined && p.compareAt > Math.max(0, p.amount)
+  /* المجانية الدائمة (مفتاح «دورة مجانية» أو سعر صفر بلا سعر سابق): السعر السابق إن وُجد يظهر مشطوباً بجانب «مجاناً» */
+  if (p.free || (p.amount <= 0 && !hasSale)) {
+    const was = p.compareAt && p.compareAt > 0 ? p.compareAt : undefined
+    return was ? { free: true, current: 0, original: was, savePct: 100 } : { free: true, current: 0 }
+  }
   const t = now.getTime()
-  const hasSale = p.compareAt !== undefined && p.compareAt > p.amount
   const base = hasSale ? p.compareAt! : p.amount
   const saleLive = hasSale && within(t, p.saleStartsAt, p.saleEndsAt)
   let best: { price: number; endsAt?: string | null; label?: string } = saleLive ? { price: p.amount, endsAt: p.saleEndsAt } : { price: base }
@@ -38,9 +43,10 @@ export function priceView(p: Pricing, now: Date = new Date()): PriceView {
     if (price < best.price) best = { price, endsAt: pr.endsAt, label: pr.label }
   }
   if (best.price >= base) return { free: false, current: base }
+  /* عرض يبلغ الصفر (سعر الدورة صفر في نافذته، أو عرض عام بمبلغ ثابت) مجانيٌّ مؤقت: «مجاناً» والسعر قبله مشطوباً وعدّاده */
   return {
-    free: false,
-    current: best.price,
+    free: best.price <= 0,
+    current: Math.max(0, best.price),
     original: base,
     savePct: Math.round((1 - best.price / base) * 100),
     endsAt: best.endsAt ? new Date(best.endsAt) : undefined,

@@ -90,7 +90,7 @@ export function CoursesTable({ courses, tracks, media }: { courses: CourseRow[];
                   <td className={p.muted}>{modeLabel[c.mode]}</td>
                   <td className={`${p.muted} num`}>{c.startsAt ? formatDay(c.startsAt) : '—'}</td>
                   <td className="num">
-                    {c.free ? 'مجاني' : <>{formatAmount(c.price)}{c.compareAt ? <>{' '}<s className={p.muted}>{formatAmount(c.compareAt)}</s></> : null}</>}
+                    {c.free || c.price <= 0 ? 'مجاني' : formatAmount(c.price)}{c.compareAt && c.compareAt > 0 && (c.free || c.compareAt > c.price) ? <>{' '}<s className={p.muted}>{formatAmount(c.compareAt)}</s></> : null}
                   </td>
                   <td>
                     <div className={`${p.cellRow} ${p.tools}`}>

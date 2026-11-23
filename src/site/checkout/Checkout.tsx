@@ -141,7 +141,7 @@ export function Checkout({ slug, title, tiers, cohorts = [], initialCohort = nul
                 <button key={t.id} type="button" role="radio" aria-checked={tierId === t.id} className={s.tier} data-highlight={t.highlight ? '1' : '0'} onClick={() => setTierId(t.id)}>
                   {t.highlight && <span className={s.flag}>الأكثر اختياراً</span>}
                   <strong>{t.name}</strong>
-                  <span className={`num ${s.tierPrice}`}>{formatAmount(t.price)} <Riyal />{t.compareAt ? <s>{formatAmount(t.compareAt)}</s> : null}</span>
+                  <span className={`num ${s.tierPrice}`}>{t.price > 0 ? <>{formatAmount(t.price)} <Riyal /></> : 'مجاناً'}{t.compareAt ? <s>{formatAmount(t.compareAt)}</s> : null}</span>
                   {t.description && <span className={s.tierDesc}>{t.description}</span>}
                   {t.features.length > 0 && <ul role="list">{t.features.map((f) => <li key={f}>{f}</li>)}</ul>}
                 </button>
@@ -214,7 +214,7 @@ export function Checkout({ slug, title, tiers, cohorts = [], initialCohort = nul
           <h2 className={s.sumTitle}>{title}</h2>
           <dl className={s.lines}>
             <div><dt>{q.quantity > 1 ? <>سعر المقعد × <span className="num">{q.quantity}</span></> : 'سعر الدورة'}</dt>
-              <dd>{q.saleActive && <s className="num">{formatAmount(q.unitList * q.quantity)}</s>}<Money v={q.subtotal} /></dd></div>
+              <dd>{q.saleActive && <s className="num">{formatAmount(q.unitList * q.quantity)}</s>}{q.subtotal > 0 ? <Money v={q.subtotal} /> : 'مجاناً'}</dd></div>
             {q.groupDiscount > 0 && <div className={s.minus}><dt>خصم المجموعة <span className="num">{q.groupPercent}%</span></dt><dd><bdi dir="ltr">−<Money v={q.groupDiscount} /></bdi></dd></div>}
             {q.couponDiscount > 0 && <div className={s.minus}><dt>الكوبون {q.couponCode}</dt><dd><bdi dir="ltr">−<Money v={q.couponDiscount} /></bdi></dd></div>}
           </dl>

@@ -10,7 +10,7 @@ import { Riyal } from '@/components/Riyal'
 import { CouponBanner } from './CouponBanner'
 import { Teaser } from './Teaser'
 import { EnrollCta } from './EnrollCta'
-import { formatAmount } from '@/lib/pricing'
+import { formatAmount, priceView } from '@/lib/pricing'
 import { mergeRules } from '@/lib/certificate'
 import { levelLabel, modeLabel, statusView } from '@/lib/course-meta'
 import { formatDay, formatHijri, formatTime, formatWeekday } from '@/lib/dates'
@@ -35,7 +35,8 @@ export function CourseView({ data, preview, corporate = true, vat = 0 }: { data:
   /* خصم المجموعة: أعلى نسبة بعدد مقاعدها هي، وأول عتبة يبدأ عندها */
   const bestRule = groupRules.reduce<(typeof groupRules)[number] | null>((b, g) => (!b || g.percent > b.percent ? g : b), null)
   const firstRule = groupRules[0]
-  const isFree = fromPrice === null && (c.pricing.free || c.pricing.amount <= 0)
+  /* مجانية الآن بالقاعدة نفسها التي تعرض السعر (priceView): مفتاح «مجانية» أو عرض يبلغ الصفر — والباقات كلها بلا ثمن */
+  const isFree = fromPrice === null ? priceView(c.pricing).free : tiers.every((t) => t.price <= 0)
   const cohorts = c.cohorts ?? []
   const COHORT_LABEL = { open: 'التسجيل مفتوح', full: 'اكتمل العدد', soon: 'قريباً', closed: 'انتهى التسجيل' } as const
 
@@ -90,7 +91,7 @@ export function CourseView({ data, preview, corporate = true, vat = 0 }: { data:
                   <a key={t.id} href={`${enroll}?tier=${t.id}`} className={`reveal ${s.tier}`} data-highlight={t.highlight ? '1' : '0'} style={{ ['--d' as string]: i }}>
                     {t.highlight && <span className={s.flag}>الأكثر اختياراً</span>}
                     <strong>{t.name}</strong>
-                    <span className={`num ${s.tierPrice}`}>{formatAmount(t.price)} <Riyal />{t.compareAt ? <s>{formatAmount(t.compareAt)}</s> : null}</span>
+                    <span className={`num ${s.tierPrice}`}>{t.price > 0 ? <>{formatAmount(t.price)} <Riyal /></> : 'مجاناً'}{t.compareAt ? <s>{formatAmount(t.compareAt)}</s> : null}</span>
                     {t.description && <span className={s.muted}>{t.description}</span>}
                     {t.features.length > 0 && <ul role="list">{t.features.map((f) => <li key={f}>{f}</li>)}</ul>}
                     <span className={s.tierGo}>اختر هذه الباقة ←</span>
@@ -232,7 +233,7 @@ export function CourseView({ data, preview, corporate = true, vat = 0 }: { data:
         <aside className={s.aside} id="enroll">
           <div className={s.card} data-dim={st.dim ? '1' : '0'}>
             {st.dim && <span className={s.closedBadge}>{st.label}</span>}
-            {fromPrice !== null ? <p className={`num ${s.from}`}><span>تبدأ من</span> {formatAmount(fromPrice)} <Riyal /></p> : <PriceTag pricing={c.pricing} size="l" />}
+            {fromPrice !== null ? <p className={`num ${s.from}`}>{fromPrice > 0 ? <><span>تبدأ من</span> {formatAmount(fromPrice)} <Riyal /></> : 'تبدأ مجاناً'}</p> : <PriceTag pricing={c.pricing} size="l" />}
             {!isFree && vat > 0 && <p className={s.muted}>الأسعار شاملة ضريبة القيمة المضافة <span className="num">{vat}%</span></p>}
             {bestRule && firstRule && (
               <p className={s.muted}>
@@ -278,7 +279,7 @@ export function CourseView({ data, preview, corporate = true, vat = 0 }: { data:
       )}
 
       <div className={s.mobileBar} data-dim={st.dim ? '1' : '0'}>
-        {fromPrice !== null ? <span className={`num ${s.from}`} style={{ fontSize: 20 }}>من {formatAmount(fromPrice)} <Riyal /></span> : <PriceTag pricing={c.pricing} size="s" />}
+        {fromPrice !== null ? <span className={`num ${s.from}`} style={{ fontSize: 20 }}>{fromPrice > 0 ? <>من {formatAmount(fromPrice)} <Riyal /></> : 'تبدأ مجاناً'}</span> : <PriceTag pricing={c.pricing} size="s" />}
         {preview ? <a href={enroll} className="btn">{st.cta}</a> : <EnrollCta slug={c.slug} href={enroll} label={st.cta} className="btn" />}
       </div>
     </article>

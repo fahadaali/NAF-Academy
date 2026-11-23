@@ -373,7 +373,7 @@ export async function planScan(now: Date, cfg: NotifySettings) {
     /* المفتوحة فعلاً: بدفعات = دفعة مفتوحة فيها مقاعد (فطالب «الدفعة القادمة» يُبلَّغ حين تُفتح دفعة)، وإلا سعة الدورة */
     const memo = new Map<string, boolean>()
     for (const { i, c } of list) {
-      if (!sellable && !c.free && (c.price > 0 || tiered.has(c.id))) continue
+      if (!sellable && !c.free && (c.price > 0 || (c.compareAt ?? 0) > 0 || tiered.has(c.id))) continue
       if (!(await sellableNow(c, now, memo))) continue
       const base = { event: 'registration_open', courseId: c.id, ref: { interestId: i.id, email: i.email }, sendAt: iso(now), learnerId: null }
       rows.push({ ...base, key: `open:${i.id}:email`, channel: 'email', to: i.email })
@@ -478,7 +478,7 @@ async function contextFor(n: typeof s.notifications.$inferSelect, site: string, 
     link: `${site}/learn/${course.slug}`,
     calendar: `${site}/courses/${course.slug}/calendar${k ? `?cohort=${k.id}` : ''}`,
     starts: startsAt ? when(startsAt) : '',
-    price: pv.free ? 'مجانية' : `${tiers.length > 1 ? 'من ' : ''}${formatAmount(pv.current)} ر.س`,
+    price: pv.free ? (pv.original ? `مجانية بدلاً من ${formatAmount(pv.original)} ر.س` : 'مجانية') : `${tiers.length > 1 ? 'من ' : ''}${formatAmount(pv.current)} ر.س`,
   }
   const place = [k?.row.venue.split('\n')[0] || course.venue.split('\n')[0], k?.city || course.city].filter(Boolean).join('، ')
   /* الدرس بمواعيد دفعة المتدرب إن كان في دفعة */
